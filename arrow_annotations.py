@@ -1,5 +1,5 @@
 """
-Arrow annotation module for the Lithic Drawing Processor
+Arrow annotation module for the Lithic Editor and Annotator
 
 This module provides classes for adding, manipulating, and rendering
 arrow annotations on images.

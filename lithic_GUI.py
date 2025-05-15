@@ -303,7 +303,7 @@ class LithicProcessorGUI(QMainWindow):
 
     def initUI(self):
         # Main window setup
-        self.setWindowTitle('Lithic Drawing Processor')
+        self.setWindowTitle('Lithic Editor and Annotator')
         self.setGeometry(100, 100, 1400, 900)
         self.resize(1200, 800)  # Smaller starting size
         self.setMinimumSize(800, 600)  # Set minimum size
@@ -587,7 +587,7 @@ class LithicProcessorGUI(QMainWindow):
         self.update_brush()
 
         # Initial log message
-        self.log("Lithic Drawing Processor started. Ready to load images.")
+        self.log("Lithic Editor and Annotator started. Ready to load images.")
 
     def update_brush(self):
         """Update brush properties based on UI settings"""

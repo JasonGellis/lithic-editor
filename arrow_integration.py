@@ -1,5 +1,5 @@
 """
-Integration helpers for arrow annotations in the Lithic Drawing Processor.
+Integration helpers for arrow annotations in the Lithic Editor and Annotator.
 
 This file provides helper functions to integrate arrow annotations
 into the main application without cluttering the main code.
