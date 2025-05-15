@@ -5,6 +5,9 @@ from skimage import morphology
 from scipy.ndimage import label
 import os
 import traceback
+from PIL import Image
+import numpy as np
+
 
 def exception_hook(exc_type, exc_value, exc_traceback):
     print("Exception hook triggered:")
@@ -101,6 +104,7 @@ def crop_to_content(image, padding=10):
     # If no contours found, return original
     return image
 
+
 def debug_image_info(name, img):
     """Print detailed image information for debugging"""
     if img is None:
@@ -143,13 +147,15 @@ def debug_image_info(name, img):
     cv2.imwrite(output_path, img)
     print(f"Debug image saved to {output_path}")
 
-def process_lithic_drawing_improved(image_path, output_folder="image_debug"):
+def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi_info=None, format_info=None):
     """
-    Process a lithic drawing to remove ripple lines while preserving original line quality
+    Process a lithic drawing to remove ripple lines while preserving original line quality and metadata
 
     Args:
         image_path: Path to the input image
         output_folder: Folder to save all output images
+        dpi_info: DPI information to preserve (tuple of x,y dpi)
+        format_info: Original image format to preserve
 
     Returns:
         cleaned_image: Image with ripple lines removed but original line quality preserved
@@ -163,20 +169,45 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug"):
     print(f"{'Step':<30} {'Width':>10} {'Height':>10} {'Type':>15} {'Min':>8} {'Max':>8}")
     print("-" * 80)
 
-    # Step 1: Read the image
+    # Step 1: Read the image and preserve metadata
     print("Reading image...")
     if isinstance(image_path, str):
-        original_image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-        if original_image is None:
-            raise ValueError(f"Could not read image at {image_path}")
-        print(f"Image read successfully. Shape: {original_image.shape}")
+        # Use Pillow to read the image and preserve metadata
+        try:
+            pil_image = Image.open(image_path)
+            # Store metadata if not already provided
+            if format_info is None:
+                format_info = pil_image.format
+                print(f"Image format: {format_info}")
+
+            if dpi_info is None and hasattr(pil_image, 'info') and 'dpi' in pil_image.info:
+                dpi_info = pil_image.info['dpi']
+                print(f"Image DPI: {dpi_info}")
+
+            # Convert to numpy array for processing (grayscale)
+            original_image = np.array(pil_image.convert('L'))
+            print(f"Image read successfully. Shape: {original_image.shape}")
+        except Exception as e:
+            print(f"Error reading with Pillow: {e}")
+            # Fallback to OpenCV
+            original_image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+            if original_image is None:
+                raise ValueError(f"Could not read image at {image_path}")
+            print(f"Image read with OpenCV. Shape: {original_image.shape}")
     else:
         # Assume image_path is already a numpy array
         original_image = image_path
         print(f"Using provided numpy array. Shape: {original_image.shape}")
 
+    # Print metadata info
+    if dpi_info:
+        print(f"Preserving DPI information: {dpi_info}")
+    if format_info:
+        print(f"Preserving original format: {format_info}")
+
     # Save the original image
-    save_debug_image(original_image, os.path.join(output_folder, '1_original_image.png'), 'Original Image')
+    save_debug_image(original_image, os.path.join(output_folder, '1_original_image.png'),
+                    'Original Image', dpi_info, format_info)
 
     # Step 2: Preprocess the image
     print("Preprocessing image...")
@@ -200,7 +231,8 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug"):
     print(f"Skeleton created. Non-zero pixels: {np.count_nonzero(skeleton)}")
 
     # Save the skeleton image
-    save_debug_image(skeleton_img, os.path.join(output_folder, '2_skeleton.png'), 'Skeleton')
+    save_debug_image(skeleton_img, os.path.join(output_folder, '2_skeleton.png'),
+                    'Skeleton', dpi_info, format_info)
 
     # Step 3: Find endpoints and junctions
     print("Finding endpoints and junctions...")
@@ -248,7 +280,7 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug"):
         cv2.circle(debug_img, (x, y), 1, (0, 255, 0), -1)  # Green for junctions
 
     save_debug_image(debug_img, os.path.join(output_folder, '3_endpoints_junctions.png'),
-                    'Skeleton with Endpoints (Red) and Junctions (Green)')
+                    'Skeleton with Endpoints (Red) and Junctions (Green)', dpi_info, format_info)
 
     # Step 4: Identify line segments by removing junctions and endpoints
     print("Identifying line segments...")
@@ -282,7 +314,7 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug"):
             segment_colors[y, x] = colors[segment_id]
 
     save_debug_image(segment_colors, os.path.join(output_folder, '4_labeled_segments.png'),
-                    f'Labeled Segments (Total: {num_segments})')
+                    f'Labeled Segments (Total: {num_segments})', dpi_info, format_info)
 
     # Step 5: Build graph representation
     print("Building graph representation...")
@@ -370,7 +402,7 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug"):
         cv2.circle(ripple_viz, (x, y), 1, (0, 255, 0), -1)  # Green for junctions
 
     save_debug_image(ripple_viz, os.path.join(output_folder, '5_ripple_identification.png'),
-                    'Ripple Segments (Red) vs. Structural Lines (White)')
+                    'Ripple Segments (Red) vs. Structural Lines (White)', dpi_info, format_info)
 
     # Step 7: Create mask of structural elements
     print("Creating structural mask...")
@@ -397,7 +429,7 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug"):
 
     # Save the skeleton-based cleaned image (inverted)
     save_debug_image(skeleton_cleaned_inverted, os.path.join(output_folder, '6_skeleton_cleaned.png'),
-                    'Skeleton Cleaned')
+                    'Skeleton Cleaned', dpi_info, format_info)
 
     # Step 8: Create final image with original line quality preserved
     print("Creating final image with original line quality...")
@@ -414,7 +446,7 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug"):
 
     # Save the final cleaned image (inverted)
     save_debug_image(final_cleaned_inverted, os.path.join(output_folder, '7_final_cleaned.png'),
-                    'Final Cleaned (Original Quality)')
+                    'Final Cleaned (Original Quality)', dpi_info, format_info)
 
     # Step 9: Apply line quality improvement
     print("Improving line quality...")
@@ -422,13 +454,17 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug"):
 
     # Save the improved quality image
     save_debug_image(improved_image, os.path.join(output_folder, '8_improved_quality.png'),
-                    'Improved Line Quality')
+                    'Improved Line Quality', dpi_info, format_info)
 
     # Step 10: Export high-quality version (without title banner)
     print("Exporting high-quality image...")
     high_quality_path = os.path.join(output_folder, '9_high_quality.png')
-    cv2.imwrite(high_quality_path, improved_image)
+    save_debug_image(improved_image, high_quality_path, None, dpi_info, format_info)
     print(f"High-quality PNG saved to {high_quality_path} with shape {improved_image.shape}")
+    if dpi_info:
+        print(f"DPI information preserved: {dpi_info}")
+    if format_info:
+        print(f"Original format preserved: {format_info}")
 
     # Create comparison visualization with all versions
     comparison_image = create_comparison_image(
@@ -438,19 +474,22 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug"):
          'Original-Quality Ripple Removed', 'Improved Line Quality']
     )
 
-    save_debug_image(comparison_image, os.path.join(output_folder, '10_comparison_all.png'))
+    save_debug_image(comparison_image, os.path.join(output_folder, '10_comparison_all.png'),
+                    None, dpi_info, format_info)
 
     print("Processing complete!")
     return improved_image  # Return the improved version
 
-def save_debug_image(image, output_path, title=None):
+def save_debug_image(image, output_path, title=None, dpi_info=None, format=None):
     """
-    Save a debug image with optional title using OpenCV
+    Save a debug image with optional title using Pillow to preserve metadata
 
     Args:
         image: Image to save (grayscale or color)
         output_path: Path to save the image
         title: Optional title to add to the image
+        dpi_info: DPI information to save with the image
+        format: Original image format to use
     """
     # Debug image info before processing
     debug_image_info(f"Before saving {os.path.basename(output_path)}", image)
@@ -463,33 +502,50 @@ def save_debug_image(image, output_path, title=None):
     else:
         img = image.copy()
 
-    # If grayscale, convert to BGR for consistent handling
+    # If grayscale, keep it as grayscale for PIL
     if len(img.shape) == 2:
-        img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+        pil_mode = 'L'
+    else:
+        # Convert BGR to RGB for PIL (OpenCV uses BGR, PIL uses RGB)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        pil_mode = 'RGB'
+
+    # Create PIL Image
+    pil_img = Image.fromarray(img, mode=pil_mode)
+
+    # Set DPI if provided
+    if dpi_info:
+        save_kwargs = {'dpi': dpi_info}
+    else:
+        save_kwargs = {}
+
+    # Determine format
+    save_format = format if format else 'PNG'
 
     # Save the original image (without title banner)
-    # This preserves the original dimensions
-    cv2.imwrite(output_path, img)
+    # This preserves the original dimensions and metadata
+    pil_img.save(output_path, format=save_format, **save_kwargs)
 
     # Create a display version with title if needed
     if title:
         # Create space for title
         title_height = 30
-        display_img = np.ones((img.shape[0] + title_height, img.shape[1], 3), dtype=np.uint8) * 255
-        # Add image
-        display_img[title_height:, :, :] = img
-        # Add title
-        cv2.putText(display_img, title, (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 1, cv2.LINE_AA)
+
+        if pil_mode == 'L':
+            display_img = Image.new('RGB', (img.shape[1], img.shape[0] + title_height), color=(255, 255, 255))
+            display_img.paste(pil_img, (0, title_height))
+        else:
+            display_img = Image.new('RGB', (img.shape[1], img.shape[0] + title_height), color=(255, 255, 255))
+            display_img.paste(pil_img, (0, title_height))
+
+        # Add title using OpenCV (PIL doesn't have good text support)
+        display_np = np.array(display_img)
+        cv2.putText(display_np, title, (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 1, cv2.LINE_AA)
+        display_img = Image.fromarray(display_np)
 
         # Save the display version with "_display" suffix
         display_path = output_path.replace('.png', '_display.png')
-        cv2.imwrite(display_path, display_img)
-
-        # Debug image info after processing (for the display version)
-        debug_image_info(f"After processing {os.path.basename(display_path)}", display_img)
-    else:
-        # Debug image info after processing (for the original version)
-        debug_image_info(f"After processing {os.path.basename(output_path)}", img)
+        display_img.save(display_path, format=save_format, **save_kwargs)
 
     print(f"Debug image saved to {output_path}")
 

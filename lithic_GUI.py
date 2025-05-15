@@ -2,6 +2,7 @@ import sys
 import os
 import cv2
 import numpy as np
+from PIL import Image
 
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QLabel, QPushButton,
@@ -44,10 +45,12 @@ class ProcessingThread(QThread):
     progress_signal = pyqtSignal(str)
     finished_signal = pyqtSignal(str)
 
-    def __init__(self, input_path, output_folder):
+    def __init__(self, input_path, output_folder, dpi_info=None, format_info=None):
         super().__init__()
         self.input_path = input_path
         self.output_folder = output_folder
+        self.dpi_info = dpi_info
+        self.format_info = format_info
 
     def run(self):
         try:
@@ -62,7 +65,9 @@ class ProcessingThread(QThread):
             builtins.print = progress_print
 
             # Run the processing function
-            process_lithic_drawing_improved(self.input_path, self.output_folder)
+            process_lithic_drawing_improved(self.input_path, self.output_folder,
+                                           dpi_info=self.dpi_info,
+                                           format_info=self.format_info)
 
             # Restore the original print function
             builtins.print = original_print
@@ -592,6 +597,28 @@ class LithicProcessorGUI(QMainWindow):
             # Process the selected file
             self.input_image_path = file_path
 
+            # Read metadata with PIL first
+            try:
+                pil_img = Image.open(file_path)
+                if hasattr(pil_img, 'info') and 'dpi' in pil_img.info:
+                    self.log(f"Image DPI: {pil_img.info['dpi']}")
+                    # Store DPI info with the class for later use
+                    self.image_dpi = pil_img.info['dpi']
+                else:
+                    self.log("No DPI information found in image")
+                    self.image_dpi = None
+
+                # Also log the image format
+                self.log(f"Image format: {pil_img.format}")
+                self.image_format = pil_img.format
+
+                # Get image dimensions
+                self.log(f"Original dimensions: {pil_img.width}x{pil_img.height} pixels")
+            except Exception as e:
+                self.log(f"Warning: Could not read image metadata: {str(e)}")
+                self.image_dpi = None
+                self.image_format = None
+
             # Load and crop the image to content
             img = cv2.imread(file_path)
             if img is not None:
@@ -606,7 +633,22 @@ class LithicProcessorGUI(QMainWindow):
 
                 # Save cropped version for processing
                 cropped_path = os.path.join(self.output_folder, "cropped_input.png")
-                cv2.imwrite(cropped_path, cropped_img)
+
+                # Save with PIL to preserve metadata
+                try:
+                    # Convert OpenCV BGR to RGB for PIL
+                    cropped_rgb = cv2.cvtColor(cropped_img, cv2.COLOR_BGR2RGB)
+                    cropped_pil = Image.fromarray(cropped_rgb)
+
+                    # Set DPI if we have it
+                    if self.image_dpi:
+                        cropped_pil.save(cropped_path, dpi=self.image_dpi)
+                    else:
+                        cropped_pil.save(cropped_path)
+                except Exception as e:
+                    self.log(f"Warning: Could not save with metadata: {str(e)}")
+                    # Fallback to OpenCV
+                    cv2.imwrite(cropped_path, cropped_img)
 
                 # Use cropped version for display and processing
                 self.display_image(cropped_path, self.input_image_display)
@@ -688,8 +730,10 @@ class LithicProcessorGUI(QMainWindow):
         self.log_display.clear()
         self.log(f"Processing image: {self.input_image_path}")
 
-        # Start processing thread
-        self.processing_thread = ProcessingThread(self.input_image_path, self.output_folder)
+        # Pass metadata to the processing function
+        dpi_info = self.image_dpi if hasattr(self, 'image_dpi') else None
+        format_info = self.image_format if hasattr(self, 'image_format') else None
+        self.processing_thread = ProcessingThread(self.input_image_path, self.output_folder, dpi_info, format_info)
         self.processing_thread.progress_signal.connect(self.update_progress)
         self.processing_thread.finished_signal.connect(self.processing_finished)
         self.processing_thread.start()
@@ -838,7 +882,7 @@ class LithicProcessorGUI(QMainWindow):
         options = QFileDialog.Options()
         file_path, filter_used = QFileDialog.getSaveFileName(
             self, "Save Processed Image", "",
-            "PNG Files (*.png);;JPEG Files (*.jpg)",
+            "PNG Files (*.png);;JPEG Files (*.jpg);;TIFF Files (*.tif)",
             options=QFileDialog.DontUseNativeDialog
         )
 
@@ -846,11 +890,26 @@ class LithicProcessorGUI(QMainWindow):
             # Check and enforce file extension based on filter selected
             if filter_used == "PNG Files (*.png)" and not file_path.lower().endswith('.png'):
                 file_path += '.png'
+                save_format = 'PNG'
             elif filter_used == "JPEG Files (*.jpg)" and not file_path.lower().endswith(('.jpg', '.jpeg')):
                 file_path += '.jpg'
+                save_format = 'JPEG'
+            elif filter_used == "TIFF Files (*.tif)" and not file_path.lower().endswith(('.tif', '.tiff')):
+                file_path += '.tif'
+                save_format = 'TIFF'
             # Default to PNG if extension is missing and filter doesn't indicate format
-            elif not any(file_path.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg']):
+            elif not any(file_path.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.tif', '.tiff']):
                 file_path += '.png'
+                save_format = 'PNG'
+            else:
+                # Determine format from extension
+                ext = os.path.splitext(file_path)[1].lower()
+                if ext in ['.jpg', '.jpeg']:
+                    save_format = 'JPEG'
+                elif ext in ['.tif', '.tiff']:
+                    save_format = 'TIFF'
+                else:
+                    save_format = 'PNG'
 
             # Get the annotated image from the canvas
             final_image = arrow_integration.get_image_with_arrows(self.canvas)
@@ -864,19 +923,34 @@ class LithicProcessorGUI(QMainWindow):
                     ptr.setsize(height * width * 4)  # RGBA
                     arr = np.frombuffer(ptr, np.uint8).reshape((height, width, 4))
 
-                    # Convert RGBA to BGR (OpenCV format)
-                    bgr = cv2.cvtColor(arr, cv2.COLOR_RGBA2BGR)
+                    # Convert RGBA to RGB (PIL format)
+                    rgb = cv2.cvtColor(arr, cv2.COLOR_RGBA2RGB)
 
-                    # Save the image
-                    success = cv2.imwrite(file_path, bgr)
+                    # Create PIL Image
+                    pil_img = Image.fromarray(rgb)
 
-                    if success:
-                        self.status_label.setText(f'Saved to: {os.path.basename(file_path)}')
-                        self.log(f"Processed image saved to: {file_path}")
-                    else:
-                        self.log(f"ERROR: Failed to save image to {file_path}")
-                        QMessageBox.critical(self, 'Error', f'Failed to save image to {file_path}')
+                    # Try to get DPI from original image
+                    dpi_info = None
+                    try:
+                        # Try to get DPI from original input file
+                        if hasattr(self, 'input_image_path') and self.input_image_path:
+                            original_pil = Image.open(self.input_image_path)
+                            if hasattr(original_pil, 'info') and 'dpi' in original_pil.info:
+                                dpi_info = original_pil.info['dpi']
+                                self.log(f"Preserved original DPI: {dpi_info}")
+                    except Exception as e:
+                        self.log(f"Warning: Could not read original DPI: {str(e)}")
 
+                    # Set default DPI if none found (300 DPI is standard for publications)
+                    if not dpi_info:
+                        dpi_info = (300, 300)
+                        self.log(f"Setting default DPI: {dpi_info}")
+
+                    # Save the image with metadata
+                    pil_img.save(file_path, format=save_format, dpi=dpi_info)
+
+                    self.status_label.setText(f'Saved to: {os.path.basename(file_path)}')
+                    self.log(f"Processed image saved to: {file_path} with DPI: {dpi_info}")
                 except Exception as e:
                     self.log(f"ERROR saving file: {str(e)}")
                     QMessageBox.critical(self, 'Error', f'Error saving file: {str(e)}')
