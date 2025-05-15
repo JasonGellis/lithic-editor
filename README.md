@@ -2,15 +2,13 @@
 
 A specialized image processing tool for archaeological lithic drawings that automatically removes ripple lines while preserving structural elements, and provides annotation capabilities for technical analysis.
 
-![Example Image](docs/example.png)
-
 ## Overview
 
 Lithic Editor and Annotator is a purpose-built application for archaeological lithic analysis. It addresses two common challenges in lithic illustration processing:
 
 1. **Ripple Line Removal**: Automatically distinguishes and removes hatching/ripple lines from structural elements in technical lithic drawings using advanced image processing algorithms.
 
-2. **Technical Annotation**: Provides intuitive tools for adding directional arrows to indicate striking direction for scar flakes and other significant features.
+2. **Technical Annotation**: Provides intuitive tools for adding directional arrows to indicate striking direction for scar flakes.
 
 Developed specifically for archaeological research, the application maintains the scientific integrity of drawings while enhancing their clarity and analytical value.
 
@@ -19,15 +17,14 @@ Developed specifically for archaeological research, the application maintains th
 ### Image Processing
 
 - **Intelligent Ripple Removal**: Uses graph-based analysis to identify and remove hatching lines while preserving structural features
-- **Preservation of Line Quality**: Maintains the original line characteristics and drawing style
 - **Processing Visualization**: View step-by-step processing stages to understand how the algorithm works
 - **Manual Editing**: Tools for touching up images before processing
 
 ### Annotation Tools
 
-- **Directional Arrows**: Add, position, and orient arrows to indicate force direction and flake scars
+- **Directional Arrows**: Add and orient arrows to indicate force direction and flake scars
 - **Arrow Customization**: Resize, rotate, and change color of arrows for precise annotation
-- **Intuitive Controls**: 
+- **Intuitive Controls**:
   - Drag to move arrows
   - Shift+drag to rotate arrows
   - Alt/Option+drag to resize arrows
