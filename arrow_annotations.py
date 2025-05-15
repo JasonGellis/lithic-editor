@@ -29,14 +29,14 @@ class Arrow:
 
         # Set up the pen for outline and shaft
         pen = QPen(self.color)
-        pen.setWidth(2)
+        pen.setWidth(3)
         painter.setPen(pen)
 
         # Fill color
         painter.setBrush(self.color)
 
         # Calculate arrow dimensions based on size
-        shaft_length = self.size * 0.8  # Longer shaft
+        shaft_length = self.size * 0.9  # Longer shaft
         head_length = self.size * 0.6  # Arrowhead length
         head_width = self.size * 0.5   # Arrowhead width
 

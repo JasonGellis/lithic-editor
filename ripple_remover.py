@@ -29,15 +29,16 @@ sys.excepthook = exception_hook
 print("Starting lithic_GUI.py")
 
 
-def improve_line_quality_antialias(binary_image):
+def improve_line_quality_antialias(binary_image, line_boost=1.2):
     """
-    Improve line quality using anti-aliasing techniques
+    Improve line quality using advanced anti-aliasing and line boosting
 
     Args:
         binary_image: Input binary image (black lines on white background)
+        line_boost: Factor to slightly thicken lines (1.0 = no change)
 
     Returns:
-        improved_image: Anti-aliased image with better line quality
+        improved_image: Enhanced image with better line quality
     """
     # Ensure correct format
     if binary_image.max() <= 1:
@@ -46,20 +47,36 @@ def improve_line_quality_antialias(binary_image):
     # Convert to proper format
     binary_image = binary_image.astype(np.uint8)
 
-    # Scale up the image (4x)
-    scale_factor = 4
+    # Scale up the image (6x instead of 4x for finer detail)
+    scale_factor = 6
     h, w = binary_image.shape
     upscaled = cv2.resize(binary_image, (w * scale_factor, h * scale_factor),
                          interpolation=cv2.INTER_CUBIC)
 
+    # Apply morphological operations to improve line consistency
+    kernel = np.ones((2, 2), np.uint8)
+    if line_boost > 1.0:
+        # Slightly dilate to thicken lines
+        upscaled = cv2.dilate(upscaled, kernel, iterations=1)
+
     # Apply slight Gaussian blur to smooth edges
-    blurred = cv2.GaussianBlur(upscaled, (5, 5), 0.5)
+    blurred = cv2.GaussianBlur(upscaled, (3, 3), 0.8)
 
     # Threshold back to binary with good contrast
-    _, smoothed = cv2.threshold(blurred, 200, 255, cv2.THRESH_BINARY)
+    _, smoothed = cv2.threshold(blurred, 225, 255, cv2.THRESH_BINARY)
 
-    # Scale back down to original size with anti-aliasing
+    # Optional: Apply more refined smoothing
+    smoothed = cv2.medianBlur(smoothed, 3)  # Remove salt-and-pepper noise
+
+    # Apply thinning if lines became too thick
+    if line_boost > 1.3:
+        smoothed = cv2.erode(smoothed, kernel, iterations=1)
+
+    # Scale back down to original size with high-quality interpolation
     result = cv2.resize(smoothed, (w, h), interpolation=cv2.INTER_AREA)
+
+    # Final contrast enhancement
+    _, result = cv2.threshold(result, 200, 255, cv2.THRESH_BINARY)
 
     return result
 
