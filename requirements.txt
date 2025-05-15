@@ -1,0 +1,7 @@
+numpy==1.24.3
+opencv-python==4.7.0.72
+flask==2.2.3
+scikit-image==0.20.0
+networkx==3.0
+matplotlib==3.7.1
+Pillow==9.5.0
