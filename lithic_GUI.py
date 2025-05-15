@@ -66,10 +66,12 @@ class ProcessingThread(QThread):
             builtins.print = progress_print
 
             # Run the processing function
-            process_lithic_drawing_improved(self.input_path, self.output_folder,
-                                        dpi_info=self.dpi_info,
-                                        format_info=self.format_info,
-                                        output_dpi=self.output_dpi)
+            result_dpi = process_lithic_drawing_improved(
+                self.input_path, self.output_folder,
+                dpi_info=self.dpi_info,
+                format_info=self.format_info,
+                output_dpi=self.output_dpi
+            )
 
             # Restore the original print function
             builtins.print = original_print
@@ -296,7 +298,7 @@ class LithicProcessorGUI(QMainWindow):
             dpi_value = self.custom_dpi_spinner.value()
             return (dpi_value, dpi_value)  # Custom value
 
-        # Default fallback
+        # No option selected, leave unset as safest default
         return None
 
     def initUI(self):
@@ -350,8 +352,13 @@ class LithicProcessorGUI(QMainWindow):
         dpi_options_layout.addWidget(dpi_title)
 
         # Current DPI display
-        self.current_dpi_label = QLabel("Detected DPI: None")
+        self.current_dpi_label = QLabel("Detected DPI in loaded image: None")
         dpi_options_layout.addWidget(self.current_dpi_label)
+
+        # Add explanation label for DPI options
+        self.dpi_explanation_label = QLabel("Original DPI is preserved when available")
+        self.dpi_explanation_label.setStyleSheet("font-style: italic;")
+        dpi_options_layout.addWidget(self.dpi_explanation_label)
 
         # DPI radio button group
         self.dpi_group = QButtonGroup(self)
@@ -359,7 +366,7 @@ class LithicProcessorGUI(QMainWindow):
         self.use_standard_dpi = QRadioButton("Use publication standard (300 DPI)")
         self.use_screen_dpi = QRadioButton("Use screen resolution (96 DPI)")
         self.use_custom_dpi = QRadioButton("Use custom DPI:")
-        self.use_standard_dpi.setChecked(True)  # Default to publication standard
+
 
         self.dpi_group.addButton(self.keep_unset_dpi)
         self.dpi_group.addButton(self.use_standard_dpi)
@@ -663,12 +670,16 @@ class LithicProcessorGUI(QMainWindow):
             try:
                 pil_img = Image.open(file_path)
                 if hasattr(pil_img, 'info') and 'dpi' in pil_img.info:
-                    self.log(f"Image DPI: {pil_img.info['dpi']}")
+                    dpi_info = pil_img.info['dpi']
+                    self.log(f"Image DPI: {dpi_info}")
                     # Store DPI info with the class for later use
-                    self.image_dpi = pil_img.info['dpi']
+                    self.image_dpi = dpi_info
+                    # Update the UI immediately
+                    self.current_dpi_label.setText(f"Detected DPI: {round(dpi_info[0])}x{round(dpi_info[1])}")
                 else:
                     self.log("No DPI information found in image")
                     self.image_dpi = None
+                    self.current_dpi_label.setText("Detected DPI: None")
 
                 # Also log the image format
                 self.log(f"Image format: {pil_img.format}")
@@ -680,6 +691,19 @@ class LithicProcessorGUI(QMainWindow):
                 self.log(f"Warning: Could not read image metadata: {str(e)}")
                 self.image_dpi = None
                 self.image_format = None
+
+            # Set appropriate UI state based on loaded image
+            if self.image_dpi:
+                self.dpi_group.setExclusive(False)  # Allow deselecting all buttons
+                self.keep_unset_dpi.setChecked(False)
+                self.use_standard_dpi.setChecked(False)
+                self.use_screen_dpi.setChecked(False)
+                self.use_custom_dpi.setChecked(False)
+                self.dpi_group.setExclusive(True)  # Restore exclusive behavior
+                dpi_options_explanation = f"Original DPI ({round(self.image_dpi[0])}x{round(self.image_dpi[1])}) will be preserved"
+                self.dpi_explanation_label.setText(dpi_options_explanation)
+            else:
+                self.dpi_explanation_label.setText("No DPI found in image. Select what DPI to use for output:")
 
             # Load and crop the image to content
             img = cv2.imread(file_path)
@@ -834,6 +858,24 @@ class LithicProcessorGUI(QMainWindow):
             # Enable arrow tools
             arrow_integration.enable_arrow_controls(self)
             self.log("You can now add arrows to the processed image (Alt+drag to resize, Shift+drag to rotate)")
+
+            if output_path:
+                self.processed_image_path = output_path
+                self.log(f"Processing complete. Result path: {output_path}")
+
+                # Update DPI display based on processed image
+                try:
+                    processed_pil = Image.open(output_path)
+                    if hasattr(processed_pil, 'info') and 'dpi' in processed_pil.info:
+                        self.image_dpi = processed_pil.info['dpi']
+                        self.current_dpi_label.setText(f"Detected DPI: {round(self.image_dpi[0])}x{round(self.image_dpi[1])}")
+                        self.log(f"Updated DPI information: {round(self.image_dpi[0])}x{round(self.image_dpi[1])}")
+                    else:
+                        # Only update if we don't already have DPI info
+                        if not hasattr(self, 'image_dpi') or not self.image_dpi:
+                            self.current_dpi_label.setText("Detected DPI: None")
+                except Exception as e:
+                    self.log(f"Warning: Could not read DPI from processed image: {str(e)}")
 
             self.save_button.setEnabled(True)
             self.clear_annotations_button.setEnabled(True)
