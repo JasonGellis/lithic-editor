@@ -57,6 +57,8 @@ Icon
 .com.apple.timemachine.donotpresent
 
 # VSCode
+ # ignore VS Code workspace settings
+.vscode/
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
