@@ -45,12 +45,13 @@ class ProcessingThread(QThread):
     progress_signal = pyqtSignal(str)
     finished_signal = pyqtSignal(str)
 
-    def __init__(self, input_path, output_folder, dpi_info=None, format_info=None):
+    def __init__(self, input_path, output_folder, dpi_info=None, format_info=None, output_dpi=None):
         super().__init__()
         self.input_path = input_path
         self.output_folder = output_folder
-        self.dpi_info = dpi_info
+        self.dpi_info = dpi_info  # Original DPI
         self.format_info = format_info
+        self.output_dpi = output_dpi  # User-selected output DPI
 
     def run(self):
         try:
@@ -66,8 +67,9 @@ class ProcessingThread(QThread):
 
             # Run the processing function
             process_lithic_drawing_improved(self.input_path, self.output_folder,
-                                           dpi_info=self.dpi_info,
-                                           format_info=self.format_info)
+                                        dpi_info=self.dpi_info,
+                                        format_info=self.format_info,
+                                        output_dpi=self.output_dpi)
 
             # Restore the original print function
             builtins.print = original_print
@@ -277,6 +279,26 @@ class LithicProcessorGUI(QMainWindow):
         self.debug_image_widgets = []  # To store debug image labels
         self.initUI()
 
+    def get_output_dpi(self):
+        """Get the DPI settings based on user selection"""
+        if hasattr(self, 'image_dpi') and self.image_dpi:
+            # If image has DPI, use it
+            return self.image_dpi
+
+        # No DPI in image, use selected option
+        if self.keep_unset_dpi.isChecked():
+            return None  # Leave unset
+        elif self.use_standard_dpi.isChecked():
+            return (300, 300)  # Publication standard
+        elif self.use_screen_dpi.isChecked():
+            return (96, 96)  # Screen resolution
+        elif self.use_custom_dpi.isChecked():
+            dpi_value = self.custom_dpi_spinner.value()
+            return (dpi_value, dpi_value)  # Custom value
+
+        # Default fallback
+        return None
+
     def initUI(self):
         # Main window setup
         self.setWindowTitle('Lithic Drawing Processor')
@@ -320,6 +342,46 @@ class LithicProcessorGUI(QMainWindow):
         self.show_debug_images.stateChanged.connect(self.toggle_debug_images)
 
         options_layout.addWidget(self.show_debug_images)
+
+        # Add DPI control options to the options group
+        dpi_options_layout = QVBoxLayout()
+        dpi_title = QLabel("DPI Settings")
+        dpi_title.setStyleSheet("font-weight: bold;")
+        dpi_options_layout.addWidget(dpi_title)
+
+        # Current DPI display
+        self.current_dpi_label = QLabel("Detected DPI: None")
+        dpi_options_layout.addWidget(self.current_dpi_label)
+
+        # DPI radio button group
+        self.dpi_group = QButtonGroup(self)
+        self.keep_unset_dpi = QRadioButton("Leave unset (application defaults)")
+        self.use_standard_dpi = QRadioButton("Use publication standard (300 DPI)")
+        self.use_screen_dpi = QRadioButton("Use screen resolution (96 DPI)")
+        self.use_custom_dpi = QRadioButton("Use custom DPI:")
+        self.use_standard_dpi.setChecked(True)  # Default to publication standard
+
+        self.dpi_group.addButton(self.keep_unset_dpi)
+        self.dpi_group.addButton(self.use_standard_dpi)
+        self.dpi_group.addButton(self.use_screen_dpi)
+        self.dpi_group.addButton(self.use_custom_dpi)
+
+        dpi_options_layout.addWidget(self.keep_unset_dpi)
+        dpi_options_layout.addWidget(self.use_standard_dpi)
+        dpi_options_layout.addWidget(self.use_screen_dpi)
+
+        # Custom DPI spinner in a horizontal layout
+        custom_dpi_layout = QHBoxLayout()
+        custom_dpi_layout.addWidget(self.use_custom_dpi)
+        self.custom_dpi_spinner = QSpinBox()
+        self.custom_dpi_spinner.setRange(72, 1200)
+        self.custom_dpi_spinner.setValue(300)
+        self.custom_dpi_spinner.setSuffix(" DPI")
+        custom_dpi_layout.addWidget(self.custom_dpi_spinner)
+        dpi_options_layout.addLayout(custom_dpi_layout)
+
+        # Add the DPI options to the options layout
+        options_layout.addLayout(dpi_options_layout)
 
         # Add groups to top controls
         top_controls.addWidget(file_controls, 3)
@@ -733,7 +795,9 @@ class LithicProcessorGUI(QMainWindow):
         # Pass metadata to the processing function
         dpi_info = self.image_dpi if hasattr(self, 'image_dpi') else None
         format_info = self.image_format if hasattr(self, 'image_format') else None
-        self.processing_thread = ProcessingThread(self.input_image_path, self.output_folder, dpi_info, format_info)
+        output_dpi = self.get_output_dpi()  # Get user's DPI preference
+        self.processing_thread = ProcessingThread(self.input_image_path, self.output_folder,
+                dpi_info, format_info, output_dpi)
         self.processing_thread.progress_signal.connect(self.update_progress)
         self.processing_thread.finished_signal.connect(self.processing_finished)
         self.processing_thread.start()
@@ -930,16 +994,20 @@ class LithicProcessorGUI(QMainWindow):
                     pil_img = Image.fromarray(rgb)
 
                     # Try to get DPI from original image
-                    dpi_info = None
-                    try:
-                        # Try to get DPI from original input file
-                        if hasattr(self, 'input_image_path') and self.input_image_path:
-                            original_pil = Image.open(self.input_image_path)
-                            if hasattr(original_pil, 'info') and 'dpi' in original_pil.info:
-                                dpi_info = original_pil.info['dpi']
-                                self.log(f"Preserved original DPI: {dpi_info}")
-                    except Exception as e:
-                        self.log(f"Warning: Could not read original DPI: {str(e)}")
+                    # Get DPI setting based on user selection
+                    dpi_info = self.get_output_dpi()
+
+                    # Log the DPI setting
+                    if dpi_info:
+                        self.log(f"Using DPI: {dpi_info}")
+                    else:
+                        self.log("Leaving DPI unset (application defaults will apply)")
+
+                    # Save the image with or without metadata
+                    if dpi_info:
+                        pil_img.save(file_path, format=save_format, dpi=dpi_info)
+                    else:
+                        pil_img.save(file_path, format=save_format)
 
                     # Set default DPI if none found (300 DPI is standard for publications)
                     if not dpi_info:

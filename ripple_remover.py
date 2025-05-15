@@ -147,7 +147,7 @@ def debug_image_info(name, img):
     cv2.imwrite(output_path, img)
     print(f"Debug image saved to {output_path}")
 
-def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi_info=None, format_info=None):
+def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi_info=None, format_info=None, output_dpi=None):
     """
     Process a lithic drawing to remove ripple lines while preserving original line quality and metadata
 
@@ -201,13 +201,19 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi
 
     # Print metadata info
     if dpi_info:
-        print(f"Preserving DPI information: {dpi_info}")
+        print(f"Original DPI information: {dpi_info}")
+    if output_dpi:
+        print(f"Output DPI will be set to: {output_dpi}")
+    elif dpi_info:
+        print(f"Output DPI will match original: {dpi_info}")
+    else:
+        print("Output DPI will be unset (application defaults will apply)")
     if format_info:
         print(f"Preserving original format: {format_info}")
 
     # Save the original image
     save_debug_image(original_image, os.path.join(output_folder, '1_original_image.png'),
-                    'Original Image', dpi_info, format_info)
+                    'Original Image', dpi_info, format_info, output_dpi)
 
     # Step 2: Preprocess the image
     print("Preprocessing image...")
@@ -232,7 +238,7 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi
 
     # Save the skeleton image
     save_debug_image(skeleton_img, os.path.join(output_folder, '2_skeleton.png'),
-                    'Skeleton', dpi_info, format_info)
+                    'Skeleton', dpi_info, format_info, output_dpi)
 
     # Step 3: Find endpoints and junctions
     print("Finding endpoints and junctions...")
@@ -280,7 +286,7 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi
         cv2.circle(debug_img, (x, y), 1, (0, 255, 0), -1)  # Green for junctions
 
     save_debug_image(debug_img, os.path.join(output_folder, '3_endpoints_junctions.png'),
-                    'Skeleton with Endpoints (Red) and Junctions (Green)', dpi_info, format_info)
+                    'Skeleton with Endpoints (Red) and Junctions (Green)', dpi_info, format_info, output_dpi)
 
     # Step 4: Identify line segments by removing junctions and endpoints
     print("Identifying line segments...")
@@ -314,7 +320,7 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi
             segment_colors[y, x] = colors[segment_id]
 
     save_debug_image(segment_colors, os.path.join(output_folder, '4_labeled_segments.png'),
-                    f'Labeled Segments (Total: {num_segments})', dpi_info, format_info)
+                    f'Labeled Segments (Total: {num_segments})', dpi_info, format_info, output_dpi)
 
     # Step 5: Build graph representation
     print("Building graph representation...")
@@ -402,7 +408,7 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi
         cv2.circle(ripple_viz, (x, y), 1, (0, 255, 0), -1)  # Green for junctions
 
     save_debug_image(ripple_viz, os.path.join(output_folder, '5_ripple_identification.png'),
-                    'Ripple Segments (Red) vs. Structural Lines (White)', dpi_info, format_info)
+                    'Ripple Segments (Red) vs. Structural Lines (White)', dpi_info, format_info, output_dpi)
 
     # Step 7: Create mask of structural elements
     print("Creating structural mask...")
@@ -429,7 +435,7 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi
 
     # Save the skeleton-based cleaned image (inverted)
     save_debug_image(skeleton_cleaned_inverted, os.path.join(output_folder, '6_skeleton_cleaned.png'),
-                    'Skeleton Cleaned', dpi_info, format_info)
+                    'Skeleton Cleaned', dpi_info, format_info, output_dpi)
 
     # Step 8: Create final image with original line quality preserved
     print("Creating final image with original line quality...")
@@ -446,7 +452,7 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi
 
     # Save the final cleaned image (inverted)
     save_debug_image(final_cleaned_inverted, os.path.join(output_folder, '7_final_cleaned.png'),
-                    'Final Cleaned (Original Quality)', dpi_info, format_info)
+                    'Final Cleaned (Original Quality)', dpi_info, format_info, output_dpi)
 
     # Step 9: Apply line quality improvement
     print("Improving line quality...")
@@ -454,12 +460,12 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi
 
     # Save the improved quality image
     save_debug_image(improved_image, os.path.join(output_folder, '8_improved_quality.png'),
-                    'Improved Line Quality', dpi_info, format_info)
+                    'Improved Line Quality', dpi_info, format_info, output_dpi)
 
     # Step 10: Export high-quality version (without title banner)
     print("Exporting high-quality image...")
     high_quality_path = os.path.join(output_folder, '9_high_quality.png')
-    save_debug_image(improved_image, high_quality_path, None, dpi_info, format_info)
+    save_debug_image(improved_image, high_quality_path, None, dpi_info, format_info, output_dpi)
     print(f"High-quality PNG saved to {high_quality_path} with shape {improved_image.shape}")
     if dpi_info:
         print(f"DPI information preserved: {dpi_info}")
@@ -475,12 +481,12 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi
     )
 
     save_debug_image(comparison_image, os.path.join(output_folder, '10_comparison_all.png'),
-                    None, dpi_info, format_info)
+                    None, dpi_info, format_info, output_dpi)
 
     print("Processing complete!")
     return improved_image  # Return the improved version
 
-def save_debug_image(image, output_path, title=None, dpi_info=None, format=None):
+def save_debug_image(image, output_path, title=None, dpi_info=None, format=None, output_dpi=None):
     """
     Save a debug image with optional title using Pillow to preserve metadata
 
@@ -488,8 +494,9 @@ def save_debug_image(image, output_path, title=None, dpi_info=None, format=None)
         image: Image to save (grayscale or color)
         output_path: Path to save the image
         title: Optional title to add to the image
-        dpi_info: DPI information to save with the image
+        dpi_info: Original DPI information
         format: Original image format to use
+        output_dpi: User-selected DPI for output (overrides dpi_info if provided)
     """
     # Debug image info before processing
     debug_image_info(f"Before saving {os.path.basename(output_path)}", image)
@@ -513,8 +520,10 @@ def save_debug_image(image, output_path, title=None, dpi_info=None, format=None)
     # Create PIL Image
     pil_img = Image.fromarray(img, mode=pil_mode)
 
-    # Set DPI if provided
-    if dpi_info:
+    # Set DPI if provided (output_dpi takes precedence over dpi_info)
+    if output_dpi:
+        save_kwargs = {'dpi': output_dpi}
+    elif dpi_info:
         save_kwargs = {'dpi': dpi_info}
     else:
         save_kwargs = {}
