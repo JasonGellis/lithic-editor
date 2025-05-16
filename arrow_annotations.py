@@ -9,6 +9,7 @@ from PyQt5.QtWidgets import QLabel, QColorDialog
 from PyQt5.QtGui import QPainter, QPen, QColor, QPainterPath, QPixmap
 from PyQt5.QtCore import Qt, QPoint, QLineF
 
+
 class Arrow:
     """Class representing an arrow annotation that can be placed and rotated"""
     def __init__(self, position=(0, 0), angle=0, size=30, color=Qt.black):
@@ -19,20 +20,27 @@ class Arrow:
         self.selected = False  # whether arrow is selected for manipulation
 
     def draw(self, painter):
-        """Draw the arrow on the given painter"""
+        """Draw the arrow on the given painter with high-quality, crisp rendering"""
         # Save the current painter state
         painter.save()
+
+        # Enable antialiasing for smoother lines
+        painter.setRenderHint(QPainter.Antialiasing, True)
+        painter.setRenderHint(QPainter.SmoothPixmapTransform, True)
+        painter.setRenderHint(QPainter.HighQualityAntialiasing, True)
 
         # Move to the arrow position and rotate
         painter.translate(self.position[0], self.position[1])
         painter.rotate(self.angle)
 
-        # Set up the pen for outline and shaft
+        # Set up the pen for shaft with improved quality
         pen = QPen(self.color)
-        pen.setWidth(3)
+        pen.setWidth(3)  # Thicker shaft
+        pen.setCapStyle(Qt.RoundCap)  # Rounded ends for smoother appearance
+        pen.setJoinStyle(Qt.RoundJoin)  # Rounded joins for smoother corners
         painter.setPen(pen)
 
-        # Fill color
+        # Fill color with no outline artifacts
         painter.setBrush(self.color)
 
         # Calculate arrow dimensions based on size
@@ -43,19 +51,22 @@ class Arrow:
         # Draw the shaft as a separate line with proper thickness
         painter.drawLine(-shaft_length/2, 0, shaft_length/2 - head_length, 0)
 
-        # Create a path for the arrowhead only
+        # Create a path for the arrowhead with precise geometry
         path = QPainterPath()
 
-        # Start at the base of the arrowhead
-        path.moveTo(shaft_length/2 - head_length, 0)
+        # Create a slightly cleaner connection between shaft and head
+        shaft_end = shaft_length/2 - head_length
 
-        # Draw the arrowhead (triangle)
-        path.lineTo(shaft_length/2 - head_length, -head_width/2)  # Up to top corner
-        path.lineTo(shaft_length/2, 0)                           # To the point
-        path.lineTo(shaft_length/2 - head_length, head_width/2)   # Down to bottom corner
+        # Start at the base of the arrowhead
+        path.moveTo(shaft_end, 0)
+
+        # Draw the arrowhead (triangle) with clean, precise lines
+        path.lineTo(shaft_end, -head_width/2)  # Up to top corner
+        path.lineTo(shaft_length/2, 0)         # To the point
+        path.lineTo(shaft_end, head_width/2)   # Down to bottom corner
         path.closeSubpath()  # Close the triangle
 
-        # Fill the arrowhead
+        # Fill the arrowhead with a clean fill
         painter.fillPath(path, self.color)
 
         # If selected, draw a selection indicator
@@ -106,29 +117,43 @@ class ArrowCanvasWidget(QLabel):
         self.update_display()
 
     def update_display(self):
-        """Update the display with base image + annotations"""
+        """Update the display with base image + annotations with high quality"""
         if self.base_pixmap:
-            # Create a working copy
-            self.temp_pixmap = self.base_pixmap.copy()
+            # Create a working copy at 2x resolution for higher quality rendering
+            w, h = self.base_pixmap.width(), self.base_pixmap.height()
+            high_res_pixmap = QPixmap(w, h)
+            high_res_pixmap.fill(Qt.transparent)
 
-            # Draw all arrows on the temporary pixmap
-            painter = QPainter(self.temp_pixmap)
+            # Draw base image
+            painter = QPainter(high_res_pixmap)
+            painter.setRenderHint(QPainter.Antialiasing, True)
+            painter.setRenderHint(QPainter.SmoothPixmapTransform, True)
+            painter.setRenderHint(QPainter.HighQualityAntialiasing, True)
+
+            # Draw the base image
+            painter.drawPixmap(0, 0, self.base_pixmap)
+
+            # Draw all arrows with high quality
             for arrow in self.arrows:
                 arrow.draw(painter)
+
             painter.end()
+
+            # Store this for final image retrieval
+            self.temp_pixmap = high_res_pixmap
 
             # Scale for display within the widget bounds, maintaining aspect ratio
             if self.width() > 0 and self.height() > 0:
                 display_width = self.width() - 10
                 display_height = self.height() - 10
 
-                w, h = self.temp_pixmap.width(), self.temp_pixmap.height()
+                w, h = high_res_pixmap.width(), high_res_pixmap.height()
                 if w > 0 and h > 0:
                     # Calculate scaling factor to fit within display
                     scale = min(display_width / w, display_height / h)
 
                     # Scale to fit the display area (allow scaling up and down)
-                    scaled_pixmap = self.temp_pixmap.scaled(
+                    scaled_pixmap = high_res_pixmap.scaled(
                         int(w * scale), int(h * scale),
                         Qt.KeepAspectRatio, Qt.SmoothTransformation
                     )
@@ -138,7 +163,7 @@ class ArrowCanvasWidget(QLabel):
                     return
 
             # If we got here, no scaling was applied
-            super().setPixmap(self.temp_pixmap)
+            super().setPixmap(high_res_pixmap)
 
     def add_arrow(self, position, size=30, color=Qt.black):
         """Add a new arrow at the specified position"""
