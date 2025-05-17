@@ -6,7 +6,7 @@ arrow annotations on images.
 """
 
 from PyQt5.QtWidgets import QLabel, QColorDialog
-from PyQt5.QtGui import QPainter, QPen, QColor, QPainterPath, QPixmap
+from PyQt5.QtGui import QPainter, QPen, QColor, QPainterPath, QPixmap, QPolygon
 from PyQt5.QtCore import Qt, QPoint, QLineF
 
 
@@ -20,73 +20,67 @@ class Arrow:
         self.selected = False  # whether arrow is selected for manipulation
 
     def draw(self, painter):
-        """Draw the arrow on the given painter with high-quality, crisp rendering"""
+        """Draw the arrow on the given painter with vector-like quality"""
         # Save the current painter state
         painter.save()
 
-        # Enable antialiasing for smoother lines
-        painter.setRenderHint(QPainter.Antialiasing, True)
-        painter.setRenderHint(QPainter.SmoothPixmapTransform, True)
-        painter.setRenderHint(QPainter.HighQualityAntialiasing, True)
+        # CRITICAL: Disable ALL anti-aliasing for vector-like rendering
+        painter.setRenderHint(QPainter.Antialiasing, False)
+        painter.setRenderHint(QPainter.SmoothPixmapTransform, False)
+        painter.setRenderHint(QPainter.HighQualityAntialiasing, False)
+
+        # Set up the pen with sharp joins
+        pen = QPen(self.color)
+        pen.setWidth(2)  # Slightly thinner outline
+        pen.setJoinStyle(Qt.MiterJoin)  # Sharp corners
+        painter.setPen(pen)
+        painter.setBrush(self.color)
 
         # Move to the arrow position and rotate
         painter.translate(self.position[0], self.position[1])
         painter.rotate(self.angle)
 
-        # Set up the pen for shaft with improved quality
-        pen = QPen(self.color)
-        pen.setWidth(3)  # Thicker shaft
-        pen.setCapStyle(Qt.RoundCap)  # Rounded ends for smoother appearance
-        pen.setJoinStyle(Qt.RoundJoin)  # Rounded joins for smoother corners
-        painter.setPen(pen)
-
-        # Fill color with no outline artifacts
-        painter.setBrush(self.color)
-
         # Calculate arrow dimensions based on size
-        shaft_length = self.size * 0.9  # Longer shaft
-        head_length = self.size * 0.6  # Arrowhead length
-        head_width = self.size * 0.5   # Arrowhead width
+        shaft_length = self.size * 0.8
+        head_length = self.size * 0.6
+        head_width = self.size * 0.6
+        shaft_width = max(3, int(self.size * 0.1))  # Min width 3px
 
-        # Draw the shaft as a separate line with proper thickness
-        painter.drawLine(-shaft_length/2, 0, shaft_length/2 - head_length, 0)
+        # Create points for the entire arrow as a single polygon
+        points = []
 
-        # Create a path for the arrowhead with precise geometry
-        path = QPainterPath()
+        # Shaft left side
+        points.append(QPoint(int(-shaft_length/2), int(-shaft_width/2)))
 
-        # Create a slightly cleaner connection between shaft and head
-        shaft_end = shaft_length/2 - head_length
+        # Shaft right side + arrow base
+        points.append(QPoint(int(shaft_length/2 - head_length), int(-shaft_width/2)))
 
-        # Start at the base of the arrowhead
-        path.moveTo(shaft_end, 0)
+        # Arrow head top
+        points.append(QPoint(int(shaft_length/2 - head_length), int(-head_width/2)))
 
-        # Draw the arrowhead (triangle) with clean, precise lines
-        path.lineTo(shaft_end, -head_width/2)  # Up to top corner
-        path.lineTo(shaft_length/2, 0)         # To the point
-        path.lineTo(shaft_end, head_width/2)   # Down to bottom corner
-        path.closeSubpath()  # Close the triangle
+        # Arrow tip
+        points.append(QPoint(int(shaft_length/2), 0))
 
-        # Fill the arrowhead with a clean fill
-        painter.fillPath(path, self.color)
+        # Arrow head bottom
+        points.append(QPoint(int(shaft_length/2 - head_length), int(head_width/2)))
+
+        # Shaft right side bottom
+        points.append(QPoint(int(shaft_length/2 - head_length), int(shaft_width/2)))
+
+        # Shaft left side bottom
+        points.append(QPoint(int(-shaft_length/2), int(shaft_width/2)))
+
+        # Draw the polygon
+        painter.drawPolygon(QPolygon(points))
 
         # If selected, draw a selection indicator
         if self.selected:
             painter.setPen(QPen(Qt.blue, 1, Qt.DashLine))
             painter.setBrush(Qt.transparent)
-            painter.drawEllipse(QPoint(0, 0), self.size / 2 + 5, self.size / 2 + 5)
+            painter.drawEllipse(QPoint(0, 0), int(self.size / 2 + 5), int(self.size / 2 + 5))
 
         # Restore the painter state
         painter.restore()
-
-    def contains(self, point):
-        """Check if the given point is within the arrow for selection"""
-        # Distance from center to point
-        dx = point.x() - self.position[0]
-        dy = point.y() - self.position[1]
-        distance = (dx * dx + dy * dy) ** 0.5
-
-        # Consider the arrow as a circle for simplicity
-        return distance < self.size / 1.5
 
 class ArrowCanvasWidget(QLabel):
     """A canvas widget that can display an image and arrow annotations"""
@@ -117,43 +111,53 @@ class ArrowCanvasWidget(QLabel):
         self.update_display()
 
     def update_display(self):
-        """Update the display with base image + annotations with high quality"""
+        """Update the display with base image + high-res vector arrows"""
         if self.base_pixmap:
-            # Create a working copy at 2x resolution for higher quality rendering
-            w, h = self.base_pixmap.width(), self.base_pixmap.height()
-            high_res_pixmap = QPixmap(w, h)
-            high_res_pixmap.fill(Qt.transparent)
+            # Get original dimensions
+            width = self.base_pixmap.width()
+            height = self.base_pixmap.height()
 
-            # Draw base image
-            painter = QPainter(high_res_pixmap)
-            painter.setRenderHint(QPainter.Antialiasing, True)
-            painter.setRenderHint(QPainter.SmoothPixmapTransform, True)
-            painter.setRenderHint(QPainter.HighQualityAntialiasing, True)
+            # STEP 1: Create high-resolution pixmap (2x)
+            scale_factor = 2.0
+            high_res = QPixmap(int(width * scale_factor), int(height * scale_factor))
+            high_res.fill(Qt.transparent)
 
-            # Draw the base image
-            painter.drawPixmap(0, 0, self.base_pixmap)
+            # STEP 2: Draw base image scaled up
+            high_painter = QPainter(high_res)
+            high_painter.setRenderHint(QPainter.SmoothPixmapTransform, True)
+            high_painter.drawPixmap(0, 0, self.base_pixmap.scaled(
+                int(width * scale_factor), int(height * scale_factor),
+                Qt.IgnoreAspectRatio, Qt.SmoothTransformation
+            ))
 
-            # Draw all arrows with high quality
+            # STEP 3: Draw all arrows at high resolution
+            # Scale coordinates, but keep arrow drawing sharp
+            high_painter.scale(scale_factor, scale_factor)
             for arrow in self.arrows:
-                arrow.draw(painter)
+                arrow.draw(high_painter)
+            high_painter.end()
 
-            painter.end()
+            # STEP 4: Downsample with nearest-neighbor to keep sharp edges
+            final = high_res.scaled(
+                width, height,
+                Qt.IgnoreAspectRatio, Qt.FastTransformation
+            )
 
             # Store this for final image retrieval
-            self.temp_pixmap = high_res_pixmap
+            self.temp_pixmap = final
 
-            # Scale for display within the widget bounds, maintaining aspect ratio
+            # STEP 5: Scale for display within the widget bounds
             if self.width() > 0 and self.height() > 0:
                 display_width = self.width() - 10
                 display_height = self.height() - 10
 
-                w, h = high_res_pixmap.width(), high_res_pixmap.height()
+                w, h = final.width(), final.height()
                 if w > 0 and h > 0:
                     # Calculate scaling factor to fit within display
                     scale = min(display_width / w, display_height / h)
 
-                    # Scale to fit the display area (allow scaling up and down)
-                    scaled_pixmap = high_res_pixmap.scaled(
+                    # Scale to fit the display area
+                    scaled_pixmap = final.scaled(
                         int(w * scale), int(h * scale),
                         Qt.KeepAspectRatio, Qt.SmoothTransformation
                     )
@@ -162,10 +166,10 @@ class ArrowCanvasWidget(QLabel):
                     super().setPixmap(scaled_pixmap)
                     return
 
-            # If we got here, no scaling was applied
-            super().setPixmap(high_res_pixmap)
+            # If no scaling applied
+            super().setPixmap(final)
 
-    def add_arrow(self, position, size=30, color=Qt.black):
+    def add_arrow(self, position, size=50, color=Qt.black):
         """Add a new arrow at the specified position"""
         # Convert from view coordinates to pixmap coordinates if needed
         pixmap_pos = self.map_to_pixmap_coords(position)
@@ -226,8 +230,8 @@ class ArrowCanvasWidget(QLabel):
             self.setPixmap(empty_pixmap)
 
     def get_final_image(self):
-        """Get the final image with arrows as a QImage"""
-        if self.temp_pixmap:
+        """Get the final image with vector-like arrows"""
+        if hasattr(self, 'temp_pixmap'):
             return self.temp_pixmap.toImage()
         return None
 

@@ -89,8 +89,8 @@ def add_arrow(parent):
     center_x = parent.canvas.width() // 2
     center_y = parent.canvas.height() // 2
 
-    # Add the arrow with a default size (resize with Option/Alt+drag)
-    arrow = parent.canvas.add_arrow(QPoint(center_x, center_y), size=30, color=parent.arrow_color)
+    # Add the arrow with a larger default size (40px instead of 30px)
+    arrow = parent.canvas.add_arrow(QPoint(center_x, center_y), size=50, color=parent.arrow_color)
 
     # Enable the delete buttons
     parent.delete_arrow_button.setEnabled(True)
