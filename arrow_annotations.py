@@ -19,12 +19,83 @@ class Arrow:
         self.color = color  # color of the arrow
         self.selected = False  # whether arrow is selected for manipulation
 
-    def draw(self, painter):
-        """Draw the arrow on the given painter with vector-like quality"""
+    def get_detection_status(self, image_dpi=None):
+        """
+        Calculate detection likelihood based on size and DPI
+
+        Returns:
+        - "good": Arrow will definitely be detected
+        - "warning": Arrow may not be detected
+        - "error": Arrow will not be detected
+        """
+        # Default to 300 DPI if not provided
+        dpi = image_dpi or 300
+
+        # Calculate scaling factor based on DPI
+        scale_factor = dpi / 300  # Inverted from original formula to correctly scale
+
+        # Calculate effective sizes relative to DPI
+        # Lower DPI means we need larger arrows for the same detection reliability
+        effective_size = self.size * scale_factor
+        effective_shaft_width = max(5, int(self.size * 0.1)) * scale_factor
+        effective_head_size = self.size * 0.6 * scale_factor
+
+        # Calculate approximate area of the arrow (combined shaft and head)
+        shaft_area = effective_size * 0.8 * effective_shaft_width
+        head_area = effective_head_size * effective_head_size * 0.5  # Triangle area approximation
+        effective_area = shaft_area + head_area
+
+        # Check against detection thresholds
+        if effective_shaft_width < 3 or effective_head_size < 10 or effective_area < 50:
+            return "error"
+        elif effective_shaft_width < 4 or effective_head_size < 15 or effective_area < 75:
+            return "warning"
+        else:
+            return "good"
+
+    def make_detectable(self, image_dpi=None):
+        """
+        Adjust arrow properties to ensure detection at the given DPI
+
+        Returns:
+        - True if arrow needed adjustment
+        - False if arrow was already detectable
+        """
+        status = self.get_detection_status(image_dpi)
+        if status == "good":
+            return False
+
+        # Default to 300 DPI if not provided
+        dpi = image_dpi or 300
+
+        # Calculate scale factor - lower DPI requires larger arrows
+        scale_factor = 300 / dpi
+
+        # Calculate minimum size needed for detection
+        # Base calculation on the specific threshold values from get_detection_status
+        min_shaft_width = 5 * scale_factor
+        min_head_size = 15 * scale_factor
+
+        # Calculate minimum overall size needed to achieve required shaft width and head size
+        min_size_for_shaft = min_shaft_width / 0.1  # shaft_width = size * 0.1
+        min_size_for_head = min_head_size / 0.6     # head_size = size * 0.6
+
+        # Use the larger of the two calculated minimums
+        required_size = max(min_size_for_shaft, min_size_for_head)
+
+        # Apply minimum size with a safety factor of 1.1 to ensure detection
+        if self.size < required_size * 1.1:
+            self.size = required_size * 1.1
+            return True
+
+        return False
+
+    def draw(self, painter, show_detection_status=False, image_dpi=None):
+        """Draw the arrow on the given painter with vector-like quality and optional detection status"""
         # Save the current painter state
         painter.save()
 
-        # CRITICAL: Disable ALL anti-aliasing for vector-like rendering
+        # CRITICAL: Disable ALL anti-aliasing for vector-like rendering with sharp edges
         painter.setRenderHint(QPainter.Antialiasing, False)
         painter.setRenderHint(QPainter.SmoothPixmapTransform, False)
         painter.setRenderHint(QPainter.HighQualityAntialiasing, False)
@@ -44,11 +115,14 @@ class Arrow:
         shaft_length = self.size * 0.8
         head_length = self.size * 0.6
         head_width = self.size * 0.6
-        shaft_width = max(3, int(self.size * 0.1))  # Min width 3px
+
+        # Ensure minimum shaft width of 5px for better detection
+        shaft_width = max(5, int(self.size * 0.1))
 
         # Create points for the entire arrow as a single polygon
         points = []
 
+        # Ensure all coordinates are integers for sharp rendering
         # Shaft left side
         points.append(QPoint(int(-shaft_length/2), int(-shaft_width/2)))
 
@@ -70,8 +144,9 @@ class Arrow:
         # Shaft left side bottom
         points.append(QPoint(int(-shaft_length/2), int(shaft_width/2)))
 
-        # Draw the polygon
-        painter.drawPolygon(QPolygon(points))
+        # Draw the polygon with solid fill
+        polygon = QPolygon(points)
+        painter.drawPolygon(polygon)
 
         # If selected, draw a selection indicator
         if self.selected:
@@ -79,11 +154,33 @@ class Arrow:
             painter.setBrush(Qt.transparent)
             painter.drawEllipse(QPoint(0, 0), int(self.size / 2 + 5), int(self.size / 2 + 5))
 
+        # Show detection status indicator if requested
+        if show_detection_status:
+            detection_status = self.get_detection_status(image_dpi)
+
+            # Reset rotation and move to draw status indicator
+            painter.resetTransform()
+            painter.translate(self.position[0], self.position[1])
+
+            # Draw indicator in the top-right of the arrow
+            indicator_offset = self.size / 2 + 10
+            indicator_size = 8
+
+            if detection_status == "good":
+                painter.setBrush(QColor(0, 200, 0))  # Green
+            elif detection_status == "warning":
+                painter.setBrush(QColor(255, 165, 0))  # Orange
+            else:
+                painter.setBrush(QColor(255, 0, 0))  # Red
+
+            painter.setPen(Qt.black)
+            painter.drawEllipse(indicator_offset, -indicator_offset, indicator_size, indicator_size)
+
         # Restore the painter state
         painter.restore()
 
 class ArrowCanvasWidget(QLabel):
-    """A canvas widget that can display an image and arrow annotations"""
+    """A canvas widget that can display an image and arrow annotations with guaranteed detection"""
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setMouseTracking(True)
@@ -94,6 +191,7 @@ class ArrowCanvasWidget(QLabel):
 
         # Arrow properties
         self.arrows = []  # List of arrows
+        self.image_dpi = None  # DPI information for the image
         self.selected_arrow = None  # Currently selected arrow
         self.dragging = False  # Whether we're dragging an arrow
         self.drag_start_pos = None  # Starting position for drag
@@ -117,8 +215,8 @@ class ArrowCanvasWidget(QLabel):
             width = self.base_pixmap.width()
             height = self.base_pixmap.height()
 
-            # STEP 1: Create high-resolution pixmap (2x)
-            scale_factor = 2.0
+            # STEP 1: Create high-resolution pixmap (3x for even better quality)
+            scale_factor = 3.0
             high_res = QPixmap(int(width * scale_factor), int(height * scale_factor))
             high_res.fill(Qt.transparent)
 
@@ -133,8 +231,18 @@ class ArrowCanvasWidget(QLabel):
             # STEP 3: Draw all arrows at high resolution
             # Scale coordinates, but keep arrow drawing sharp
             high_painter.scale(scale_factor, scale_factor)
+
+            # First draw normal arrows
             for arrow in self.arrows:
-                arrow.draw(high_painter)
+                if not arrow.selected:
+                    arrow.draw(high_painter, image_dpi=self.image_dpi)
+
+            # Then draw selected arrows on top
+            for arrow in self.arrows:
+                if arrow.selected:
+                    # Show detection status for selected arrows
+                    arrow.draw(high_painter, show_detection_status=True, image_dpi=self.image_dpi)
+
             high_painter.end()
 
             # STEP 4: Downsample with nearest-neighbor to keep sharp edges
@@ -170,12 +278,39 @@ class ArrowCanvasWidget(QLabel):
             super().setPixmap(final)
 
     def add_arrow(self, position, size=50, color=Qt.black):
-        """Add a new arrow at the specified position"""
+        """
+        Add a new arrow at the specified position with size optimized for detection
+
+        Args:
+            position: QPoint position in view coordinates
+            size: Initial size (will be adjusted if needed for detection)
+            color: Arrow color
+
+        Returns:
+            Arrow: The newly created arrow object
+        """
         # Convert from view coordinates to pixmap coordinates if needed
         pixmap_pos = self.map_to_pixmap_coords(position)
 
+        # Calculate minimum size for detection based on DPI
+        min_size = 50
+        if self.image_dpi:
+            # Calculate DPI-based minimum size
+            # Lower DPI requires larger arrows for reliable detection
+            dpi_value = min(self.image_dpi) if isinstance(self.image_dpi, tuple) else self.image_dpi
+            if dpi_value < 300:
+                # Scale minimum size inversely with DPI
+                min_size = int(min_size * (300 / dpi_value))
+
+        # Use the larger of requested size or minimum detectable size
+        actual_size = max(size, min_size)
+
         # Create and add the arrow
-        arrow = Arrow(position=pixmap_pos, size=size, color=color)
+        arrow = Arrow(position=pixmap_pos, size=actual_size, color=color)
+
+        # Ensure the arrow is detectable by modifying its properties if needed
+        arrow.make_detectable(self.image_dpi)
+
         self.arrows.append(arrow)
 
         # Select the new arrow
@@ -331,7 +466,7 @@ class ArrowCanvasWidget(QLabel):
         self.select_arrow(None)
 
     def mouseMoveEvent(self, event):
-        """Handle mouse move events"""
+        """Handle mouse move events with DPI-aware resizing limits"""
         if not self.base_pixmap:
             return
 
@@ -343,9 +478,31 @@ class ArrowCanvasWidget(QLabel):
             # Positive dx = increase size, negative dx = decrease size
             size_change = dx * 0.5  # Scale the change for better control
 
-            # Update the arrow size with limits
-            new_size = max(10, min(200, self.resize_start_size + size_change))
-            self.selected_arrow.size = new_size
+            # Calculate minimum size based on DPI
+            min_size = 50
+            if self.image_dpi:
+                dpi_value = min(self.image_dpi) if isinstance(self.image_dpi, tuple) else self.image_dpi
+                if dpi_value < 300:
+                    # Scale minimum size inversely with DPI
+                    min_size = int(min_size * (300 / dpi_value))
+
+            # Try to update the arrow size
+            proposed_size = self.resize_start_size + size_change
+
+            # Verify the proposed size would be detectable
+            temp_size = self.selected_arrow.size
+            self.selected_arrow.size = proposed_size
+
+            # Check if this size would be detectable
+            detection_status = self.selected_arrow.get_detection_status(self.image_dpi)
+
+            # Only allow sizes that are at least "warning" level detectable
+            if detection_status == "error":
+                # Revert to the minimum detectable size
+                self.selected_arrow.make_detectable(self.image_dpi)
+            else:
+                # Use the proposed size with constraints
+                self.selected_arrow.size = max(min_size, min(200, proposed_size))
 
             # Update the display
             self.update_display()
@@ -405,20 +562,6 @@ class ArrowCanvasWidget(QLabel):
         else:
             super().keyPressEvent(event)
 
-    def keyPressEvent(self, event):
-        """Handle key press events"""
-        if event.key() == Qt.Key_Delete and self.selected_arrow:
-            self.delete_selected_arrow()
-        elif event.key() == Qt.Key_Left and self.selected_arrow:
-            self.selected_arrow.angle = (self.selected_arrow.angle - 5) % 360
-            self.update_display()
-        elif event.key() == Qt.Key_Right and self.selected_arrow:
-            self.selected_arrow.angle = (self.selected_arrow.angle + 5) % 360
-            self.update_display()
-        else:
-            super().keyPressEvent(event)
-
-    # Add this method at the end of the class
     def setText(self, text):
         """Set text on the canvas (for showing messages)"""
         empty_pixmap = QPixmap(self.width(), self.height())
@@ -433,3 +576,64 @@ class ArrowCanvasWidget(QLabel):
         self.base_pixmap = None
         self.arrows.clear()
         self.selected_arrow = None
+
+    def set_image_dpi(self, dpi):
+        """
+        Set the DPI information for the image and update arrows accordingly
+
+        Args:
+            dpi: DPI value or tuple (x_dpi, y_dpi)
+        """
+        if isinstance(dpi, tuple):
+            # Store the minimum DPI value from the tuple for conservative detection
+            self.image_dpi = min(dpi)
+        else:
+            self.image_dpi = dpi
+
+        # If we already have arrows, ensure they're all detectable with this DPI
+        if self.arrows:
+            adjusted_count = self.make_all_arrows_detectable()
+            if adjusted_count > 0:
+                print(f"Adjusted {adjusted_count} arrows to ensure detection at {self.image_dpi} DPI")
+
+    def make_all_arrows_detectable(self):
+        """
+        Adjust all arrows to ensure they'll be detected by PyLithics
+
+        Returns:
+            int: Number of arrows that were adjusted
+        """
+        if not self.arrows:
+            return 0
+
+        adjusted_count = 0
+        for arrow in self.arrows:
+            if arrow.make_detectable(self.image_dpi):
+                adjusted_count += 1
+
+        # Update the display if any arrows were adjusted
+        if adjusted_count > 0:
+            self.update_display()
+
+        return adjusted_count
+
+    def get_minimum_arrow_size(self):
+        """
+        Calculate the minimum arrow size based on current DPI
+
+        Returns:
+            int: Minimum arrow size in pixels
+        """
+        # Default minimum size (at 300 DPI)
+        base_min_size = 50
+
+        if not self.image_dpi:
+            return base_min_size
+
+        # Calculate DPI-based minimum size
+        dpi_value = min(self.image_dpi) if isinstance(self.image_dpi, tuple) else self.image_dpi
+        if dpi_value < 300:
+            # Scale minimum size inversely with DPI
+            return int(base_min_size * (300 / dpi_value))
+        else:
+            return base_min_size

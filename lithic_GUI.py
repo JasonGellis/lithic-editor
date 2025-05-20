@@ -672,10 +672,10 @@ class LithicProcessorGUI(QMainWindow):
                 if hasattr(pil_img, 'info') and 'dpi' in pil_img.info:
                     dpi_info = pil_img.info['dpi']
                     self.log(f"Image DPI: {dpi_info}")
-                    # Store DPI info with the class for later use
-                    self.image_dpi = dpi_info
-                    # Update the UI immediately
-                    self.current_dpi_label.setText(f"Detected DPI: {round(dpi_info[0])}x{round(dpi_info[1])}")
+                    # Store DPI info with the class for later use (properly rounded)
+                    self.image_dpi = (round(dpi_info[0]), round(dpi_info[1]))
+                    # Update the UI with rounded values
+                    self.current_dpi_label.setText(f"Detected DPI: {self.image_dpi[0]}×{self.image_dpi[1]}")
                 else:
                     self.log("No DPI information found in image")
                     self.image_dpi = None
@@ -980,9 +980,17 @@ class LithicProcessorGUI(QMainWindow):
         label_widget.setPixmap(pixmap)
 
     def save_result(self):
-        """Save the processed image with annotations"""
+        """Save the processed image with arrows"""
         if not self.processed_image_path:
             return
+
+        # Ensure all arrows are detectable before saving
+        if hasattr(self, 'canvas') and hasattr(self.canvas, 'make_all_arrows_detectable'):
+            adjusted_count = self.canvas.make_all_arrows_detectable()
+            if adjusted_count > 0:
+                self.log(f"Adjusted {adjusted_count} arrows to ensure detection in saved image")
+                # Update the display to show adjusted arrows
+                self.canvas.update_display()
 
         # Use native file dialog
         options = QFileDialog.Options()
@@ -1045,12 +1053,6 @@ class LithicProcessorGUI(QMainWindow):
                     else:
                         self.log("Leaving DPI unset (application defaults will apply)")
 
-                    # Save the image with or without metadata
-                    if dpi_info:
-                        pil_img.save(file_path, format=save_format, dpi=dpi_info)
-                    else:
-                        pil_img.save(file_path, format=save_format)
-
                     # Set default DPI if none found (300 DPI is standard for publications)
                     if not dpi_info:
                         dpi_info = (300, 300)
@@ -1080,6 +1082,11 @@ class LithicProcessorGUI(QMainWindow):
         q_img = QImage(img_rgb.data, w, h, img_rgb.strides[0], QImage.Format_RGB888)
         pixmap = QPixmap.fromImage(q_img)
 
+        # If displaying in the arrow canvas, update the DPI information
+        if display_widget == self.canvas and hasattr(self, 'image_dpi'):
+            # Set the DPI information in the canvas
+            self.canvas.set_image_dpi(self.image_dpi)
+
         # If the widget is a CanvasWidget or ArrowCanvasWidget, use set_base_image
         if isinstance(display_widget, CanvasWidget) or isinstance(display_widget, ArrowCanvasWidget):
             display_widget.set_base_image(pixmap)
@@ -1101,8 +1108,9 @@ class LithicProcessorGUI(QMainWindow):
             # Update display
             display_widget.setPixmap(scaled_pixmap)
 
-        # Log the scaling
-        # self.log(f"Displayed image {os.path.basename(image_path)} - Original: {w}x{h}")
+        # Log DPI information if available
+        if hasattr(self, 'image_dpi') and self.image_dpi:
+            self.log(f"Image displayed with DPI: {self.image_dpi}")
 
         # Clear arrows when a new image is loaded in the output canvas
         if display_widget == self.canvas:
