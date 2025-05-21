@@ -110,8 +110,4 @@ The ripple removal algorithm uses a multi-step approach:
 ## Acknowledgements
 
 - Developed for archaeological research applications
-- Special thanks to [Your Institution/Collaborators]
-
-## Contact
-
-[Your Name/Team] - [email/contact information]
+- Special thanks to The British Academemy for funding
