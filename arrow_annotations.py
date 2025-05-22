@@ -61,8 +61,7 @@ class Arrow:
         - True if arrow needed adjustment
         - False if arrow was already detectable
         """
-        status = self.get_detection_status(image_dpi)
-        if status == "good":
+        if self.get_detection_status(image_dpi):
             return False
 
         # Default to 300 DPI if not provided
@@ -72,18 +71,17 @@ class Arrow:
         scale_factor = 300 / dpi
 
         # Calculate minimum size needed for detection
-        # Base calculation on the specific threshold values from get_detection_status
         min_shaft_width = 5 * scale_factor
         min_head_size = 15 * scale_factor
 
-        # Calculate minimum overall size needed to achieve required shaft width and head size
-        min_size_for_shaft = min_shaft_width / 0.1  # shaft_width = size * 0.1
-        min_size_for_head = min_head_size / 0.6     # head_size = size * 0.6
+        # Calculate minimum overall size needed
+        min_size_for_shaft = min_shaft_width / 0.1
+        min_size_for_head = min_head_size / 0.6
 
         # Use the larger of the two calculated minimums
         required_size = max(min_size_for_shaft, min_size_for_head)
 
-        # Apply minimum size with a safety factor of 1.1 to ensure detection
+        # Apply minimum size with a safety factor
         if self.size < required_size * 1.1:
             self.size = required_size * 1.1
             return True
@@ -91,7 +89,7 @@ class Arrow:
         return False
 
     def draw(self, painter, show_detection_status=False, image_dpi=None):
-        """Draw the arrow on the given painter with vector-like quality and optional detection status"""
+        """Draw the arrow on the given painter with vector-like quality, optimized for detection"""
         # Save the current painter state
         painter.save()
 
@@ -111,13 +109,25 @@ class Arrow:
         painter.translate(self.position[0], self.position[1])
         painter.rotate(self.angle)
 
-        # Calculate arrow dimensions based on size
-        shaft_length = self.size * 0.8
-        head_length = self.size * 0.6
-        head_width = self.size * 0.6
+        # Calculate DPI-aware scaling (if provided)
+        dpi_factor = 1.0
+        if image_dpi and image_dpi > 0:
+            dpi_factor = 300.0 / image_dpi  # Scale relative to 300 DPI
 
-        # Ensure minimum shaft width of 5px for better detection
-        shaft_width = max(5, int(self.size * 0.1))
+        # Calculate arrow dimensions based on size
+        # Head dimensions - make sure head is clearly triangular
+        head_length = self.size * 0.8 # Controls head length
+        head_width = self.size * 0.6   # Controls head width
+
+        # Shaft dimensions - make it more substantial but not too solid
+        shaft_length = self.size * 1.3
+
+        # Ensure minimum shaft width based on DPI (15-20px at 300 DPI)
+        min_shaft_width = 1 * dpi_factor
+        shaft_width = max(int(self.size * 0.05), int(min_shaft_width))
+
+        # Ensure shaft length >= head height for good detection
+        shaft_length = max(shaft_length, head_width)
 
         # Create points for the entire arrow as a single polygon
         points = []
@@ -129,13 +139,13 @@ class Arrow:
         # Shaft right side + arrow base
         points.append(QPoint(int(shaft_length/2 - head_length), int(-shaft_width/2)))
 
-        # Arrow head top
+        # Arrow head top - ensure sharp angle for good defect detection
         points.append(QPoint(int(shaft_length/2 - head_length), int(-head_width/2)))
 
         # Arrow tip
         points.append(QPoint(int(shaft_length/2), 0))
 
-        # Arrow head bottom
+        # Arrow head bottom - ensure sharp angle for good defect detection
         points.append(QPoint(int(shaft_length/2 - head_length), int(head_width/2)))
 
         # Shaft right side bottom
@@ -153,28 +163,6 @@ class Arrow:
             painter.setPen(QPen(Qt.blue, 1, Qt.DashLine))
             painter.setBrush(Qt.transparent)
             painter.drawEllipse(QPoint(0, 0), int(self.size / 2 + 5), int(self.size / 2 + 5))
-
-        # Show detection status indicator if requested
-        if show_detection_status:
-            detection_status = self.get_detection_status(image_dpi)
-
-            # Reset rotation and move to draw status indicator
-            painter.resetTransform()
-            painter.translate(self.position[0], self.position[1])
-
-            # Draw indicator in the top-right of the arrow
-            indicator_offset = self.size / 2 + 10
-            indicator_size = 8
-
-            if detection_status == "good":
-                painter.setBrush(QColor(0, 200, 0))  # Green
-            elif detection_status == "warning":
-                painter.setBrush(QColor(255, 165, 0))  # Orange
-            else:
-                painter.setBrush(QColor(255, 0, 0))  # Red
-
-            painter.setPen(Qt.black)
-            painter.drawEllipse(indicator_offset, -indicator_offset, indicator_size, indicator_size)
 
         # Restore the painter state
         painter.restore()

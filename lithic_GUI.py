@@ -602,7 +602,7 @@ class LithicProcessorGUI(QMainWindow):
 
         # Log the change
         color_name = "Black" if color == Qt.black else "White"
-        self.log(f"Brush settings updated: Color = {color_name}, Size = {size}")
+        self.log(f"Brush settings: Color = {color_name}, Size = {size}")
 
     def clear_annotations(self):
         """Clear all annotations from the input canvas"""
