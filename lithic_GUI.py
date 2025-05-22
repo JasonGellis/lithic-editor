@@ -304,30 +304,43 @@ class LithicProcessorGUI(QMainWindow):
     def initUI(self):
         # Main window setup
         self.setWindowTitle('Lithic Editor and Annotator')
-        self.setGeometry(100, 100, 1400, 900)
-        self.resize(1200, 800)  # Smaller starting size
-        self.setMinimumSize(800, 600)  # Set minimum size
+        self.setGeometry(100, 100, 1600, 900)
+        self.resize(1400, 800)
+        self.setMinimumSize(1000, 700)
 
         # Main layout
         central_widget = QWidget()
         main_layout = QVBoxLayout(central_widget)
+        main_layout.setSpacing(5)
+        main_layout.setContentsMargins(5, 5, 5, 5)
 
-        # Top section: Controls
+        # Top section: Two columns - Left column (stacked controls) + Right column (options)
         top_controls = QHBoxLayout()
+        top_controls.setSpacing(10)
+
+        # LEFT COLUMN: Stacked control panels
+        left_controls_widget = QWidget()
+        left_controls_layout = QVBoxLayout(left_controls_widget)
+        left_controls_layout.setSpacing(5)
+        left_controls_layout.setContentsMargins(0, 0, 0, 0)
 
         # File controls group
         file_controls = QGroupBox("File Controls")
         file_layout = QHBoxLayout(file_controls)
+        file_layout.setSpacing(5)
+        file_layout.setContentsMargins(5, 5, 5, 5)
 
         self.load_button = QPushButton('Load Image')
-        self.load_button.clicked.connect(self.load_image)
         self.process_button = QPushButton('Process Image')
-        self.process_button.clicked.connect(self.process_image)
         self.process_button.setEnabled(False)
         self.save_button = QPushButton('Save Result')
-        self.save_button.clicked.connect(self.save_result)
         self.save_button.setEnabled(False)
         self.exit_button = QPushButton('Exit')
+
+        # Connect signals
+        self.load_button.clicked.connect(self.load_image)
+        self.process_button.clicked.connect(self.process_image)
+        self.save_button.clicked.connect(self.save_result)
         self.exit_button.clicked.connect(self.close)
 
         file_layout.addWidget(self.load_button)
@@ -335,79 +348,16 @@ class LithicProcessorGUI(QMainWindow):
         file_layout.addWidget(self.save_button)
         file_layout.addWidget(self.exit_button)
 
-        # Options group
-        options_group = QGroupBox("Options")
-        options_layout = QHBoxLayout(options_group)
-
-        self.show_debug_images = QCheckBox('Show Debug Images')
-        self.show_debug_images.setChecked(True)
-        self.show_debug_images.stateChanged.connect(self.toggle_debug_images)
-
-        options_layout.addWidget(self.show_debug_images)
-
-        # Add DPI control options to the options group
-        dpi_options_layout = QVBoxLayout()
-        dpi_title = QLabel("DPI Settings")
-        dpi_title.setStyleSheet("font-weight: bold;")
-        dpi_options_layout.addWidget(dpi_title)
-
-        # Current DPI display
-        self.current_dpi_label = QLabel("Detected DPI in loaded image: None")
-        dpi_options_layout.addWidget(self.current_dpi_label)
-
-        # Add explanation label for DPI options
-        self.dpi_explanation_label = QLabel("Original DPI is preserved when available")
-        self.dpi_explanation_label.setStyleSheet("font-style: italic;")
-        dpi_options_layout.addWidget(self.dpi_explanation_label)
-
-        # DPI radio button group
-        self.dpi_group = QButtonGroup(self)
-        self.keep_unset_dpi = QRadioButton("Leave unset (application defaults)")
-        self.use_standard_dpi = QRadioButton("Use publication standard (300 DPI)")
-        self.use_screen_dpi = QRadioButton("Use screen resolution (96 DPI)")
-        self.use_custom_dpi = QRadioButton("Use custom DPI:")
-
-
-        self.dpi_group.addButton(self.keep_unset_dpi)
-        self.dpi_group.addButton(self.use_standard_dpi)
-        self.dpi_group.addButton(self.use_screen_dpi)
-        self.dpi_group.addButton(self.use_custom_dpi)
-
-        dpi_options_layout.addWidget(self.keep_unset_dpi)
-        dpi_options_layout.addWidget(self.use_standard_dpi)
-        dpi_options_layout.addWidget(self.use_screen_dpi)
-
-        # Custom DPI spinner in a horizontal layout
-        custom_dpi_layout = QHBoxLayout()
-        custom_dpi_layout.addWidget(self.use_custom_dpi)
-        self.custom_dpi_spinner = QSpinBox()
-        self.custom_dpi_spinner.setRange(72, 1200)
-        self.custom_dpi_spinner.setValue(300)
-        self.custom_dpi_spinner.setSuffix(" DPI")
-        custom_dpi_layout.addWidget(self.custom_dpi_spinner)
-        dpi_options_layout.addLayout(custom_dpi_layout)
-
-        # Add the DPI options to the options layout
-        options_layout.addLayout(dpi_options_layout)
-
-        # Add groups to top controls
-        top_controls.addWidget(file_controls, 3)
-        top_controls.addWidget(options_group, 2)
-
-        # Add top controls to main layout
-        main_layout.addLayout(top_controls)
-
-        # Middle section: Image display and debug
-        middle_section = QSplitter(Qt.Horizontal)
-
-        # Left side with images and tools
-        left_panel = QWidget()
-        left_layout = QVBoxLayout(left_panel)
-        left_layout.setContentsMargins(5, 5, 5, 5)
-
         # Drawing tools section
         drawing_tools = QGroupBox("Drawing Tools")
         drawing_layout = QHBoxLayout(drawing_tools)
+        drawing_layout.setSpacing(5)
+        drawing_layout.setContentsMargins(5, 5, 5, 5)
+
+        self.brush_button = QPushButton("Activate Brush")
+        self.brush_button.setCheckable(True)
+        self.brush_button.setChecked(False)
+        self.brush_button.clicked.connect(self.toggle_brush)
 
         # Brush color selection
         color_group = QButtonGroup(self)
@@ -418,164 +368,257 @@ class LithicProcessorGUI(QMainWindow):
         color_group.addButton(self.black_brush)
         color_group.buttonClicked.connect(self.update_brush)
 
-        # Brush size spinbox with up/down buttons
-        size_label = QLabel("Brush Size:")
+        # Brush size
+        size_label = QLabel("Size:")
         self.brush_size_spin = QSpinBox()
         self.brush_size_spin.setMinimum(1)
         self.brush_size_spin.setMaximum(20)
         self.brush_size_spin.setValue(5)
         self.brush_size_spin.valueChanged.connect(self.update_brush)
-        self.brush_button = QPushButton("Activate Brush")
-        self.brush_button.setCheckable(True)
-        self.brush_button.setChecked(False)  # Start with brush inactive
-        self.brush_button.clicked.connect(self.toggle_brush)
 
-        # Clear annotations button
         self.clear_annotations_button = QPushButton("Clear Brush")
         self.clear_annotations_button.clicked.connect(self.clear_annotations)
         self.clear_annotations_button.setEnabled(False)
 
-        # Add widgets to drawing layout
         drawing_layout.addWidget(self.brush_button)
-        drawing_layout.addWidget(QLabel("Brush Color:"))
+        drawing_layout.addWidget(QLabel("Color:"))
         drawing_layout.addWidget(self.white_brush)
         drawing_layout.addWidget(self.black_brush)
-        drawing_layout.addStretch(1)  # Add flexible space
         drawing_layout.addWidget(size_label)
         drawing_layout.addWidget(self.brush_size_spin)
-        drawing_layout.addStretch(1)  # Add flexible space
         drawing_layout.addWidget(self.clear_annotations_button)
 
-        # Add drawing tools to left layout
-        left_layout.addWidget(drawing_tools)
+        # Arrow annotation controls
+        arrow_tools = QGroupBox("Arrow Annotation")
+        arrow_layout = QHBoxLayout(arrow_tools)
+        arrow_layout.setSpacing(5)
+        arrow_layout.setContentsMargins(5, 5, 5, 5)
 
-        # Add arrow annotation controls - THIS IS THE NEW SECTION
-        arrow_tools = arrow_integration.setup_arrow_controls(self)
-        left_layout.addWidget(arrow_tools)
+        self.add_arrow_button = QPushButton("Add Arrow")
+        self.add_arrow_button.clicked.connect(lambda: arrow_integration.add_arrow(self))
+        self.add_arrow_button.setEnabled(False)
 
-        # Images splitter (vertical) - for input and output images
-        images_splitter = QSplitter(Qt.Vertical)
+        self.arrow_color_button = QPushButton("Arrow Color")
+        self.arrow_color_button.setStyleSheet("background-color: black;")
+        self.arrow_color_button.clicked.connect(lambda: arrow_integration.select_arrow_color(self))
+        self.arrow_color = QColor(Qt.black)
+
+        self.delete_arrow_button = QPushButton("Delete Arrow")
+        self.delete_arrow_button.clicked.connect(lambda: arrow_integration.delete_selected_arrow(self))
+        self.delete_arrow_button.setEnabled(False)
+
+        self.clear_arrows_button = QPushButton("Clear Arrows")
+        self.clear_arrows_button.clicked.connect(lambda: arrow_integration.clear_arrows(self))
+        self.clear_arrows_button.setEnabled(False)
+
+        # Add interaction hint
+        import sys
+        if sys.platform == 'darwin':  # macOS
+            interaction_hint = QLabel("Shift+drag to rotate, Option+drag to resize")
+        else:  # Windows, Linux, etc.
+            interaction_hint = QLabel("Shift+drag to rotate, Alt+drag to resize")
+        interaction_hint.setStyleSheet("font-style: italic; color: gray; font-size: 10px;")
+
+        arrow_layout.addWidget(self.add_arrow_button)
+        arrow_layout.addWidget(self.arrow_color_button)
+        arrow_layout.addWidget(self.delete_arrow_button)
+        arrow_layout.addWidget(self.clear_arrows_button)
+        arrow_layout.addWidget(interaction_hint)
+
+        # Add the three control groups to left column (stacked)
+        left_controls_layout.addWidget(file_controls)
+        left_controls_layout.addWidget(drawing_tools)
+        left_controls_layout.addWidget(arrow_tools)
+
+        # RIGHT COLUMN: Options & DPI settings (single tall panel)
+        options_group = QGroupBox("Options and DPI Settings")
+        options_layout = QVBoxLayout(options_group)
+        options_layout.setSpacing(10)
+        options_layout.setContentsMargins(10, 10, 10, 10)
+
+        # Debug images checkbox
+        self.show_debug_images = QCheckBox('Show Debug Images')
+        self.show_debug_images.setChecked(True)
+        self.show_debug_images.stateChanged.connect(self.toggle_debug_images)
+
+        # DPI settings section
+        dpi_title = QLabel("DPI Settings")
+        dpi_title.setStyleSheet("font-weight: bold; font-size: 12px;")
+
+        self.current_dpi_label = QLabel("Detected DPI in loaded image: None")
+        self.current_dpi_label.setStyleSheet("font-size: 11px;")
+
+        self.dpi_explanation_label = QLabel("Original DPI is preserved when available")
+        self.dpi_explanation_label.setStyleSheet("font-style: italic; font-size: 10px;")
+
+        # DPI radio buttons
+        self.dpi_group = QButtonGroup(self)
+        self.keep_unset_dpi = QRadioButton("Leave unset (application defaults)")
+        self.use_standard_dpi = QRadioButton("Use publication standard (300 DPI)")
+        self.use_screen_dpi = QRadioButton("Use screen resolution (96 DPI)")
+        self.use_custom_dpi = QRadioButton("Use custom DPI:")
+
+        self.dpi_group.addButton(self.keep_unset_dpi)
+        self.dpi_group.addButton(self.use_standard_dpi)
+        self.dpi_group.addButton(self.use_screen_dpi)
+        self.dpi_group.addButton(self.use_custom_dpi)
+
+        # Custom DPI spinner
+        custom_dpi_layout = QHBoxLayout()
+        custom_dpi_layout.addWidget(self.use_custom_dpi)
+        self.custom_dpi_spinner = QSpinBox()
+        self.custom_dpi_spinner.setRange(72, 1200)
+        self.custom_dpi_spinner.setValue(300)
+        self.custom_dpi_spinner.setSuffix(" DPI")
+        self.custom_dpi_spinner.setMaximumWidth(100)
+        custom_dpi_layout.addWidget(self.custom_dpi_spinner)
+        custom_dpi_layout.addStretch()
+
+        # Add all options to the right panel
+        options_layout.addWidget(self.show_debug_images)
+        options_layout.addWidget(dpi_title)
+        options_layout.addWidget(self.current_dpi_label)
+        options_layout.addWidget(self.dpi_explanation_label)
+        options_layout.addWidget(self.keep_unset_dpi)
+        options_layout.addWidget(self.use_standard_dpi)
+        options_layout.addWidget(self.use_screen_dpi)
+        options_layout.addLayout(custom_dpi_layout)
+        options_layout.addStretch()  # Push everything to top
+
+        # Add left column and right column to top layout
+        top_controls.addWidget(left_controls_widget, 2)  # Left column gets 2/3 of space
+        top_controls.addWidget(options_group, 1)         # Right column gets 1/3 of space
+
+        # Add top controls to main layout (compact, don't expand)
+        main_layout.addLayout(top_controls, 0)
+
+        # Main content area: Images and debug panel
+        content_splitter = QSplitter(Qt.Horizontal)
+
+        # Left side: Image panels (side by side)
+        images_splitter = QSplitter(Qt.Horizontal)
 
         # Input image panel
         input_panel = QWidget()
         input_layout = QVBoxLayout(input_panel)
-        input_layout.setContentsMargins(5, 5, 5, 5)
+        input_layout.setContentsMargins(2, 2, 2, 2)
+        input_layout.setSpacing(2)
 
         input_title = QLabel('Input Image')
         input_title.setAlignment(Qt.AlignCenter)
-        input_title.setStyleSheet("font-weight: bold; font-size: 14px;")
+        input_title.setStyleSheet("font-weight: bold; font-size: 12px; padding: 2px;")
 
-        # Use custom canvas widget for input image
         self.input_image_display = CanvasWidget()
         self.input_image_display.setObjectName("input_image_display")
         self.input_image_display.setText("No image loaded")
         self.input_image_display.setStyleSheet("border: 1px solid #cccccc; background-color: #f5f5f5;")
-        self.input_image_display.setMinimumSize(400, 300)
+        self.input_image_display.setMinimumSize(400, 400)
 
-        input_layout.addWidget(input_title)
+        input_layout.addWidget(input_title, 0)
         input_scroll = QScrollArea()
         input_scroll.setWidgetResizable(True)
         input_scroll.setWidget(self.input_image_display)
-        input_layout.addWidget(input_scroll)
+        input_layout.addWidget(input_scroll, 1)
 
-        # Output/Annotation image panel with canvas
+        # Output image panel
         output_panel = QWidget()
         output_layout = QVBoxLayout(output_panel)
-        output_layout.setContentsMargins(5, 5, 5, 5)
+        output_layout.setContentsMargins(2, 2, 2, 2)
+        output_layout.setSpacing(2)
 
         output_title = QLabel('Processed Image / Arrow Annotations')
         output_title.setAlignment(Qt.AlignCenter)
-        output_title.setStyleSheet("font-weight: bold; font-size: 14px;")
+        output_title.setStyleSheet("font-weight: bold; font-size: 12px; padding: 2px;")
 
-        # Use ArrowCanvasWidget for output display - THIS IS THE UPDATED PART
         self.canvas = arrow_integration.create_arrow_canvas()
         self.canvas.setObjectName("output_canvas")
         self.canvas.setText("No processed image")
+        self.canvas.setMinimumSize(400, 400)
 
-        output_layout.addWidget(output_title)
-        # Create scroll area for output/annotation canvas
+        output_layout.addWidget(output_title, 0)
         output_scroll = QScrollArea()
         output_scroll.setWidgetResizable(True)
         output_scroll.setWidget(self.canvas)
-        output_layout.addWidget(output_scroll)
+        output_layout.addWidget(output_scroll, 1)
 
-        # Add input and output panels to images splitter
+        # Add panels to images splitter
         images_splitter.addWidget(input_panel)
         images_splitter.addWidget(output_panel)
-
-        # Set initial sizes for the image panels (equal sizes)
-        images_splitter.setSizes([1, 1])
-
-        # Add images splitter to left layout
-        left_layout.addWidget(images_splitter)
+        images_splitter.setSizes([500, 500])
+        images_splitter.setStretchFactor(0, 1)
+        images_splitter.setStretchFactor(1, 1)
 
         # Right side: Debug images
         self.debug_panel = QWidget()
         debug_outer_layout = QVBoxLayout(self.debug_panel)
-        debug_outer_layout.setContentsMargins(5, 5, 5, 5)
+        debug_outer_layout.setContentsMargins(2, 2, 2, 2)
+        debug_outer_layout.setSpacing(2)
 
         debug_title = QLabel('Processing Steps')
         debug_title.setAlignment(Qt.AlignCenter)
-        debug_title.setStyleSheet("font-weight: bold; font-size: 14px;")
-        debug_outer_layout.addWidget(debug_title)
+        debug_title.setStyleSheet("font-weight: bold; font-size: 12px; padding: 2px;")
+        debug_outer_layout.addWidget(debug_title, 0)
 
-        # Scroll area for debug images
         debug_scroll = QScrollArea()
         debug_scroll.setWidgetResizable(True)
         debug_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         debug_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        debug_scroll.setMaximumWidth(400)
 
         self.debug_content = QWidget()
         self.debug_layout = QVBoxLayout(self.debug_content)
 
         debug_scroll.setWidget(self.debug_content)
-        debug_outer_layout.addWidget(debug_scroll)
+        debug_outer_layout.addWidget(debug_scroll, 1)
 
-        # Add panels to middle section
-        middle_section.addWidget(left_panel)
-        middle_section.addWidget(self.debug_panel)
-        middle_section.setSizes([700, 700])  # Equal initial sizes
-        middle_section.setStretchFactor(0, 2)  # Give more stretch weight to the left panel
-        middle_section.setStretchFactor(1, 1)  # Less stretch weight to the debug panel
+        # Add to main content splitter
+        content_splitter.addWidget(images_splitter)
+        content_splitter.addWidget(self.debug_panel)
+        content_splitter.setSizes([1000, 400])
+        content_splitter.setStretchFactor(0, 3)
+        content_splitter.setStretchFactor(1, 1)
 
-        # Add middle section to main layout
-        main_layout.addWidget(middle_section, 5)  # Give it more space
+        # Add content splitter to main layout (gets most space)
+        main_layout.addWidget(content_splitter, 1)
 
-        # Bottom section: Progress bar and log
+        # Bottom section: Compact log and status
         bottom_section = QSplitter(Qt.Vertical)
 
         # Processing log
         log_group = QGroupBox("Processing Log")
         log_layout = QVBoxLayout(log_group)
+        log_layout.setContentsMargins(5, 2, 5, 2)
 
         self.log_display = QTextEdit()
         self.log_display.setReadOnly(True)
-        self.log_display.setMinimumHeight(100)
-        self.log_display.setStyleSheet("font-family: monospace;")
+        self.log_display.setMaximumHeight(80)
+        self.log_display.setStyleSheet("font-family: monospace; font-size: 10px;")
         log_layout.addWidget(self.log_display)
 
         # Progress area
         progress_group = QGroupBox("Processing Status")
         progress_layout = QVBoxLayout(progress_group)
+        progress_layout.setContentsMargins(5, 2, 5, 2)
 
         self.progress_bar = QProgressBar()
         self.progress_bar.setTextVisible(False)
-        self.progress_bar.setRange(0, 0)  # Indeterminate progress
+        self.progress_bar.setRange(0, 0)
         self.progress_bar.hide()
+        self.progress_bar.setMaximumHeight(15)
 
         self.status_label = QLabel('Ready')
-        self.status_label.setStyleSheet("font-weight: bold;")
+        self.status_label.setStyleSheet("font-weight: bold; font-size: 11px;")
 
         progress_layout.addWidget(self.status_label)
         progress_layout.addWidget(self.progress_bar)
 
-        # Add log and progress to bottom section
         bottom_section.addWidget(log_group)
         bottom_section.addWidget(progress_group)
-        bottom_section.setSizes([150, 50])  # More space for log
+        bottom_section.setSizes([60, 30])
+        bottom_section.setMaximumHeight(120)
 
         # Add bottom section to main layout
-        main_layout.addWidget(bottom_section, 1)  # Less space than middle
+        main_layout.addWidget(bottom_section, 0)
 
         # Set central widget
         self.setCentralWidget(central_widget)
