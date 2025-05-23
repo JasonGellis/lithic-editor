@@ -235,24 +235,31 @@ class CanvasWidget(QLabel):
         if not hasattr(self, 'base_pixmap'):
             return pos
 
+        # Get the current displayed pixmap from the widget
+        displayed_pixmap = self.pixmap()
+        if not displayed_pixmap or displayed_pixmap.isNull():
+            return pos
+
         # Get widget and pixmap sizes
-        label_size = self.size()
-        pixmap_size = self.base_pixmap.size()
+        widget_size = self.size()
+        base_pixmap_size = self.base_pixmap.size()
+        displayed_size = displayed_pixmap.size()
 
-        # Calculate scaling and offset
-        scale_w = pixmap_size.width() / label_size.width()
-        scale_h = pixmap_size.height() / label_size.height()
+        # Calculate the scale factor used for display
+        scale_x = displayed_size.width() / base_pixmap_size.width()
+        scale_y = displayed_size.height() / base_pixmap_size.height()
 
-        # Use minimum scale to maintain aspect ratio
-        scale = max(scale_w, scale_h)
+        # Calculate the offset to center the image in the widget
+        x_offset = (widget_size.width() - displayed_size.width()) / 2
+        y_offset = (widget_size.height() - displayed_size.height()) / 2
 
-        # Calculate the centered pixmap position
-        x_offset = (label_size.width() - pixmap_size.width() / scale) / 2
-        y_offset = (label_size.height() - pixmap_size.height() / scale) / 2
+        # Map the position from widget coordinates to displayed pixmap coordinates
+        display_x = pos.x() - x_offset
+        display_y = pos.y() - y_offset
 
-        # Map the position
-        pixmap_x = (pos.x() - x_offset) * scale
-        pixmap_y = (pos.y() - y_offset) * scale
+        # Scale from displayed coordinates to original pixmap coordinates
+        pixmap_x = display_x / scale_x
+        pixmap_y = display_y / scale_y
 
         return QPoint(int(pixmap_x), int(pixmap_y))
 
@@ -796,7 +803,7 @@ class LithicProcessorGUI(QMainWindow):
                 self.canvas.clear_canvas()
                 self.canvas.setText("No processed image")
                 self.save_button.setEnabled(False)
-                self.clear_annotations_button.setEnabled(False)
+                # self.clear_annotations_button.setEnabled(False)
 
     def clear_debug_images(self):
         """Clear all debug images from the panel"""
