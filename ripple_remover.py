@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-import networkx as nx
+import networkx as nxgraph
 from skimage import morphology
 from scipy.ndimage import label
 import os
@@ -29,13 +29,14 @@ sys.excepthook = exception_hook
 print("Starting lithic_GUI.py")
 
 
-def improve_line_quality_antialias(binary_image, line_boost=1.2):
+def improve_line_quality_antialias(binary_image, line_boost=1.0, preserve_thickness=True):
     """
-    Improve line quality using advanced anti-aliasing and line boosting
+    Improve line quality using advanced anti-aliasing while preserving original thickness
 
     Args:
         binary_image: Input binary image (black lines on white background)
-        line_boost: Factor to slightly thicken lines (1.0 = no change)
+        line_boost: Factor to slightly adjust line presence (1.0 = no change)
+        preserve_thickness: Whether to preserve original line thickness
 
     Returns:
         improved_image: Enhanced image with better line quality
@@ -47,38 +48,121 @@ def improve_line_quality_antialias(binary_image, line_boost=1.2):
     # Convert to proper format
     binary_image = binary_image.astype(np.uint8)
 
-    # Scale up the image (6x instead of 4x for finer detail)
-    scale_factor = 6
-    h, w = binary_image.shape
-    upscaled = cv2.resize(binary_image, (w * scale_factor, h * scale_factor),
-                         interpolation=cv2.INTER_CUBIC)
+    if preserve_thickness:
+        # Gentle enhancement that preserves thickness
+        scale_factor = 3  # Reduced from 6 for better thickness preservation
+        h, w = binary_image.shape
+        upscaled = cv2.resize(binary_image, (w * scale_factor, h * scale_factor),
+                             interpolation=cv2.INTER_CUBIC)
 
-    # Apply morphological operations to improve line consistency
-    kernel = np.ones((2, 2), np.uint8)
-    if line_boost > 1.0:
-        # Slightly dilate to thicken lines
-        upscaled = cv2.dilate(upscaled, kernel, iterations=1)
+        # Very light morphological operations
+        if line_boost > 1.0:
+            kernel = np.ones((2, 2), np.uint8)
+            upscaled = cv2.dilate(upscaled, kernel, iterations=1)
 
-    # Apply slight Gaussian blur to smooth edges
-    blurred = cv2.GaussianBlur(upscaled, (3, 3), 0.8)
+        # Gentle Gaussian blur for smoothing
+        blurred = cv2.GaussianBlur(upscaled, (3, 3), 0.5)  # Reduced sigma
 
-    # Threshold back to binary with good contrast
-    _, smoothed = cv2.threshold(blurred, 225, 255, cv2.THRESH_BINARY)
+        # Conservative threshold to maintain line width
+        _, smoothed = cv2.threshold(blurred, 200, 255, cv2.THRESH_BINARY)  # Lower threshold
 
-    # Optional: Apply more refined smoothing
-    smoothed = cv2.medianBlur(smoothed, 3)  # Remove salt-and-pepper noise
+        # Light median filter
+        smoothed = cv2.medianBlur(smoothed, 3)
 
-    # Apply thinning if lines became too thick
-    if line_boost > 1.3:
-        smoothed = cv2.erode(smoothed, kernel, iterations=1)
+        # Scale back down with high-quality interpolation
+        result = cv2.resize(smoothed, (w, h), interpolation=cv2.INTER_AREA)
 
-    # Scale back down to original size with high-quality interpolation
-    result = cv2.resize(smoothed, (w, h), interpolation=cv2.INTER_AREA)
+        # Final threshold with preservation bias
+        _, result = cv2.threshold(result, 180, 255, cv2.THRESH_BINARY)  # Lower threshold
 
-    # Final contrast enhancement
-    _, result = cv2.threshold(result, 200, 255, cv2.THRESH_BINARY)
+    else:
+        # Original aggressive enhancement for very thin lines
+        scale_factor = 6
+        h, w = binary_image.shape
+        upscaled = cv2.resize(binary_image, (w * scale_factor, h * scale_factor),
+                             interpolation=cv2.INTER_CUBIC)
+
+        kernel = np.ones((2, 2), np.uint8)
+        if line_boost > 1.0:
+            upscaled = cv2.dilate(upscaled, kernel, iterations=1)
+
+        blurred = cv2.GaussianBlur(upscaled, (3, 3), 0.8)
+        _, smoothed = cv2.threshold(blurred, 225, 255, cv2.THRESH_BINARY)
+        smoothed = cv2.medianBlur(smoothed, 3)
+
+        if line_boost > 1.3:
+            smoothed = cv2.erode(smoothed, kernel, iterations=1)
+
+        result = cv2.resize(smoothed, (w, h), interpolation=cv2.INTER_AREA)
+        _, result = cv2.threshold(result, 200, 255, cv2.THRESH_BINARY)
 
     return result
+
+def create_thickness_aware_mask(original_binary, structural_mask, min_thickness=1, max_thickness=10):
+    """
+    Create a thickness-aware reconstruction mask that preserves original line widths
+
+    Args:
+        original_binary: Original binary image (boolean array, True=foreground)
+        structural_mask: Skeleton-based mask of structural elements (boolean array)
+        min_thickness: Minimum line thickness to preserve
+        max_thickness: Maximum line thickness to preserve
+
+    Returns:
+        final_mask: Boolean mask preserving original line thickness for structural elements
+    """
+    # Convert structural mask to distance transform to get reconstruction zones
+    from scipy.ndimage import distance_transform_edt
+
+    # Create distance transform from structural skeleton
+    # This gives us zones around structural lines where we should preserve original content
+    structural_distance = distance_transform_edt(~structural_mask)
+
+    # Create adaptive dilation zones based on local line thickness in original
+    original_distance = distance_transform_edt(~original_binary)
+
+    # For each structural pixel, determine appropriate reconstruction radius
+    reconstruction_mask = np.zeros_like(original_binary, dtype=bool)
+
+    # Get coordinates of structural skeleton pixels
+    struct_y, struct_x = np.where(structural_mask)
+
+    for i in range(len(struct_y)):
+        y, x = struct_y[i], struct_x[i]
+
+        # Find original line thickness at this location by looking in neighborhood
+        # Get local neighborhood around this skeleton point
+        neighborhood_size = max_thickness + 2
+        y_min = max(0, y - neighborhood_size)
+        y_max = min(original_binary.shape[0], y + neighborhood_size + 1)
+        x_min = max(0, x - neighborhood_size)
+        x_max = min(original_binary.shape[1], x + neighborhood_size + 1)
+
+        # Get the original content in this neighborhood
+        local_original = original_binary[y_min:y_max, x_min:x_max]
+
+        if np.any(local_original):
+            # Find the maximum distance to background in this neighborhood
+            # This approximates the local line thickness
+            local_distances = distance_transform_edt(local_original)
+            local_thickness = np.max(local_distances)
+
+            # Clamp thickness to reasonable bounds
+            reconstruction_radius = max(min_thickness, min(max_thickness, int(local_thickness * 0.2)))
+
+            # Create circular reconstruction zone around this skeleton point
+            for dy in range(-reconstruction_radius, reconstruction_radius + 1):
+                for dx in range(-reconstruction_radius, reconstruction_radius + 1):
+                    ny, nx = y + dy, x + dx
+                    if (0 <= ny < original_binary.shape[0] and
+                        0 <= nx < original_binary.shape[1] and
+                        dy*dy + dx*dx <= reconstruction_radius*reconstruction_radius):
+                        reconstruction_mask[ny, nx] = True
+
+    # Final mask: original content AND within reconstruction zones
+    final_mask = original_binary & reconstruction_mask
+
+    return final_mask
 
 def crop_to_content(image, padding=10):
     """Crop image to content plus padding"""
@@ -341,8 +425,7 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi
 
     # Step 5: Build graph representation
     print("Building graph representation...")
-    G = nx.Graph()
-
+    G = nxgraph.Graph()
     # Add nodes for endpoints and junctions
     for i, (x, y) in enumerate(endpoints):
         G.add_node(f"e{i}", type="endpoint", pos=(x, y))
@@ -427,7 +510,7 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi
     save_debug_image(ripple_viz, os.path.join(output_folder, '5_ripple_identification.png'),
                     'Ripple Segments (Red) vs. Structural Lines (White)', dpi_info, format_info, output_dpi)
 
-    # Step 7: Create mask of structural elements
+    # Step 7: Create mask of structural elements (excluding ripple endpoints)
     print("Creating structural mask...")
 
     # Start with clean binary mask
@@ -443,6 +526,31 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi
     for x, y in junctions:
         structural_mask[y, x] = True
 
+    # Filter out endpoints that connect to ripple segments to preserve line quality
+    # Only add endpoints that connect to structural segments
+    structural_endpoints = []
+    for x, y in endpoints:
+        # Check if this endpoint connects to any structural segments
+        # by looking in a small neighborhood
+        connects_to_structural = False
+        for dx in [-1, 0, 1]:
+            for dy in [-1, 0, 1]:
+                nx, ny = x + dx, y + dy
+                if (0 <= ny < height and 0 <= nx < width and
+                    labeled_segments[ny, nx] > 0 and
+                    labeled_segments[ny, nx] not in ripple_segments):
+                    connects_to_structural = True
+                    break
+            if connects_to_structural:
+                break
+
+        # Only add endpoint if it connects to structural elements
+        if connects_to_structural:
+            structural_mask[y, x] = True
+            structural_endpoints.append((x, y))
+
+    print(f"Filtered endpoints: {len(endpoints)} total -> {len(structural_endpoints)} structural")
+
     # Create a skeleton-based cleaned image for comparison
     skeleton_cleaned = np.zeros_like(skeleton_img)
     skeleton_cleaned[structural_mask] = 255
@@ -452,28 +560,97 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi
 
     # Save the skeleton-based cleaned image (inverted)
     save_debug_image(skeleton_cleaned_inverted, os.path.join(output_folder, '6_skeleton_cleaned.png'),
-                    'Skeleton Cleaned', dpi_info, format_info, output_dpi)
+                    'Skeleton Cleaned (Structural Elements Only)', dpi_info, format_info, output_dpi)
 
-    # Step 8: Create final image with original line quality preserved
-    print("Creating final image with original line quality...")
+    # NEW: Create debug image showing filtered endpoints
+    filtered_endpoints_viz = np.zeros((height, width, 3), dtype=np.uint8)
+    filtered_endpoints_viz[skeleton] = [100, 100, 100]  # Gray for all skeleton
 
-    # Dilate the structural mask slightly to ensure we capture the full line thickness
-    dilated_mask = morphology.binary_dilation(structural_mask, np.ones((2, 2), dtype=np.uint8))
+    # Mark structural segments in white
+    for segment_id in range(1, num_segments + 1):
+        if segment_id not in ripple_segments:
+            segment_mask = labeled_segments == segment_id
+            filtered_endpoints_viz[segment_mask] = [255, 255, 255]
 
-    # Create the final cleaned image by using original binary pixels where they align with our dilated structure
+    # Mark junctions in green
+    for x, y in junctions:
+        cv2.circle(filtered_endpoints_viz, (x, y), 2, (0, 255, 0), -1)
+
+    # Mark structural endpoints in blue
+    for x, y in structural_endpoints:
+        cv2.circle(filtered_endpoints_viz, (x, y), 2, (255, 0, 0), -1)
+
+    # Mark filtered-out endpoints in red
+    for x, y in endpoints:
+        if (x, y) not in structural_endpoints:
+            cv2.circle(filtered_endpoints_viz, (x, y), 2, (0, 0, 255), -1)
+
+    save_debug_image(filtered_endpoints_viz, os.path.join(output_folder, '6a_endpoint_filtering.png'),
+                    'Endpoint Filtering (Blue=Kept, Red=Removed, Green=Junctions)', dpi_info, format_info, output_dpi)
+
+    # Step 8: Create final image with hybrid thickness preservation
+    print("Creating final image with hybrid thickness preservation...")
+
+    # Convert binary_image to boolean for processing
+    binary_bool = binary_image > 0
+
+    # Use the new thickness-aware reconstruction
+    thickness_preserved_mask = create_thickness_aware_mask(
+        original_binary=binary_bool,
+        structural_mask=structural_mask,
+        min_thickness=1,
+        max_thickness=2
+    )
+
+    # Create the final cleaned image
     final_cleaned = np.zeros_like(binary_image)
-    final_cleaned[dilated_mask & (binary_image > 0)] = 255
+    final_cleaned[thickness_preserved_mask] = 255
+
+    # Apply slight morphological closing to connect any small gaps
+    kernel_close = np.ones((2, 2), np.uint8)
+    final_cleaned = cv2.morphologyEx(final_cleaned, cv2.MORPH_CLOSE, kernel_close)
 
     # INVERT the final cleaned image (black lines on white background)
     final_cleaned_inverted = 255 - final_cleaned
 
     # Save the final cleaned image (inverted)
     save_debug_image(final_cleaned_inverted, os.path.join(output_folder, '7_final_cleaned.png'),
-                    'Final Cleaned (Original Quality)', dpi_info, format_info, output_dpi)
+                    'Final Cleaned (Hybrid Thickness Preserved)', dpi_info, format_info, output_dpi)
+
+    # Debug: Save thickness mask visualization
+    debug_thickness_viz = np.zeros((*thickness_preserved_mask.shape, 3), dtype=np.uint8)
+
+    # Show original binary in gray
+    debug_thickness_viz[binary_bool] = [128, 128, 128]  # Gray for original content
+
+    # Show structural skeleton in red
+    debug_thickness_viz[structural_mask] = [255, 0, 0]  # Red for skeleton
+
+    # Show preserved areas in bright green
+    debug_thickness_viz[thickness_preserved_mask] = [0, 255, 0]  # Green for preserved areas
+
+    save_debug_image(debug_thickness_viz, os.path.join(output_folder, '7a_thickness_preservation.png'),
+                    'Hybrid Approach (Gray=Original, Red=Structural Skeleton, Green=Final Result)', dpi_info, format_info, output_dpi)
+
+    # Debug: Show before/after comparison of thickness preservation
+    comparison_debug = np.zeros((height, width * 2, 3), dtype=np.uint8)
+
+    # Left side: skeleton-based result
+    left_side = np.zeros((height, width, 3), dtype=np.uint8)
+    left_side[structural_mask] = [255, 255, 255]  # Skeleton approach
+    comparison_debug[:, :width] = left_side
+
+    # Right side: hybrid thickness-preserved result
+    right_side = np.zeros((height, width, 3), dtype=np.uint8)
+    right_side[thickness_preserved_mask] = [255, 255, 255]  # Hybrid approach
+    comparison_debug[:, width:] = right_side
+
+    save_debug_image(comparison_debug, os.path.join(output_folder, '7b_skeleton_vs_hybrid.png'),
+                    'Left: Skeleton Only | Right: Hybrid Thickness Preserved', dpi_info, format_info, output_dpi)
 
     # Step 9: Apply line quality improvement
     print("Improving line quality...")
-    improved_image = improve_line_quality_antialias(final_cleaned_inverted)
+    improved_image = improve_line_quality_antialias(final_cleaned_inverted, line_boost=1.0, preserve_thickness=True)
 
     # Save the improved quality image
     save_debug_image(improved_image, os.path.join(output_folder, '8_improved_quality.png'),
@@ -492,9 +669,9 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi
     # Create comparison visualization with all versions
     comparison_image = create_comparison_image(
         [original_image, 255 - skeleton_img, skeleton_cleaned_inverted,
-         final_cleaned_inverted, improved_image],
-        ['Original Image', 'Original Skeleton', 'Skeleton Ripple Removed',
-         'Original-Quality Ripple Removed', 'Improved Line Quality']
+        final_cleaned_inverted, improved_image],
+        ['1. Original Image', '2. Skeleton for Analysis', '3. Structural Elements Only',
+        '4. Hybrid Thickness Preserved', '5. Final Enhanced Quality']
     )
 
     save_debug_image(comparison_image, os.path.join(output_folder, '10_comparison_all.png'),

@@ -948,10 +948,13 @@ class LithicProcessorGUI(QMainWindow):
             '4_labeled_segments.png',
             '5_ripple_identification.png',
             '6_skeleton_cleaned.png',
+            '6a_endpoint_filtering.png',
             '7_final_cleaned.png',
+            '7a_thickness_preservation.png',
+            '7b_skeleton_vs_hybrid.png',
             '8_improved_quality.png',
             '9_high_quality.png',
-            # '10_comparison_all.png'
+            '10_comparison_all.png'
         ]
 
         for debug_file in debug_files:
