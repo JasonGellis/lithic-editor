@@ -443,10 +443,16 @@ class LithicProcessorGUI(QMainWindow):
         options_layout.setSpacing(10)
         options_layout.setContentsMargins(10, 10, 10, 10)
 
-        # Debug images checkbox
-        self.show_debug_images = QCheckBox('Show Debug Images')
+        # Debug images options
+        debug_images_label = QLabel("Debug Images:")
+        debug_images_label.setStyleSheet("font-weight: bold; font-size: 11px;")
+
+        self.show_debug_images = QCheckBox('View Debug Images')
         self.show_debug_images.setChecked(True)
         self.show_debug_images.stateChanged.connect(self.toggle_debug_images)
+
+        self.save_debug_images = QCheckBox('Save Debug Images')
+        self.save_debug_images.setChecked(False)
 
         # DPI settings section
         dpi_title = QLabel("DPI Settings")
@@ -481,8 +487,17 @@ class LithicProcessorGUI(QMainWindow):
         custom_dpi_layout.addWidget(self.custom_dpi_spinner)
         custom_dpi_layout.addStretch()
 
+
         # Add all options to the right panel
-        options_layout.addWidget(self.show_debug_images)
+        options_layout.addWidget(debug_images_label)
+
+        # Create horizontal layout for debug checkboxes
+        debug_checkboxes_layout = QHBoxLayout()
+        debug_checkboxes_layout.addWidget(self.show_debug_images)
+        debug_checkboxes_layout.addWidget(self.save_debug_images)
+        debug_checkboxes_layout.addStretch()  # Push checkboxes to the left
+
+        options_layout.addLayout(debug_checkboxes_layout)
         options_layout.addWidget(dpi_title)
         options_layout.addWidget(self.current_dpi_label)
         options_layout.addWidget(self.dpi_explanation_label)
@@ -932,8 +947,13 @@ class LithicProcessorGUI(QMainWindow):
             self.status_label.setText('Processing complete!')
             self.log("You can draw on the input image with the brush tools")
 
-            # Load debug images
-            self.load_debug_images()
+            # Load and handle debug images based on user preference
+            # Handle debug images based on user preference
+            if self.show_debug_images.isChecked():
+                self.load_debug_images()
+
+            if self.save_debug_images.isChecked():
+                self.save_debug_images_to_folder()
         else:
             self.status_label.setText('Processing failed!')
             self.log("ERROR: Processing failed!")
@@ -990,6 +1010,49 @@ class LithicProcessorGUI(QMainWindow):
 
         # Add a spacer at the end
         self.debug_layout.addStretch()
+
+    def save_debug_images_to_folder(self):
+        """Save debug images to a separate folder"""
+        if not hasattr(self, 'output_folder') or not self.output_folder:
+            return
+
+        # Create debug images folder
+        debug_save_folder = os.path.join(self.output_folder, 'debug_images')
+        os.makedirs(debug_save_folder, exist_ok=True)
+
+        debug_files = [
+            '1_original_image.png',
+            '2_skeleton.png',
+            '3_endpoints_junctions.png',
+            '4_labeled_segments.png',
+            '5_ripple_identification.png',
+            '6_skeleton_cleaned.png',
+            '6a_endpoint_filtering.png',
+            '7_final_cleaned.png',
+            '7a_thickness_preservation.png',
+            '7b_skeleton_vs_hybrid.png',
+            '8_improved_quality.png',
+            '9_high_quality.png',
+            '10_comparison_all.png'
+        ]
+
+        copied_count = 0
+        for debug_file in debug_files:
+            source_path = os.path.join(self.output_folder, debug_file)
+            dest_path = os.path.join(debug_save_folder, debug_file)
+
+            if os.path.exists(source_path):
+                try:
+                    import shutil
+                    shutil.copy2(source_path, dest_path)
+                    copied_count += 1
+                except Exception as e:
+                    self.log(f"Warning: Could not copy {debug_file}: {str(e)}")
+
+        if copied_count > 0:
+            self.log(f"Saved {copied_count} debug images to: {debug_save_folder}")
+        else:
+            self.log("Warning: No debug images found to save")
 
     def resizeEvent(self, event):
         """Handle window resize event to adjust image displays"""
