@@ -248,7 +248,7 @@ def debug_image_info(name, img):
     cv2.imwrite(output_path, img)
     print(f"Debug image saved to {output_path}")
 
-def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi_info=None, format_info=None, output_dpi=None):
+def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi_info=None, format_info=None, output_dpi=None, save_debug=False):
     """
     Process a lithic drawing to remove ripple lines while preserving original line quality and metadata
 
@@ -313,8 +313,9 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi
         print(f"Preserving original format: {format_info}")
 
     # Save the original image
-    save_debug_image(original_image, os.path.join(output_folder, '1_original_image.png'),
-                    'Original Image', dpi_info, format_info, output_dpi)
+    if save_debug:
+        save_debug_image(original_image, os.path.join(output_folder, '1_original_image.png'),
+                        'Original Image', dpi_info, format_info, output_dpi)
 
     # Step 2: Preprocess the image
     print("Preprocessing image...")
@@ -338,8 +339,9 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi
     print(f"Skeleton created. Non-zero pixels: {np.count_nonzero(skeleton)}")
 
     # Save the skeleton image
-    save_debug_image(skeleton_img, os.path.join(output_folder, '2_skeleton.png'),
-                    'Skeleton', dpi_info, format_info, output_dpi)
+    if save_debug:
+        save_debug_image(skeleton_img, os.path.join(output_folder, '2_skeleton.png'),
+                        'Skeleton', dpi_info, format_info, output_dpi)
 
     # Step 3: Find endpoints and junctions
     print("Finding endpoints and junctions...")
@@ -386,8 +388,10 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi
     for x, y in junctions:
         cv2.circle(debug_img, (x, y), 1, (0, 255, 0), -1)  # Green for junctions
 
-    save_debug_image(debug_img, os.path.join(output_folder, '3_endpoints_junctions.png'),
-                    'Skeleton with Endpoints (Red) and Junctions (Green)', dpi_info, format_info, output_dpi)
+    if save_debug:
+        save_debug_image(debug_img, os.path.join(output_folder, '3_endpoints_junctions.png'),
+                        'Skeleton with Endpoints (Red) and Junctions (Green)', dpi_info, format_info, output_dpi)
+
 
     # Step 4: Identify line segments by removing junctions and endpoints
     print("Identifying line segments...")
@@ -420,8 +424,9 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi
             segment_id = labeled_segments[y, x]
             segment_colors[y, x] = colors[segment_id]
 
-    save_debug_image(segment_colors, os.path.join(output_folder, '4_labeled_segments.png'),
-                    f'Labeled Segments (Total: {num_segments})', dpi_info, format_info, output_dpi)
+    if save_debug:
+        save_debug_image(segment_colors, os.path.join(output_folder, '4_labeled_segments.png'),
+                        f'Labeled Segments (Total: {num_segments})', dpi_info, format_info, output_dpi)
 
     # Step 5: Build graph representation
     print("Building graph representation...")
@@ -507,8 +512,9 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi
     for x, y in junctions:
         cv2.circle(ripple_viz, (x, y), 1, (0, 255, 0), -1)  # Green for junctions
 
-    save_debug_image(ripple_viz, os.path.join(output_folder, '5_ripple_identification.png'),
-                    'Ripple Segments (Red) vs. Structural Lines (White)', dpi_info, format_info, output_dpi)
+    if save_debug:
+        save_debug_image(ripple_viz, os.path.join(output_folder, '5_ripple_identification.png'),
+                        'Ripple Segments (Red) vs. Structural Lines (White)', dpi_info, format_info, output_dpi)
 
     # Step 7: Create mask of structural elements (excluding ripple endpoints)
     print("Creating structural mask...")
@@ -559,8 +565,9 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi
     skeleton_cleaned_inverted = 255 - skeleton_cleaned
 
     # Save the skeleton-based cleaned image (inverted)
-    save_debug_image(skeleton_cleaned_inverted, os.path.join(output_folder, '6_skeleton_cleaned.png'),
-                    'Skeleton Cleaned (Structural Elements Only)', dpi_info, format_info, output_dpi)
+    if save_debug:
+        save_debug_image(skeleton_cleaned_inverted, os.path.join(output_folder, '6_skeleton_cleaned.png'),
+                        'Skeleton Cleaned (Structural Elements Only)', dpi_info, format_info, output_dpi)
 
     # NEW: Create debug image showing filtered endpoints
     filtered_endpoints_viz = np.zeros((height, width, 3), dtype=np.uint8)
@@ -585,8 +592,10 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi
         if (x, y) not in structural_endpoints:
             cv2.circle(filtered_endpoints_viz, (x, y), 2, (0, 0, 255), -1)
 
-    save_debug_image(filtered_endpoints_viz, os.path.join(output_folder, '6a_endpoint_filtering.png'),
-                    'Endpoint Filtering (Blue=Kept, Red=Removed, Green=Junctions)', dpi_info, format_info, output_dpi)
+    if save_debug:
+        if save_debug:
+            save_debug_image(filtered_endpoints_viz, os.path.join(output_folder, '6a_endpoint_filtering.png'),
+                            'Endpoint Filtering (Blue=Kept, Red=Removed, Green=Junctions)', dpi_info, format_info, output_dpi)
 
     # Step 8: Create final image with hybrid thickness preservation
     print("Creating final image with hybrid thickness preservation...")
@@ -614,8 +623,9 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi
     final_cleaned_inverted = 255 - final_cleaned
 
     # Save the final cleaned image (inverted)
-    save_debug_image(final_cleaned_inverted, os.path.join(output_folder, '7_final_cleaned.png'),
-                    'Final Cleaned (Hybrid Thickness Preserved)', dpi_info, format_info, output_dpi)
+    if save_debug:
+        save_debug_image(final_cleaned_inverted, os.path.join(output_folder, '7_final_cleaned.png'),
+                        'Final Cleaned (Hybrid Thickness Preserved)', dpi_info, format_info, output_dpi)
 
     # Debug: Save thickness mask visualization
     debug_thickness_viz = np.zeros((*thickness_preserved_mask.shape, 3), dtype=np.uint8)
@@ -629,8 +639,9 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi
     # Show preserved areas in bright green
     debug_thickness_viz[thickness_preserved_mask] = [0, 255, 0]  # Green for preserved areas
 
-    save_debug_image(debug_thickness_viz, os.path.join(output_folder, '7a_thickness_preservation.png'),
-                    'Hybrid Approach (Gray=Original, Red=Structural Skeleton, Green=Final Result)', dpi_info, format_info, output_dpi)
+    if save_debug:
+        save_debug_image(debug_thickness_viz, os.path.join(output_folder, '7a_thickness_preservation.png'),
+                        'Hybrid Approach (Gray=Original, Red=Structural Skeleton, Green=Final Result)', dpi_info, format_info, output_dpi)
 
     # Debug: Show before/after comparison of thickness preservation
     comparison_debug = np.zeros((height, width * 2, 3), dtype=np.uint8)
@@ -645,16 +656,18 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi
     right_side[thickness_preserved_mask] = [255, 255, 255]  # Hybrid approach
     comparison_debug[:, width:] = right_side
 
-    save_debug_image(comparison_debug, os.path.join(output_folder, '7b_skeleton_vs_hybrid.png'),
-                    'Left: Skeleton Only | Right: Hybrid Thickness Preserved', dpi_info, format_info, output_dpi)
+    if save_debug:
+        save_debug_image(comparison_debug, os.path.join(output_folder, '7b_skeleton_vs_hybrid.png'),
+                        'Left: Skeleton Only | Right: Hybrid Thickness Preserved', dpi_info, format_info, output_dpi)
 
     # Step 9: Apply line quality improvement
     print("Improving line quality...")
     improved_image = improve_line_quality_antialias(final_cleaned_inverted, line_boost=1.0, preserve_thickness=True)
 
     # Save the improved quality image
-    save_debug_image(improved_image, os.path.join(output_folder, '8_improved_quality.png'),
-                    'Improved Line Quality', dpi_info, format_info, output_dpi)
+    if save_debug:
+        save_debug_image(improved_image, os.path.join(output_folder, '8_improved_quality.png'),
+                        'Improved Line Quality', dpi_info, format_info, output_dpi)
 
     # Step 10: Export high-quality version (without title banner)
     print("Exporting high-quality image...")
@@ -674,8 +687,9 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi
         '4. Hybrid Thickness Preserved', '5. Final Enhanced Quality']
     )
 
-    save_debug_image(comparison_image, os.path.join(output_folder, '10_comparison_all.png'),
-                    None, dpi_info, format_info, output_dpi)
+    if save_debug:
+        save_debug_image(comparison_image, os.path.join(output_folder, '10_comparison_all.png'),
+                        None, dpi_info, format_info, output_dpi)
 
     print("Processing complete!")
     return improved_image  # Return the improved version
@@ -725,11 +739,7 @@ def save_debug_image(image, output_path, title=None, dpi_info=None, format=None,
     # Determine format
     save_format = format if format else 'PNG'
 
-    # Save the original image (without title banner)
-    # This preserves the original dimensions and metadata
-    pil_img.save(output_path, format=save_format, **save_kwargs)
-
-    # Create a display version with title if needed
+    # If title is provided, create image with title; otherwise save clean image
     if title:
         # Create space for title
         title_height = 30
@@ -746,9 +756,11 @@ def save_debug_image(image, output_path, title=None, dpi_info=None, format=None,
         cv2.putText(display_np, title, (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 1, cv2.LINE_AA)
         display_img = Image.fromarray(display_np)
 
-        # Save the display version with "_display" suffix
-        display_path = output_path.replace('.png', '_display.png')
-        display_img.save(display_path, format=save_format, **save_kwargs)
+        # Save the titled version
+        display_img.save(output_path, format=save_format, **save_kwargs)
+    else:
+        # Save clean image without title
+        pil_img.save(output_path, format=save_format, **save_kwargs)
 
     print(f"Debug image saved to {output_path}")
 

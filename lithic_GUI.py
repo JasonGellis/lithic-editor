@@ -45,13 +45,14 @@ class ProcessingThread(QThread):
     progress_signal = pyqtSignal(str)
     finished_signal = pyqtSignal(str)
 
-    def __init__(self, input_path, output_folder, dpi_info=None, format_info=None, output_dpi=None):
+    def __init__(self, input_path, output_folder, dpi_info=None, format_info=None, output_dpi=None, save_debug=False):
         super().__init__()
         self.input_path = input_path
         self.output_folder = output_folder
         self.dpi_info = dpi_info  # Original DPI
         self.format_info = format_info
         self.output_dpi = output_dpi  # User-selected output DPI
+        self.save_debug = save_debug
 
     def run(self):
         try:
@@ -70,7 +71,8 @@ class ProcessingThread(QThread):
                 self.input_path, self.output_folder,
                 dpi_info=self.dpi_info,
                 format_info=self.format_info,
-                output_dpi=self.output_dpi
+                output_dpi=self.output_dpi,
+                save_debug=self.save_debug
             )
 
             # Restore the original print function
@@ -452,7 +454,7 @@ class LithicProcessorGUI(QMainWindow):
         self.show_debug_images.stateChanged.connect(self.toggle_debug_images)
 
         self.save_debug_images = QCheckBox('Save Debug Images')
-        self.save_debug_images.setChecked(False)
+        self.save_debug_images.setChecked(True)
 
         # DPI settings section
         dpi_title = QLabel("DPI Settings")
@@ -779,7 +781,7 @@ class LithicProcessorGUI(QMainWindow):
 
                 # Save the cropped version
                 base_name = os.path.splitext(os.path.basename(file_path))[0]
-                self.output_folder = os.path.join('output', base_name)
+                self.output_folder = os.path.join('image_debug', base_name)
                 os.makedirs(self.output_folder, exist_ok=True)
 
                 # Save cropped version for processing
@@ -885,8 +887,11 @@ class LithicProcessorGUI(QMainWindow):
         dpi_info = self.image_dpi if hasattr(self, 'image_dpi') else None
         format_info = self.image_format if hasattr(self, 'image_format') else None
         output_dpi = self.get_output_dpi()  # Get user's DPI preference
+        # Determine if debug images should be saved
+        save_debug = self.show_debug_images.isChecked() or self.save_debug_images.isChecked()
+
         self.processing_thread = ProcessingThread(self.input_image_path, self.output_folder,
-                dpi_info, format_info, output_dpi)
+                dpi_info, format_info, output_dpi, save_debug)
         self.processing_thread.progress_signal.connect(self.update_progress)
         self.processing_thread.finished_signal.connect(self.processing_finished)
         self.processing_thread.start()
@@ -952,8 +957,6 @@ class LithicProcessorGUI(QMainWindow):
             if self.show_debug_images.isChecked():
                 self.load_debug_images()
 
-            if self.save_debug_images.isChecked():
-                self.save_debug_images_to_folder()
         else:
             self.status_label.setText('Processing failed!')
             self.log("ERROR: Processing failed!")
@@ -1011,48 +1014,7 @@ class LithicProcessorGUI(QMainWindow):
         # Add a spacer at the end
         self.debug_layout.addStretch()
 
-    def save_debug_images_to_folder(self):
-        """Save debug images to a separate folder"""
-        if not hasattr(self, 'output_folder') or not self.output_folder:
-            return
 
-        # Create debug images folder
-        debug_save_folder = os.path.join(self.output_folder, 'debug_images')
-        os.makedirs(debug_save_folder, exist_ok=True)
-
-        debug_files = [
-            '1_original_image.png',
-            '2_skeleton.png',
-            '3_endpoints_junctions.png',
-            '4_labeled_segments.png',
-            '5_ripple_identification.png',
-            '6_skeleton_cleaned.png',
-            '6a_endpoint_filtering.png',
-            '7_final_cleaned.png',
-            '7a_thickness_preservation.png',
-            '7b_skeleton_vs_hybrid.png',
-            '8_improved_quality.png',
-            '9_high_quality.png',
-            '10_comparison_all.png'
-        ]
-
-        copied_count = 0
-        for debug_file in debug_files:
-            source_path = os.path.join(self.output_folder, debug_file)
-            dest_path = os.path.join(debug_save_folder, debug_file)
-
-            if os.path.exists(source_path):
-                try:
-                    import shutil
-                    shutil.copy2(source_path, dest_path)
-                    copied_count += 1
-                except Exception as e:
-                    self.log(f"Warning: Could not copy {debug_file}: {str(e)}")
-
-        if copied_count > 0:
-            self.log(f"Saved {copied_count} debug images to: {debug_save_folder}")
-        else:
-            self.log("Warning: No debug images found to save")
 
     def resizeEvent(self, event):
         """Handle window resize event to adjust image displays"""
