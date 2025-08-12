@@ -1,0 +1,99 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lithic-editor"
+version = "1.0.0"
+description = "Archaeological image processing tool for lithic drawings"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Jason Jacob Gellis", email = "jg760@cam.ac.uk"}
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Image Processing",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Operating System :: OS Independent",
+]
+keywords = [
+    "archaeology", "lithic", "image-processing", "computer-vision",
+    "archaeological-tools", "stone-tools", "artifact-analysis"
+]
+requires-python = ">=3.7"
+dependencies = [
+    "numpy>=1.20.0,<2.0.0",
+    "opencv-python>=4.5.0,<5.0.0",
+    "Pillow>=8.0.0,<11.0.0",
+    "PyQt5>=5.15.0,<6.0.0",
+    "scikit-image>=0.18.0,<1.0.0",
+    "networkx>=2.5,<4.0.0",
+    "scipy>=1.7.0,<2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0",
+    "pytest-qt>=4.0",
+    "pytest-cov>=2.0",
+    "black>=21.0",
+    "flake8>=3.8",
+    "mypy>=0.800",
+]
+test = [
+    "pytest>=6.0",
+    "pytest-qt>=4.0",
+    "pytest-cov>=2.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/user/lithic-editor"
+Repository = "https://github.com/user/lithic-editor.git"
+Issues = "https://github.com/user/lithic-editor/issues"
+
+[project.scripts]
+lithic-editor = "lithic_editor.cli.main:main"
+
+[tool.setuptools.packages.find]
+include = ["lithic_editor*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --cov=lithic_editor --cov-report=html --cov-report=term-missing"
+qt_api = "pyqt5"
+
+[tool.black]
+line-length = 88
+target-version = ['py37']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.mypy]
+python_version = "3.7"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
