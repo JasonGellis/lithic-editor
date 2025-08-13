@@ -261,9 +261,12 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi
     Returns:
         cleaned_image: Image with ripple lines removed but original line quality preserved
     """
-    # Create output folder if it doesn't exist
+    # Always create output folder as we need it for the final result
     os.makedirs(output_folder, exist_ok=True)
-    print(f"Created output folder: {output_folder}")
+    if save_debug:
+        print(f"Debug mode enabled. Output folder: {output_folder}")
+    else:
+        print(f"Output folder for final result: {output_folder}")
 
     # Add debugging header
     print("\n=== IMAGE DIMENSIONS DEBUGGING ===")

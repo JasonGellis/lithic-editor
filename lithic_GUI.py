@@ -29,16 +29,21 @@ import arrow_integration
 
 # Import your processing function
 try:
-    from ripple_remover import process_lithic_drawing_improved
-    print("Successfully imported process_lithic_drawing_improved from ripple_remover")
+    from lithic_editor.processing import process_lithic_drawing_improved
+    print("Successfully imported process_lithic_drawing_improved from lithic_editor.processing")
 except ImportError as e:
-    print(f"Error importing from ripple_remover: {e}")
-    print(f"Python path: {sys.path}")
-    # Try to list the directory content
-    import os
-    print(f"Current directory: {os.getcwd()}")
-    print(f"Files in current directory: {os.listdir('.')}")
-    sys.exit(1)
+    print(f"Error importing from lithic_editor.processing: {e}")
+    # Fallback to original ripple_remover
+    try:
+        from ripple_remover import process_lithic_drawing_improved
+        print("Successfully imported process_lithic_drawing_improved from ripple_remover (fallback)")
+    except ImportError as e2:
+        print(f"Error importing from ripple_remover: {e2}")
+        print(f"Python path: {sys.path}")
+        import os
+        print(f"Current directory: {os.getcwd()}")
+        print(f"Files in current directory: {os.listdir('.')}")
+        sys.exit(1)
 
 class ProcessingThread(QThread):
     """Thread for processing images without freezing the UI"""
@@ -53,16 +58,19 @@ class ProcessingThread(QThread):
         self.format_info = format_info
         self.output_dpi = output_dpi  # User-selected output DPI
         self.save_debug = save_debug
+        # Store original output folder if using temp folder
+        self.original_output_folder = None
 
     def run(self):
         try:
+            # Store the original print function first
+            original_print = print
+            
             # Override print to capture progress updates
             def progress_print(msg):
                 self.progress_signal.emit(msg)
                 original_print(msg)
 
-            # Store the original print function
-            original_print = print
             import builtins
             builtins.print = progress_print
 
@@ -78,8 +86,35 @@ class ProcessingThread(QThread):
             # Restore the original print function
             builtins.print = original_print
 
-            # Signal completion
-            self.finished_signal.emit(os.path.join(self.output_folder, '9_high_quality.png'))
+            # Import modules needed for cleanup
+            import shutil
+            import os
+
+            # Handle temporary folder case
+            if not self.save_debug and self.original_output_folder:
+                
+                # Create the original output folder if it doesn't exist
+                os.makedirs(self.original_output_folder, exist_ok=True)
+                
+                # Copy the high-quality result to the original output folder
+                temp_result = os.path.join(self.output_folder, '9_high_quality.png')
+                final_result = os.path.join(self.original_output_folder, '9_high_quality.png')
+                
+                if os.path.exists(temp_result):
+                    shutil.copy2(temp_result, final_result)
+                    self.progress_signal.emit(f"Final result saved to {final_result}")
+                    
+                    # Clean up temporary folder
+                    shutil.rmtree(self.output_folder, ignore_errors=True)
+                    self.progress_signal.emit("Temporary files cleaned up")
+                    
+                    # Signal completion with final result path
+                    self.finished_signal.emit(final_result)
+                else:
+                    raise FileNotFoundError(f"Expected result file not found: {temp_result}")
+            else:
+                # Normal case - signal completion with output folder path
+                self.finished_signal.emit(os.path.join(self.output_folder, '9_high_quality.png'))
         except Exception as e:
             self.progress_signal.emit(f"Error: {str(e)}")
             self.finished_signal.emit("")
@@ -450,11 +485,11 @@ class LithicProcessorGUI(QMainWindow):
         debug_images_label.setStyleSheet("font-weight: bold; font-size: 11px;")
 
         self.show_debug_images = QCheckBox('View Debug Images')
-        self.show_debug_images.setChecked(True)
+        self.show_debug_images.setChecked(False)
         self.show_debug_images.stateChanged.connect(self.toggle_debug_images)
 
         self.save_debug_images = QCheckBox('Save Debug Images')
-        self.save_debug_images.setChecked(True)
+        self.save_debug_images.setChecked(False)
 
         # DPI settings section
         dpi_title = QLabel("DPI Settings")
@@ -779,13 +814,14 @@ class LithicProcessorGUI(QMainWindow):
                 from ripple_remover import crop_to_content
                 cropped_img = crop_to_content(img, padding=10)
 
-                # Save the cropped version
+                # Define output folder path but don't create it yet
                 base_name = os.path.splitext(os.path.basename(file_path))[0]
-                self.output_folder = os.path.join('image_debug', base_name)
-                os.makedirs(self.output_folder, exist_ok=True)
-
-                # Save cropped version for processing
-                cropped_path = os.path.join(self.output_folder, "cropped_input.png")
+                self.output_folder = os.path.join('output', base_name)
+                
+                # Use a temp location for the cropped input to avoid creating folders prematurely
+                import tempfile
+                temp_dir = tempfile.mkdtemp()
+                cropped_path = os.path.join(temp_dir, "cropped_input.png")
 
                 # Save with PIL to preserve metadata
                 try:
@@ -857,8 +893,10 @@ class LithicProcessorGUI(QMainWindow):
                 # Convert to grayscale
                 grayscale = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
 
-                # Save the annotated image to use as input
-                annotated_path = os.path.join(self.output_folder, "annotated_input.png")
+                # Save the annotated image to a temp location to avoid creating folders prematurely
+                import tempfile
+                temp_dir = tempfile.mkdtemp()
+                annotated_path = os.path.join(temp_dir, "annotated_input.png")
                 cv2.imwrite(annotated_path, grayscale)
 
                 # Use this as the new input path
@@ -889,9 +927,17 @@ class LithicProcessorGUI(QMainWindow):
         output_dpi = self.get_output_dpi()  # Get user's DPI preference
         # Determine if debug images should be saved
         save_debug = self.show_debug_images.isChecked() or self.save_debug_images.isChecked()
-
-        self.processing_thread = ProcessingThread(self.input_image_path, self.output_folder,
-                dpi_info, format_info, output_dpi, save_debug)
+        
+        # Use temporary folder if not saving debug images to avoid creating image_debug folder
+        if not save_debug:
+            import tempfile
+            temp_output = tempfile.mkdtemp(prefix="lithic_output_")
+            self.processing_thread = ProcessingThread(self.input_image_path, temp_output,
+                    dpi_info, format_info, output_dpi, save_debug)
+            self.processing_thread.original_output_folder = self.output_folder
+        else:
+            self.processing_thread = ProcessingThread(self.input_image_path, self.output_folder,
+                    dpi_info, format_info, output_dpi, save_debug)
         self.processing_thread.progress_signal.connect(self.update_progress)
         self.processing_thread.finished_signal.connect(self.processing_finished)
         self.processing_thread.start()
@@ -929,37 +975,32 @@ class LithicProcessorGUI(QMainWindow):
             arrow_integration.enable_arrow_controls(self)
             self.log("You can now add arrows to the processed image (Alt+drag to resize, Shift+drag to rotate)")
 
-            if output_path:
-                self.processed_image_path = output_path
-                self.log(f"Processing complete. Result path: {output_path}")
-
-                # Update DPI display based on processed image
-                try:
-                    processed_pil = Image.open(output_path)
-                    if hasattr(processed_pil, 'info') and 'dpi' in processed_pil.info:
-                        self.image_dpi = processed_pil.info['dpi']
-                        self.current_dpi_label.setText(f"Detected DPI: {round(self.image_dpi[0])}x{round(self.image_dpi[1])}")
-                        self.log(f"Updated DPI information: {round(self.image_dpi[0])}x{round(self.image_dpi[1])}")
-                    else:
-                        # Only update if we don't already have DPI info
-                        if not hasattr(self, 'image_dpi') or not self.image_dpi:
-                            self.current_dpi_label.setText("Detected DPI: None")
-                except Exception as e:
-                    self.log(f"Warning: Could not read DPI from processed image: {str(e)}")
+            # Update DPI display based on processed image
+            try:
+                processed_pil = Image.open(output_path)
+                if hasattr(processed_pil, 'info') and 'dpi' in processed_pil.info:
+                    self.image_dpi = processed_pil.info['dpi']
+                    self.current_dpi_label.setText(f"Detected DPI: {round(self.image_dpi[0])}x{round(self.image_dpi[1])}")
+                    self.log(f"Updated DPI information: {round(self.image_dpi[0])}x{round(self.image_dpi[1])}")
+                else:
+                    # Only update if we don't already have DPI info
+                    if not hasattr(self, 'image_dpi') or not self.image_dpi:
+                        self.current_dpi_label.setText("Detected DPI: None")
+            except Exception as e:
+                self.log(f"Warning: Could not read DPI from processed image: {str(e)}")
 
             self.save_button.setEnabled(True)
             self.clear_annotations_button.setEnabled(True)
             self.status_label.setText('Processing complete!')
             self.log("You can draw on the input image with the brush tools")
-
+            
             # Load and handle debug images based on user preference
-            # Handle debug images based on user preference
             if self.show_debug_images.isChecked():
                 self.load_debug_images()
-
         else:
+            # Processing failed
             self.status_label.setText('Processing failed!')
-            self.log("ERROR: Processing failed!")
+            self.log("ERROR: Processing failed! No output file was created.")
             QMessageBox.critical(self, 'Error', 'Image processing failed!')
 
     def load_debug_images(self):
