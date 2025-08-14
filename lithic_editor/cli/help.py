@@ -35,6 +35,10 @@ Launch GUI application:
 Process image via CLI:
   lithic-editor process <input_image> [options]
 
+View documentation:
+  lithic-editor docs              # Open online docs in browser
+  lithic-editor docs --offline    # Serve docs locally
+
 Show version:
   lithic-editor --version
 

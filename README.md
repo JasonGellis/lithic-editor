@@ -1,6 +1,12 @@
 # Lithic Editor and Annotator
 
+[![Documentation](https://img.shields.io/badge/docs-online-blue)](https://jasongellis.github.io/lithic-editor/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/)
+
 A specialized image processing tool for archaeological lithic drawings that automatically removes ripple lines while preserving structural elements, and provides annotation capabilities for technical analysis.
+
+📚 **[Full Documentation](https://jasongellis.github.io/lithic-editor/)** | 🐛 **[Report Issues](https://github.com/JasonGellis/lithic-editor/issues)** | 💬 **[Discussions](https://github.com/JasonGellis/lithic-editor/discussions)**
 
 ## Table of Contents
 
@@ -79,6 +85,11 @@ All other dependencies are automatically installed when you install the package.
 3. Launch the application:
    ```bash
    lithic-editor --gui
+   ```
+
+4. View documentation:
+   ```bash
+   lithic-editor docs  # Opens comprehensive documentation
    ```
 
 ### Option 2: Install from Git

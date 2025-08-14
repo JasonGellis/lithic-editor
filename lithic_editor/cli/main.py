@@ -32,7 +32,10 @@ Examples:
   lithic-editor --gui                              # Launch GUI
   lithic-editor process image.png                  # Process image
   lithic-editor process image.png --debug          # Process with debug output
+  lithic-editor docs                               # View full documentation
   lithic-editor --help                             # Show comprehensive help
+
+For complete documentation: lithic-editor docs
         """
     )
     
@@ -87,6 +90,17 @@ Examples:
         nargs='?',
         choices=['api'],
         help='Show help for specific topic'
+    )
+    
+    # Docs command - opens documentation
+    docs_parser = subparsers.add_parser(
+        'docs',
+        help='Open documentation in browser'
+    )
+    docs_parser.add_argument(
+        '--offline',
+        action='store_true',
+        help='Serve documentation locally (requires mkdocs)'
     )
     
     # Add top-level flags for convenience
@@ -222,6 +236,30 @@ def show_help_cli(args):
         show_help()
 
 
+def open_docs(args):
+    """
+    Open documentation in browser or serve locally.
+    
+    Args:
+        args: Parsed command line arguments
+        
+    Returns:
+        int: Exit code
+    """
+    import webbrowser
+    
+    if args.offline:
+        # Use built-in documentation server (no mkdocs required)
+        from lithic_editor.cli.docs_server import serve_docs
+        return serve_docs()
+    else:
+        # Open online documentation
+        docs_url = "https://jasongellis.github.io/lithic-editor/"
+        print(f"Opening documentation in browser: {docs_url}")
+        webbrowser.open(docs_url)
+        return 0
+
+
 def main():
     """
     Main CLI entry point.
@@ -254,6 +292,8 @@ def main():
         elif args.command == 'help':
             show_help_cli(args)
             return 0
+        elif args.command == 'docs':
+            return open_docs(args)
         else:
             # No command specified, show help
             show_help()

@@ -1,0 +1,140 @@
+site_name: Lithic Editor and Annotator
+site_description: Archaeological image processing tool for lithic drawings
+site_author: Jason Jacob Gellis
+site_url: https://jasongellis.github.io/lithic-editor/
+repo_url: https://github.com/JasonGellis/lithic-editor
+repo_name: JasonGellis/lithic-editor
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    # Light mode
+    - scheme: default
+      primary: brown
+      accent: deep orange
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - scheme: slate
+      primary: brown
+      accent: deep orange
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  
+  font:
+    text: Roboto
+    code: Roboto Mono
+  
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.path
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.tabs.link
+    - content.code.annotation
+    - content.code.copy
+    - content.action.edit
+    - content.action.view
+    - toc.follow
+    - toc.integrate
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+plugins:
+  - search:
+      separator: '[\s\-,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/JasonGellis/lithic-editor
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/lithic-editor/
+  
+  version:
+    provider: mike
+    default: stable
+  
+  analytics:
+    provider: google
+    property: !ENV GOOGLE_ANALYTICS_KEY
+
+extra_css:
+  - stylesheets/extra.css
+
+nav:
+  - Home:
+    - index.md
+    - Features: features.md
+    - Screenshots: screenshots.md
+  
+  - Getting Started:
+    - Installation: getting-started/installation.md
+    - Quick Start: getting-started/quickstart.md
+    - Requirements: getting-started/requirements.md
+  
+  - User Guide:
+    - Overview: user-guide/overview.md
+    - Processing Images: user-guide/processing.md
+    - Adding Annotations: user-guide/annotations.md
+    - Saving Results: user-guide/saving.md
+    - Keyboard Shortcuts: user-guide/shortcuts.md
+  
+  - Developer Guide:
+    - Architecture: developer/architecture.md
+    - API Reference: developer/api.md
+    - CLI Reference: developer/cli.md
+    - Contributing: developer/contributing.md
+  
+  - About:
+    - License: about/license.md
+    - Acknowledgements: about/acknowledgements.md
+    - Changelog: about/changelog.md
+
+copyright: |
+  &copy; 2024 <a href="https://github.com/JasonGellis" target="_blank" rel="noopener">Jason Jacob Gellis</a>
