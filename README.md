@@ -1,5 +1,6 @@
 # Lithic Editor and Annotator
 
+[![Tests](https://github.com/JasonGellis/lithic-editor/workflows/Tests/badge.svg)](https://github.com/JasonGellis/lithic-editor/actions)
 [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://jasongellis.github.io/lithic-editor/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/)
@@ -91,6 +92,26 @@ All other dependencies are automatically installed when you install the package.
    ```bash
    lithic-editor docs  # Opens comprehensive documentation
    ```
+
+## For Developers
+
+To contribute to the project or run tests:
+
+```bash
+# Clone and install in development mode with test dependencies
+git clone https://github.com/JasonGellis/lithic-editor.git
+cd lithic-editor
+pip install -e ".[test]"
+
+# Run the test suite
+pytest
+
+# Run tests with coverage
+pytest --cov=lithic_editor --cov-report=html
+
+# View coverage report
+open htmlcov/index.html
+```
 
 ### Option 2: Install from Git
 

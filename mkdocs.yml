@@ -126,10 +126,11 @@ nav:
     - Keyboard Shortcuts: user-guide/shortcuts.md
   
   - Developer Guide:
+    - Contributing: developer/contributing.md
+    - Testing Guide: developer/testing.md
     - Architecture: developer/architecture.md
     - API Reference: developer/api.md
     - CLI Reference: developer/cli.md
-    - Contributing: developer/contributing.md
   
   - About:
     - License: about/license.md

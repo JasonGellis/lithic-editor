@@ -33,22 +33,37 @@ pip install git+https://github.com/JasonGellis/lithic-editor.git@v1.0.0
 
 ### Method 2: Development Installation
 
-For developers or users who want to modify the code:
+For developers, contributors, or users who want to modify the code:
 
 ```bash
 # Clone the repository
 git clone https://github.com/JasonGellis/lithic-editor.git
 cd lithic-editor
 
-# Install in editable mode
+# Basic development install (editable mode)
 pip install -e .
 
-# Install with development dependencies
+# Install with test dependencies (recommended for developers)
+pip install -e ".[test]"
+
+# Install with all development tools
 pip install -e ".[dev]"
 
-# Install with documentation dependencies
+# Install with documentation tools
 pip install -e ".[docs]"
+
+# Install everything (dev + test + docs)
+pip install -e ".[dev,test,docs]"
 ```
+
+#### Dependency Groups Explained
+
+| Group | Purpose | Includes |
+|-------|---------|----------|
+| *none* | Users only | Core dependencies for running the app |
+| `test` | Running tests | pytest, pytest-qt, pytest-cov |
+| `dev` | Code quality | black, flake8, mypy + test dependencies |
+| `docs` | Documentation | mkdocs, mkdocs-material + extensions |
 
 ### Method 3: Install from PyPI
 

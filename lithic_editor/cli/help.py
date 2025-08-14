@@ -88,8 +88,27 @@ Arrow Annotations:
 
 DEVELOPMENT USAGE
 ----------------
-For development and testing, you can run:
-  python -m lithic_editor --gui
+For developers and contributors:
+
+Setup development environment:
+  git clone https://github.com/JasonGellis/lithic-editor.git
+  cd lithic-editor
+  pip install -e ".[test]"    # Install with test dependencies
+  pip install -e ".[dev]"     # Install with all dev tools
+  pip install -e ".[docs]"    # Install with documentation tools
+
+Run tests:
+  pytest                      # Run test suite
+  pytest --cov=lithic_editor # Run with coverage
+  pytest -v tests/test_processing.py  # Run specific tests
+
+Build documentation:
+  mkdocs serve               # Serve docs locally
+  mkdocs build               # Build static docs
+
+Code quality:
+  black lithic_editor tests  # Format code
+  flake8 lithic_editor tests # Check style
 
 The package provides a complete, self-contained application with
 CLI interface and programmatic API.
