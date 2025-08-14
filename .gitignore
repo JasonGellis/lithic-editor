@@ -85,3 +85,44 @@ pip-log.txt
 # Logs
 logs/
 *.log
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# Documentation builds
+site/
+docs_dist/
+
+# IDE files
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+.tmp/
+tmp/
+temp/
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+
+# Editor backups
+*~
+*.bak
+*.orig
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Profiling
+.prof
