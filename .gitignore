@@ -37,7 +37,12 @@ ENV/
 
 # Project-specific output
 output/
+image_debug/
 error_log.txt
+*.tmp
+
+# Developer files (not for distribution)
+developer/
 
 # Jupyter Notebook
 .ipynb_checkpoints
