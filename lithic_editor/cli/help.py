@@ -64,34 +64,31 @@ Basic Processing:
   )
 
 GUI Integration:
-  from lithic_editor.gui import LithicEditorWidget, launch_gui
-  
-  # Standalone application
-  launch_gui()
+  from lithic_editor.gui.main_window import LithicProcessorGUI
   
   # Embed in PyQt application
   from PyQt5.QtWidgets import QApplication
   app = QApplication([])
-  editor = LithicEditorWidget()
+  editor = LithicProcessorGUI()
   editor.show()
 
 Arrow Annotations:
-  from lithic_editor.annotations import Arrow, ArrowCanvasWidget
+  from lithic_editor.annotations.arrows import Arrow, ArrowCanvasWidget
   
   # Create arrow programmatically
   arrow = Arrow(position=(100, 200), angle=45, size=30)
   
   # Use canvas widget
   canvas = ArrowCanvasWidget()
-  canvas.load_image("processed_image.png")
+  canvas.set_base_image(pixmap)
 
 DEVELOPMENT USAGE
 ----------------
-During development, you can still use:
-  python lithic_GUI.py
+For development and testing, you can run:
+  python -m lithic_editor --gui
 
-This preserves the original development workflow while the package provides
-the production-ready API and CLI interface.
+The package provides a complete, self-contained application with
+CLI interface and programmatic API.
 
 SUPPORT
 -------
@@ -133,18 +130,15 @@ process_lithic_drawing_improved(
 
 GUI MODULE
 ----------
-from lithic_editor.gui import LithicEditorWidget, launch_gui
-
-# Standalone application
-launch_gui() -> int             # Returns exit code
+from lithic_editor.gui.main_window import LithicProcessorGUI
 
 # Embeddable widget
-widget = LithicEditorWidget()
+widget = LithicProcessorGUI()
 widget.show()
 
 ANNOTATIONS MODULE
 -----------------
-from lithic_editor.annotations import Arrow, ArrowCanvasWidget
+from lithic_editor.annotations.arrows import Arrow, ArrowCanvasWidget
 
 # Arrow class usage
 arrow = Arrow(
@@ -156,7 +150,7 @@ arrow = Arrow(
 
 # Canvas widget usage
 canvas = ArrowCanvasWidget()
-canvas.load_image(image_path)
+canvas.set_base_image(pixmap)
 
 EXAMPLES
 --------
@@ -172,12 +166,12 @@ Basic Processing:
 
 Custom GUI Integration:
     from PyQt5.QtWidgets import QApplication, QMainWindow
-    from lithic_editor.gui import LithicEditorWidget
+    from lithic_editor.gui.main_window import LithicProcessorGUI
     
     class MyApp(QMainWindow):
         def __init__(self):
             super().__init__()
-            self.lithic_editor = LithicEditorWidget()
+            self.lithic_editor = LithicProcessorGUI()
             self.setCentralWidget(self.lithic_editor)
     
     app = QApplication([])

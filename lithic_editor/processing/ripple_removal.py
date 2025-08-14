@@ -261,12 +261,10 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi
     Returns:
         cleaned_image: Image with ripple lines removed but original line quality preserved
     """
-    # Always create output folder as we need it for the final result
-    os.makedirs(output_folder, exist_ok=True)
-    if save_debug:
+    # Only create output folder if we're saving debug images
+    if save_debug and output_folder:
+        os.makedirs(output_folder, exist_ok=True)
         print(f"Debug mode enabled. Output folder: {output_folder}")
-    else:
-        print(f"Output folder for final result: {output_folder}")
 
     # Add debugging header
     print("\n=== IMAGE DIMENSIONS DEBUGGING ===")
@@ -672,27 +670,18 @@ def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi
         save_debug_image(improved_image, os.path.join(output_folder, '8_improved_quality.png'),
                         'Improved Line Quality', dpi_info, format_info, output_dpi)
 
-    # Step 10: Export high-quality version (without title banner)
-    print("Exporting high-quality image...")
-    high_quality_path = os.path.join(output_folder, '9_high_quality.png')
-    save_debug_image(improved_image, high_quality_path, None, dpi_info, format_info, output_dpi)
-    print(f"High-quality PNG saved to {high_quality_path} with shape {improved_image.shape}")
-    if dpi_info:
-        print(f"DPI information preserved: {dpi_info}")
-    if format_info:
-        print(f"Original format preserved: {format_info}")
-
-    # Create comparison visualization with all versions
-    comparison_image = create_comparison_image(
-        [original_image, 255 - skeleton_img, skeleton_cleaned_inverted,
-        final_cleaned_inverted, improved_image],
-        ['1. Original Image', '2. Skeleton for Analysis', '3. Structural Elements Only',
-        '4. Hybrid Thickness Preserved', '5. Final Enhanced Quality']
-    )
-
+    # Step 10: Export high-quality version only if save_debug is True
     if save_debug:
-        save_debug_image(comparison_image, os.path.join(output_folder, '10_comparison_all.png'),
-                        None, dpi_info, format_info, output_dpi)
+        print("Exporting high-quality image...")
+        high_quality_path = os.path.join(output_folder, '9_high_quality.png')
+        save_debug_image(improved_image, high_quality_path, None, dpi_info, format_info, output_dpi)
+        print(f"High-quality PNG saved to {high_quality_path} with shape {improved_image.shape}")
+        if dpi_info:
+            print(f"DPI information preserved: {dpi_info}")
+        if format_info:
+            print(f"Original format preserved: {format_info}")
+
+    # Comparison image removed - not needed
 
     print("Processing complete!")
     return improved_image  # Return the improved version
