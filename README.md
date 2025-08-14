@@ -58,13 +58,8 @@ Developed specifically for archaeological research, the application maintains th
 ## Requirements
 
 - Python 3.7+
-- PyQt5
-- OpenCV (cv2)
-- NumPy
-- Pillow (PIL)
-- scikit-image
-- NetworkX
-- SciPy
+
+All other dependencies are automatically installed when you install the package.
 
 ## Installation
 
