@@ -44,6 +44,12 @@ error_log.txt
 # Developer files (not for distribution)
 developer/
 
+# Personal scopes directory (local only)
+scopes/
+
+# Claude Code configuration (local only)
+.claude/
+
 # Jupyter Notebook
 .ipynb_checkpoints
 
