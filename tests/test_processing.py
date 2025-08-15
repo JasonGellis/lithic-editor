@@ -5,7 +5,7 @@ Tests for the image processing module.
 import pytest
 import numpy as np
 from pathlib import Path
-from lithic_editor.processing import process_lithic_drawing_improved
+from lithic_editor.processing import process_lithic_drawing
 
 
 class TestProcessingModule:
@@ -13,7 +13,7 @@ class TestProcessingModule:
     
     def test_process_image_from_file(self, sample_image, temp_dir):
         """Test processing an image from file path."""
-        result = process_lithic_drawing_improved(
+        result = process_lithic_drawing(
             image_path=str(sample_image),
             output_folder=str(temp_dir),
             save_debug=False
@@ -25,7 +25,7 @@ class TestProcessingModule:
     
     def test_process_image_from_numpy_array(self, sample_numpy_array, temp_dir):
         """Test processing a numpy array directly."""
-        result = process_lithic_drawing_improved(
+        result = process_lithic_drawing(
             image_path=sample_numpy_array,
             output_folder=str(temp_dir),
             save_debug=False
@@ -37,7 +37,7 @@ class TestProcessingModule:
     
     def test_process_with_debug_output(self, sample_image, temp_dir):
         """Test that debug mode saves intermediate images."""
-        result = process_lithic_drawing_improved(
+        result = process_lithic_drawing(
             image_path=str(sample_image),
             output_folder=str(temp_dir),
             save_debug=True
@@ -49,9 +49,9 @@ class TestProcessingModule:
         
         # Check for expected debug stages
         expected_stages = [
-            "01_original",
-            "02_inverted",
-            "03_skeleton"
+            "1_original",
+            "2_skeleton", 
+            "3_endpoints"
         ]
         
         debug_names = [f.stem for f in debug_files]
@@ -60,7 +60,7 @@ class TestProcessingModule:
     
     def test_process_with_dpi_preservation(self, sample_image_with_dpi, temp_dir):
         """Test that DPI information is preserved."""
-        result = process_lithic_drawing_improved(
+        result = process_lithic_drawing(
             image_path=str(sample_image_with_dpi),
             output_folder=str(temp_dir),
             dpi_info=(300, 300),
@@ -74,7 +74,7 @@ class TestProcessingModule:
     def test_invalid_image_path(self, temp_dir):
         """Test handling of invalid image path."""
         with pytest.raises(Exception):
-            process_lithic_drawing_improved(
+            process_lithic_drawing(
                 image_path="nonexistent.png",
                 output_folder=str(temp_dir),
                 save_debug=False
@@ -84,7 +84,7 @@ class TestProcessingModule:
         """Test that output folder is created if it doesn't exist."""
         output_dir = temp_dir / "new_output_dir"
         
-        result = process_lithic_drawing_improved(
+        result = process_lithic_drawing(
             image_path=str(sample_image),
             output_folder=str(output_dir),
             save_debug=True
@@ -95,7 +95,7 @@ class TestProcessingModule:
     
     def test_process_without_debug(self, sample_image, temp_dir):
         """Test processing without saving debug images."""
-        result = process_lithic_drawing_improved(
+        result = process_lithic_drawing(
             image_path=str(sample_image),
             output_folder=str(temp_dir),
             save_debug=False
@@ -112,7 +112,7 @@ class TestProcessingModule:
         # Create completely white image
         white_img = np.ones((100, 100), dtype=np.uint8) * 255
         
-        result = process_lithic_drawing_improved(
+        result = process_lithic_drawing(
             image_path=white_img,
             output_folder=str(temp_dir),
             save_debug=False
@@ -128,7 +128,7 @@ class TestProcessingModule:
         binary_img = np.zeros((50, 50), dtype=np.uint8)
         binary_img[10:40, 20:30] = 255
         
-        result = process_lithic_drawing_improved(
+        result = process_lithic_drawing(
             image_path=binary_img,
             output_folder=str(temp_dir),
             save_debug=False
@@ -151,7 +151,7 @@ class TestImageFormats:
         image_path = temp_dir / f"test{format_ext}"
         img.save(image_path)
         
-        result = process_lithic_drawing_improved(
+        result = process_lithic_drawing(
             image_path=str(image_path),
             output_folder=str(temp_dir),
             save_debug=False

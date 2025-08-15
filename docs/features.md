@@ -104,10 +104,10 @@ Save intermediate processing steps for:
 Integrate Lithic Editor into your workflow:
 
 ```python
-from lithic_editor.processing import process_lithic_drawing_improved
+from lithic_editor.processing import process_lithic_drawing
 
 # Process with custom parameters
-result = process_lithic_drawing_improved(
+result = process_lithic_drawing(
     image_path="artifact.png",
     save_debug=True,
     output_dpi=300

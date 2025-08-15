@@ -29,8 +29,8 @@ from lithic_editor.annotations import integration as arrow_integration
 
 # Import your processing function
 # Import processing function - handle potential circular import
-from lithic_editor.processing import process_lithic_drawing_improved
-print("Successfully imported process_lithic_drawing_improved from lithic_editor.processing")
+from lithic_editor.processing import process_lithic_drawing
+print("Successfully imported process_lithic_drawing from lithic_editor.processing")
 
 class ProcessingThread(QThread):
     """Thread for processing images without freezing the UI"""
@@ -60,7 +60,7 @@ class ProcessingThread(QThread):
             builtins.print = progress_print
 
             # Run the processing function
-            result_image = process_lithic_drawing_improved(
+            result_image = process_lithic_drawing(
                 self.input_path, self.output_folder,
                 dpi_info=self.dpi_info,
                 format_info=self.format_info,

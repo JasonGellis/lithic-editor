@@ -68,9 +68,9 @@ PROGRAMMATIC API USAGE
 ---------------------
 
 Basic Processing:
-  from lithic_editor.processing import process_lithic_drawing_improved
+  from lithic_editor.processing import process_lithic_drawing
   
-  result = process_lithic_drawing_improved(
+  result = process_lithic_drawing(
       image_path="lithic.png",
       output_folder="results/",
       save_debug=True
@@ -149,9 +149,9 @@ LITHIC EDITOR API REFERENCE v{__version__}
 
 PROCESSING MODULE
 ----------------
-from lithic_editor.processing import process_lithic_drawing_improved
+from lithic_editor.processing import process_lithic_drawing
 
-process_lithic_drawing_improved(
+process_lithic_drawing(
     image_path,                 # Path to input image or numpy array
     output_folder="image_debug", # Directory for output files  
     dpi_info=None,              # DPI tuple (x_dpi, y_dpi)
@@ -188,9 +188,9 @@ EXAMPLES
 --------
 
 Basic Processing:
-    from lithic_editor.processing import process_lithic_drawing_improved
+    from lithic_editor.processing import process_lithic_drawing
     
-    result = process_lithic_drawing_improved(
+    result = process_lithic_drawing(
         "input.png",
         output_folder="results",
         save_debug=True

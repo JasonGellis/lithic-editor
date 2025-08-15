@@ -159,7 +159,7 @@ class TestProcessImageCLI:
         args.debug = False
         args.quiet = False
         
-        with patch('lithic_editor.cli.main.process_lithic_drawing_improved') as mock_process:
+        with patch('lithic_editor.cli.main.process_lithic_drawing') as mock_process:
             mock_process.return_value = MagicMock()
             
             result = process_image_cli(args)
@@ -175,7 +175,7 @@ class TestProcessImageCLI:
         args.debug = False
         args.quiet = True
         
-        with patch('lithic_editor.cli.main.process_lithic_drawing_improved') as mock_process:
+        with patch('lithic_editor.cli.main.process_lithic_drawing') as mock_process:
             mock_process.return_value = MagicMock()
             
             result = process_image_cli(args)

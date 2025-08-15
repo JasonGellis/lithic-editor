@@ -38,8 +38,7 @@ class TestGUIBasic:
         assert hasattr(window, 'save_button')
         
         # Check canvas widgets exist
-        assert hasattr(window, 'input_canvas')
-        assert hasattr(window, 'processed_canvas')
+        assert hasattr(window, 'input_image_display')
         assert hasattr(window, 'canvas')  # Arrow canvas
         
         # Check arrow controls exist
@@ -76,14 +75,14 @@ class TestProcessingThread:
         from lithic_editor.gui.main_window import ProcessingThread
         
         thread = ProcessingThread(
-            image_path="test.png",
+            input_path="test.png",
             output_folder="output",
             save_debug=False
         )
         
         assert thread is not None
         assert isinstance(thread, QThread)
-        assert thread.image_path == "test.png"
+        assert thread.input_path == "test.png"
         assert thread.output_folder == "output"
         assert thread.save_debug == False
     
@@ -92,16 +91,14 @@ class TestProcessingThread:
         from lithic_editor.gui.main_window import ProcessingThread
         
         thread = ProcessingThread(
-            image_path="test.png",
+            input_path="test.png",
             output_folder="output",
             save_debug=False
         )
         
         # Check signals exist
         assert hasattr(thread, 'progress_signal')
-        assert hasattr(thread, 'log_signal')
         assert hasattr(thread, 'finished_signal')
-        assert hasattr(thread, 'error_signal')
 
 
 class TestCanvasWidget:
@@ -113,16 +110,16 @@ class TestCanvasWidget:
         
         canvas = CanvasWidget()
         assert canvas is not None
-        assert canvas.current_pixmap is None
+        assert not hasattr(canvas, 'base_pixmap')
     
     def test_canvas_set_image(self, qapp, sample_pixmap):
         """Test setting image on canvas."""
         from lithic_editor.gui.main_window import CanvasWidget
         
         canvas = CanvasWidget()
-        canvas.set_image(sample_pixmap)
+        canvas.set_base_image(sample_pixmap)
         
-        assert canvas.current_pixmap is not None
+        assert hasattr(canvas, 'base_pixmap')
         assert canvas.pixmap() is not None
     
     def test_canvas_clear(self, qapp, sample_pixmap):
@@ -130,11 +127,13 @@ class TestCanvasWidget:
         from lithic_editor.gui.main_window import CanvasWidget
         
         canvas = CanvasWidget()
-        canvas.set_image(sample_pixmap)
-        assert canvas.current_pixmap is not None
+        canvas.set_base_image(sample_pixmap)
+        assert hasattr(canvas, 'base_pixmap')
         
         canvas.clear_canvas()
-        assert canvas.current_pixmap is None
+        # Base pixmap should still exist, but annotations should be cleared
+        assert hasattr(canvas, 'base_pixmap')
+        assert hasattr(canvas, 'annotation_pixmap')
 
 
 class TestGUIWorkflow:

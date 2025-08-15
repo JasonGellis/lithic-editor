@@ -61,7 +61,7 @@ class Arrow:
         - True if arrow needed adjustment
         - False if arrow was already detectable
         """
-        if self.get_detection_status(image_dpi):
+        if self.get_detection_status(image_dpi) == "good":
             return False
 
         # Default to 300 DPI if not provided

@@ -248,7 +248,7 @@ def debug_image_info(name, img):
     cv2.imwrite(output_path, img)
     print(f"Debug image saved to {output_path}")
 
-def process_lithic_drawing_improved(image_path, output_folder="image_debug", dpi_info=None, format_info=None, output_dpi=None, save_debug=False):
+def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=None, format_info=None, output_dpi=None, save_debug=False):
     """
     Process a lithic drawing to remove ripple lines while preserving original line quality and metadata
 

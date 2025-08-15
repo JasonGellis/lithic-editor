@@ -34,10 +34,10 @@ Lithic Editor and Annotator is a specialized tool designed for archaeological re
 === "Python API"
 
     ```python
-    from lithic_editor.processing import process_lithic_drawing_improved
+    from lithic_editor.processing import process_lithic_drawing
     
     # Process an image
-    result = process_lithic_drawing_improved(
+    result = process_lithic_drawing(
         "lithic_drawing.png",
         save_debug=True
     )

@@ -131,13 +131,13 @@ lithic-editor process image.png \
 ### Basic Processing
 
 ```python
-from lithic_editor.processing import process_lithic_drawing_improved
+from lithic_editor.processing import process_lithic_drawing
 
 # Process with default settings
-result = process_lithic_drawing_improved("drawing.png")
+result = process_lithic_drawing("drawing.png")
 
 # Process with custom output
-result = process_lithic_drawing_improved(
+result = process_lithic_drawing(
     image_path="drawing.png",
     output_folder="results/",
     save_debug=True
@@ -148,11 +148,11 @@ result = process_lithic_drawing_improved(
 
 ```python
 import numpy as np
-from lithic_editor.processing import process_lithic_drawing_improved
+from lithic_editor.processing import process_lithic_drawing
 
 # Process numpy array
 image_array = np.array(...)  # Your image data
-result = process_lithic_drawing_improved(
+result = process_lithic_drawing(
     image_path=image_array,
     dpi_info=(300, 300),
     save_debug=False
@@ -257,10 +257,10 @@ for stage_name, stage_image in stages:
 ### Parallel Processing
 ```python
 from multiprocessing import Pool
-from lithic_editor.processing import process_lithic_drawing_improved
+from lithic_editor.processing import process_lithic_drawing
 
 def process_file(filename):
-    return process_lithic_drawing_improved(filename)
+    return process_lithic_drawing(filename)
 
 with Pool(processes=4) as pool:
     results = pool.map(process_file, file_list)

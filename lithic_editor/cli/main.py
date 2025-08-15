@@ -12,7 +12,7 @@ from pathlib import Path
 
 from lithic_editor import __version__
 from lithic_editor.cli.help import show_help, show_version, show_api_help
-from lithic_editor.processing import process_lithic_drawing_improved
+from lithic_editor.processing import process_lithic_drawing
 from lithic_editor.gui import launch_gui
 
 
@@ -174,7 +174,7 @@ def process_image_cli(args):
         
         try:
             # Process the image using the exact working algorithm
-            result = process_lithic_drawing_improved(
+            result = process_lithic_drawing(
                 image_path=str(input_path),
                 output_folder=args.output,
                 save_debug=args.debug

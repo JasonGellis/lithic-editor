@@ -75,10 +75,10 @@ Here's a complete workflow:
 
 ```python
 # Using the Python API instead of GUI
-from lithic_editor.processing import process_lithic_drawing_improved
+from lithic_editor.processing import process_lithic_drawing
 
 # Process the image
-result = process_lithic_drawing_improved(
+result = process_lithic_drawing(
     "lithic_artifact.png",
     output_folder="results/",
     save_debug=False  # Set True to save intermediate steps
