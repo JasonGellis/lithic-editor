@@ -35,9 +35,18 @@ Launch GUI application:
 Process image via CLI:
   lithic-editor process <input_image> [options]
 
-View documentation:
-  lithic-editor docs              # Open online docs in browser
-  lithic-editor docs --offline    # Serve docs locally
+📚 COMPREHENSIVE DOCUMENTATION:
+  lithic-editor docs              # Open full documentation online
+  lithic-editor docs --offline    # Serve documentation locally
+  
+  Online: https://jasongellis.github.io/lithic-editor/
+  
+  The documentation includes:
+  • Installation Guide - Detailed setup instructions
+  • Quick Start Tutorial - Process your first image in minutes  
+  • User Guide - Complete feature documentation with examples
+  • Developer Guide - Contributing, testing, and extending
+  • API Reference - Python API documentation
 
 Show version:
   lithic-editor --version

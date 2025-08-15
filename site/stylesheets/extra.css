@@ -1,24 +1,28 @@
-/* Custom styles for Lithic Editor documentation */
+/* Custom styles for Lithic Editor documentation - Cinder Theme */
 
 /* Hero section on homepage */
 .hero-section {
     text-align: center;
-    padding: 3rem 1rem;
-    background: linear-gradient(135deg, var(--md-primary-fg-color) 0%, var(--md-accent-fg-color) 100%);
+    padding: 3rem 2rem;
+    background: linear-gradient(135deg, #8b4513 0%, #ff6b35 100%);
     color: white;
     border-radius: 8px;
     margin: 2rem 0;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
 .hero-section h2 {
     color: white;
     font-size: 2.5rem;
     margin-bottom: 1rem;
+    font-weight: 300;
 }
 
 .hero-section p {
     font-size: 1.2rem;
     opacity: 0.95;
+    max-width: 600px;
+    margin: 0 auto;
 }
 
 /* Card grid layout */
@@ -31,24 +35,37 @@
 
 .card {
     padding: 1.5rem;
-    background: var(--md-code-bg-color);
+    background: #f8f8f8;
     border-radius: 8px;
-    border: 1px solid var(--md-default-fg-color--lightest);
+    border: 1px solid #e0e0e0;
     transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .card:hover {
     transform: translateY(-4px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 .card h3 {
     margin-top: 0;
-    color: var(--md-primary-fg-color);
+    color: #8b4513;
+    font-weight: 600;
 }
 
-.card .md-button {
+.card a {
+    display: inline-block;
     margin-top: 1rem;
+    padding: 0.5rem 1rem;
+    background: #8b4513;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.card a:hover {
+    background: #a0522d;
+    color: white;
 }
 
 /* Image comparison */
@@ -66,12 +83,13 @@
 .image-box {
     text-align: center;
     padding: 1rem;
-    background: var(--md-code-bg-color);
+    background: #f8f8f8;
     border-radius: 8px;
+    border: 1px solid #e0e0e0;
 }
 
 .image-box h3 {
-    color: var(--md-primary-fg-color);
+    color: #8b4513;
     margin-bottom: 0.5rem;
 }
 

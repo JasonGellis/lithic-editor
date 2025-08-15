@@ -11,15 +11,15 @@ theme:
   palette:
     # Light mode
     - scheme: default
-      primary: brown
-      accent: deep orange
+      primary: blue
+      accent: cyan
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     # Dark mode
     - scheme: slate
-      primary: brown
-      accent: deep orange
+      primary: blue
+      accent: cyan
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
@@ -121,21 +121,10 @@ nav:
   - User Guide:
     - Overview: user-guide/overview.md
     - Processing Images: user-guide/processing.md
-    - Adding Annotations: user-guide/annotations.md
-    - Saving Results: user-guide/saving.md
-    - Keyboard Shortcuts: user-guide/shortcuts.md
   
   - Developer Guide:
     - Contributing: developer/contributing.md
     - Testing Guide: developer/testing.md
-    - Architecture: developer/architecture.md
-    - API Reference: developer/api.md
-    - CLI Reference: developer/cli.md
-  
-  - About:
-    - License: about/license.md
-    - Acknowledgements: about/acknowledgements.md
-    - Changelog: about/changelog.md
 
 copyright: |
   &copy; 2024 <a href="https://github.com/JasonGellis" target="_blank" rel="noopener">Jason Jacob Gellis</a>

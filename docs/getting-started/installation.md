@@ -102,6 +102,37 @@ lithic-editor --help
 lithic-editor --gui
 ```
 
+## Accessing Documentation
+
+After installation, you can access the full documentation:
+
+### 📚 Online Documentation
+The complete documentation is always available online:
+**https://jasongellis.github.io/lithic-editor/**
+
+### 💻 Local Documentation Access
+```bash
+# Open documentation in your browser
+lithic-editor docs
+
+# Serve documentation locally (for offline viewing)
+lithic-editor docs --offline
+```
+
+### 📖 Quick Help
+```bash
+lithic-editor --help     # Show all commands and options
+lithic-editor help       # Show detailed help information
+lithic-editor help api   # Show Python API usage examples
+```
+
+### What's in the Documentation?
+- **Installation Guide** - Detailed setup instructions (this page!)
+- **Quick Start Tutorial** - Process your first image in minutes
+- **User Guide** - Complete feature documentation with examples
+- **Developer Guide** - Contributing, testing, and extending the application
+- **API Reference** - Python API documentation for programmatic usage
+
 ## Troubleshooting
 
 ### Common Issues

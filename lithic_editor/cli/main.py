@@ -35,7 +35,9 @@ Examples:
   lithic-editor docs                               # View full documentation
   lithic-editor --help                             # Show comprehensive help
 
-For complete documentation: lithic-editor docs
+📚 DOCUMENTATION:
+  Online: https://jasongellis.github.io/lithic-editor/
+  Local:  lithic-editor docs --offline
         """
     )
     

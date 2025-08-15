@@ -88,10 +88,35 @@ All other dependencies are automatically installed when you install the package.
    lithic-editor --gui
    ```
 
-4. View documentation:
-   ```bash
-   lithic-editor docs  # Opens comprehensive documentation
-   ```
+## Documentation
+
+After installation, you can access comprehensive documentation in several ways:
+
+### 📚 View Documentation Online
+The full documentation is always available at: **https://jasongellis.github.io/lithic-editor/**
+
+### 💻 View Documentation Locally
+```bash
+# Open documentation in your browser
+lithic-editor docs
+
+# Or serve documentation locally (requires mkdocs)
+lithic-editor docs --offline
+```
+
+### 📖 Quick Help
+```bash
+lithic-editor --help     # Show all commands and options
+lithic-editor help       # Show detailed help information  
+lithic-editor help api   # Show API usage examples
+```
+
+The documentation includes:
+- **Installation Guide** - Detailed setup instructions
+- **Quick Start Tutorial** - Get processing your first image in minutes
+- **User Guide** - Complete feature documentation with examples
+- **Developer Guide** - Contributing, testing, and extending the application
+- **API Reference** - Python API documentation for programmatic usage
 
 ## For Developers
 

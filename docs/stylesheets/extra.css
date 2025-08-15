@@ -1,24 +1,42 @@
-/* Custom styles for Lithic Editor documentation */
+/* Custom styles for Lithic Editor documentation - Material Theme */
+
+/* Custom blue palette color scheme */
+:root {
+  --md-primary-fg-color: #2171b5;        /* Primary blue */
+  --md-primary-fg-color--light: #6baed6; /* Medium blue */
+  --md-primary-fg-color--dark: #2171b5;  /* Primary blue (same) */
+  --md-accent-fg-color: #bdd7e7;         /* Light blue accent */
+  --md-accent-fg-color--transparent: rgba(189, 215, 231, 0.1);
+  
+  /* Keep neutral backgrounds */
+  --md-code-bg-color: #eff3ff;           /* Very light blue background */
+  --md-footer-bg-color: #2171b5;         /* Match primary */
+  --md-footer-bg-color--dark: #2171b5;   /* Match primary */
+}
 
 /* Hero section on homepage */
 .hero-section {
     text-align: center;
-    padding: 3rem 1rem;
-    background: linear-gradient(135deg, var(--md-primary-fg-color) 0%, var(--md-accent-fg-color) 100%);
+    padding: 3rem 2rem;
+    background: linear-gradient(135deg, #2171b5 0%, #6baed6 100%);
     color: white;
     border-radius: 8px;
     margin: 2rem 0;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
 .hero-section h2 {
     color: white;
     font-size: 2.5rem;
     margin-bottom: 1rem;
+    font-weight: 300;
 }
 
 .hero-section p {
     font-size: 1.2rem;
     opacity: 0.95;
+    max-width: 600px;
+    margin: 0 auto;
 }
 
 /* Card grid layout */
@@ -45,6 +63,7 @@
 .card h3 {
     margin-top: 0;
     color: var(--md-primary-fg-color);
+    font-weight: 600;
 }
 
 .card .md-button {
@@ -66,12 +85,13 @@
 .image-box {
     text-align: center;
     padding: 1rem;
-    background: var(--md-code-bg-color);
+    background: #f8f8f8;
     border-radius: 8px;
+    border: 1px solid #e0e0e0;
 }
 
 .image-box h3 {
-    color: var(--md-primary-fg-color);
+    color: #2171b5;
     margin-bottom: 0.5rem;
 }
 
@@ -152,16 +172,18 @@
     }
 }
 
-/* Custom color for archaeological theme */
+/* Custom color palette variables */
 :root {
-    --lithic-brown: #8b4513;
-    --lithic-orange: #ff6b35;
+    --blue-lightest: #eff3ff;
+    --blue-light: #bdd7e7;
+    --blue-medium: #6baed6;
+    --blue-dark: #2171b5;
 }
 
-[data-md-color-primary="brown"] {
-    --md-primary-fg-color: #795548;
-    --md-primary-fg-color--light: #a1887f;
-    --md-primary-fg-color--dark: #5d4037;
+[data-md-color-primary="blue"] {
+    --md-primary-fg-color: #2171b5;
+    --md-primary-fg-color--light: #6baed6;
+    --md-primary-fg-color--dark: #2171b5;
 }
 
 /* Smooth scrolling */
