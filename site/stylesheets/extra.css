@@ -1,10 +1,75 @@
-/* Custom styles for Lithic Editor documentation - Cinder Theme */
+/* Custom styles for Lithic Editor documentation - Material Theme */
+
+/* Custom blue palette color scheme - Force override Material defaults */
+:root {
+  --md-primary-fg-color: #2171b5 !important;        /* Primary blue */
+  --md-primary-fg-color--light: #6baed6 !important; /* Medium blue */
+  --md-primary-fg-color--dark: #2171b5 !important;  /* Primary blue (same) */
+  --md-primary-bg-color: #ffffff !important;
+  --md-primary-bg-color--light: #ffffff !important;
+  
+  --md-accent-fg-color: #6baed6 !important;         /* Medium blue accent */
+  --md-accent-fg-color--transparent: rgba(107, 174, 214, 0.1) !important;
+  --md-accent-bg-color: #6baed6 !important;
+  --md-accent-bg-color--light: #6baed6 !important;
+  
+  /* Override default palette colors */
+  --md-default-fg-color: #212121 !important;
+  --md-default-fg-color--light: #444444 !important;
+  --md-default-fg-color--lighter: #666666 !important;
+  --md-default-fg-color--lightest: #888888 !important;
+  --md-default-bg-color: #ffffff !important;
+  --md-default-bg-color--light: #f5f5f5 !important;
+  --md-default-bg-color--lighter: #eeeeee !important;
+  --md-default-bg-color--lightest: #e0e0e0 !important;
+  
+  /* Code and footer */
+  --md-code-bg-color: #eff3ff !important;           /* Very light blue background */
+  --md-code-fg-color: #212121 !important;
+  --md-footer-bg-color: #2171b5 !important;         /* Match primary */
+  --md-footer-bg-color--dark: #2171b5 !important;   /* Match primary */
+  --md-footer-fg-color: #ffffff !important;
+  --md-footer-fg-color--light: #eeeeee !important;
+  --md-footer-fg-color--lighter: #dddddd !important;
+}
+
+/* Dark mode overrides */
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #2171b5 !important;
+  --md-primary-bg-color: #1a1a1a !important;
+  --md-accent-fg-color: #6baed6 !important;
+}
+
+/* Force override Material's default orange/brown colors */
+.md-header {
+    background-color: #2171b5 !important;
+}
+
+.md-tabs {
+    background-color: #2171b5 !important;
+}
+
+.md-nav__title {
+    background-color: #2171b5 !important;
+}
+
+.md-nav__item--active > .md-nav__link {
+    color: #2171b5 !important;
+}
+
+.md-typeset a {
+    color: #2171b5 !important;
+}
+
+.md-typeset a:hover {
+    color: #6baed6 !important;
+}
 
 /* Hero section on homepage */
 .hero-section {
     text-align: center;
     padding: 3rem 2rem;
-    background: linear-gradient(135deg, #8b4513 0%, #ff6b35 100%);
+    background: linear-gradient(135deg, #2171b5 0%, #6baed6 100%);
     color: white;
     border-radius: 8px;
     margin: 2rem 0;
@@ -35,37 +100,25 @@
 
 .card {
     padding: 1.5rem;
-    background: #f8f8f8;
+    background: var(--md-code-bg-color);
     border-radius: 8px;
-    border: 1px solid #e0e0e0;
+    border: 1px solid var(--md-default-fg-color--lightest);
     transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .card:hover {
     transform: translateY(-4px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
 .card h3 {
     margin-top: 0;
-    color: #8b4513;
+    color: var(--md-primary-fg-color);
     font-weight: 600;
 }
 
-.card a {
-    display: inline-block;
+.card .md-button {
     margin-top: 1rem;
-    padding: 0.5rem 1rem;
-    background: #8b4513;
-    color: white;
-    text-decoration: none;
-    border-radius: 4px;
-    transition: background 0.2s;
-}
-
-.card a:hover {
-    background: #a0522d;
-    color: white;
 }
 
 /* Image comparison */
@@ -89,7 +142,7 @@
 }
 
 .image-box h3 {
-    color: #8b4513;
+    color: #2171b5;
     margin-bottom: 0.5rem;
 }
 
@@ -102,17 +155,17 @@
 /* Custom admonitions for archaeology theme */
 .md-typeset .admonition.archaeology,
 .md-typeset details.archaeology {
-    border-color: #8b4513;
+    border-color: #2171b5;
 }
 
 .md-typeset .archaeology > .admonition-title,
 .md-typeset .archaeology > summary {
-    background-color: #8b451333;
+    background-color: #bdd7e733;
 }
 
 .md-typeset .archaeology > .admonition-title::before,
 .md-typeset .archaeology > summary::before {
-    background-color: #8b4513;
+    background-color: #2171b5;
     -webkit-mask-image: url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"/></svg>');
     mask-image: url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"/></svg>');
 }
@@ -170,16 +223,18 @@
     }
 }
 
-/* Custom color for archaeological theme */
+/* Custom color palette variables */
 :root {
-    --lithic-brown: #8b4513;
-    --lithic-orange: #ff6b35;
+    --blue-lightest: #eff3ff;
+    --blue-light: #bdd7e7;
+    --blue-medium: #6baed6;
+    --blue-dark: #2171b5;
 }
 
-[data-md-color-primary="brown"] {
-    --md-primary-fg-color: #795548;
-    --md-primary-fg-color--light: #a1887f;
-    --md-primary-fg-color--dark: #5d4037;
+[data-md-color-primary="blue"] {
+    --md-primary-fg-color: #2171b5;
+    --md-primary-fg-color--light: #6baed6;
+    --md-primary-fg-color--dark: #2171b5;
 }
 
 /* Smooth scrolling */

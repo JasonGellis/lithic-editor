@@ -79,7 +79,7 @@
     
     
     
-    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="brown" data-md-color-accent="deep-orange">
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
   
     
     <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
@@ -141,7 +141,7 @@
     
     
     
-    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="brown" data-md-color-accent="deep-orange"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
     
       <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
@@ -151,7 +151,7 @@
     
     
     
-    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="brown" data-md-color-accent="deep-orange"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
     
       <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
@@ -940,17 +940,17 @@
 
 <h1 id="lithic-editor-and-annotator">Lithic Editor and Annotator<a class="headerlink" href="#lithic-editor-and-annotator" title="Permanent link">&para;</a></h1>
 <div class="hero-section">
-  <h2>Archaeological Image Processing Tool</h2>
-  <p>Automatically remove ripple lines from lithic drawings while preserving structural elements</p>
+  <h2>Lithic Editor and Annotator</h2>
+  <p>Automatically remove ripple lines from lithic drawings, annotate illustrations with directional arrows, and produce publication ready drawings</p>
 </div>
 
 <div class="admonition success">
 <p class="admonition-title">Key Features</p>
 <ul>
-<li>✨ <strong>Intelligent Ripple Removal</strong> - Advanced algorithms distinguish between structural and decorative lines</li>
-<li>🎯 <strong>Precise Annotations</strong> - Add directional arrows to indicate striking patterns</li>
-<li>🖼️ <strong>Publication Ready</strong> - Maintain DPI and produce high-quality outputs</li>
-<li>🚀 <strong>Easy to Use</strong> - Intuitive GUI and command-line interface</li>
+<li><img alt="" src="assets/images/lithic_tool.svg" style="width:24px; height:24px; vertical-align:middle; margin-right:8px" /><strong>Intelligent Ripple Removal</strong> - Advanced algorithms distinguish between structural elements and scar ripples</li>
+<li><img alt="" src="assets/images/arrow.svg" style="width:24px; height:24px; transform:rotate(-45deg); vertical-align:middle; margin-right:8px; filter:brightness(0)" /><strong>Precise Annotations</strong> - Add directional arrows to indicate striking patterns</li>
+<li><img alt="" src="assets/images/article.svg" style="width:24px; height:24px; vertical-align:middle; margin-right:8px; filter:brightness(0)" /><strong>Publication Ready</strong> - Maintain DPI and produce high-quality outputs</li>
+<li><img alt="" src="assets/images/smile_face.svg" style="width:24px; height:24px; vertical-align:middle; margin-right:8px; filter:brightness(0)" /><strong>Easy to Use</strong> - Intuitive GUI and command-line interface</li>
 </ul>
 </div>
 <h2 id="what-is-lithic-editor">What is Lithic Editor?<a class="headerlink" href="#what-is-lithic-editor" title="Permanent link">&para;</a></h2>
@@ -960,7 +960,7 @@
 <p><strong>Automated Ripple Line Removal</strong>: The software uses advanced graph-based algorithms to identify and remove hatching/ripple lines while preserving the essential structural elements of the drawing.</p>
 </li>
 <li>
-<p><strong>Technical Annotation System</strong>: Provides intuitive tools for adding directional arrows to indicate striking direction and flake scar patterns - essential for archaeological analysis.</p>
+<p><strong>Technical Annotation System</strong>: Provides intuitive tools for replacing scar ripples with directional arrows to indicate striking direction and flake scar patterns.</p>
 </li>
 </ol>
 <h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
@@ -975,10 +975,10 @@
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">lithic_editor.processing</span><span class="w"> </span><span class="kn">import</span> <span class="n">process_lithic_drawing_improved</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">lithic_editor.processing</span><span class="w"> </span><span class="kn">import</span> <span class="n">process_lithic_drawing</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c1"># Process an image</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">result</span> <span class="o">=</span> <span class="n">process_lithic_drawing_improved</span><span class="p">(</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">result</span> <span class="o">=</span> <span class="n">process_lithic_drawing</span><span class="p">(</span>
 </span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="s2">&quot;lithic_drawing.png&quot;</span><span class="p">,</span>
 </span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">save_debug</span><span class="o">=</span><span class="kc">True</span>
 </span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="p">)</span>
@@ -1010,26 +1010,26 @@
 <h2 id="who-is-this-for">Who is this for?<a class="headerlink" href="#who-is-this-for" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Archaeologists</strong> working with lithic illustrations</li>
-<li><strong>Researchers</strong> analyzing stone tool technology</li>
+<li><strong>Researchers</strong> creating publication ready images</li>
 <li><strong>Museum Curators</strong> preparing artifact documentation</li>
 <li><strong>Students</strong> studying archaeological illustration techniques</li>
 </ul>
 <h2 id="getting-started">Getting Started<a class="headerlink" href="#getting-started" title="Permanent link">&para;</a></h2>
 <div class="card-grid">
   <div class="card">
-    <h3>📦 Installation</h3>
+    <h3>Installation</h3>
     <p>Set up Lithic Editor on your system</p>
     <a href="getting-started/installation/" class="md-button">Install Guide</a>
   </div>
 
   <div class="card">
-    <h3>🚀 Quick Start</h3>
+    <h3>Quick Start</h3>
     <p>Process your first lithic drawing</p>
     <a href="getting-started/quickstart/" class="md-button">Tutorial</a>
   </div>
 
   <div class="card">
-    <h3>📖 User Guide</h3>
+    <h3>User Guide</h3>
     <p>Learn all features and workflows</p>
     <a href="user-guide/overview/" class="md-button">Documentation</a>
   </div>
@@ -1038,13 +1038,11 @@
 <h2 id="support">Support<a class="headerlink" href="#support" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Issues</strong>: <a href="https://github.com/JasonGellis/lithic-editor/issues">GitHub Issues</a></li>
-<li><strong>Discussions</strong>: <a href="https://github.com/JasonGellis/lithic-editor/discussions">GitHub Discussions</a></li>
-<li><strong>Email</strong>: jg760@cam.ac.uk</li>
 </ul>
 <hr />
 <div class="admonition info">
 <p class="admonition-title">Acknowledgements</p>
-<p>Special thanks to The British Academy for funding this research project.</p>
+<p>Thank you to The British Academy for funding this project.</p>
 </div>
 
 

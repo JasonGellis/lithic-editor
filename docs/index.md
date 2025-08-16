@@ -1,15 +1,15 @@
 # Lithic Editor and Annotator
 
 <div class="hero-section">
-  <h2>Archaeological Image Processing Tool</h2>
-  <p>Automatically remove ripple lines from lithic drawings while preserving structural elements</p>
+  <h2>Lithic Editor and Annotator</h2>
+  <p>Automatically remove ripple lines from lithic drawings, annotate illustrations with directional arrows, and produce publication ready drawings</p>
 </div>
 
 !!! success "Key Features"
-    - ✨ **Intelligent Ripple Removal** - Advanced algorithms distinguish between structural and decorative lines
-    - 🎯 **Precise Annotations** - Add directional arrows to indicate striking patterns
-    - 🖼️ **Publication Ready** - Maintain DPI and produce high-quality outputs
-    - 🚀 **Easy to Use** - Intuitive GUI and command-line interface
+    - ![](assets/images/lithic_tool.svg){: style="width:24px; height:24px; vertical-align:middle; margin-right:8px"}**Intelligent Ripple Removal** - Advanced algorithms distinguish between structural elements and scar ripples
+    - ![](assets/images/arrow.svg){: style="width:24px; height:24px; transform:rotate(-45deg); vertical-align:middle; margin-right:8px; filter:brightness(0)"}**Precise Annotations** - Add directional arrows to indicate striking patterns
+    - ![](assets/images/article.svg){: style="width:24px; height:24px; vertical-align:middle; margin-right:8px; filter:brightness(0)"}**Publication Ready** - Maintain DPI and produce high-quality outputs
+    - ![](assets/images/smile_face.svg){: style="width:24px; height:24px; vertical-align:middle; margin-right:8px; filter:brightness(0)"}**Easy to Use** - Intuitive GUI and command-line interface
 
 ## What is Lithic Editor?
 
@@ -17,7 +17,7 @@ Lithic Editor and Annotator is a specialized tool designed for archaeological re
 
 1. **Automated Ripple Line Removal**: The software uses advanced graph-based algorithms to identify and remove hatching/ripple lines while preserving the essential structural elements of the drawing.
 
-2. **Technical Annotation System**: Provides intuitive tools for adding directional arrows to indicate striking direction and flake scar patterns - essential for archaeological analysis.
+2. **Technical Annotation System**: Provides intuitive tools for replacing scar ripples with directional arrows to indicate striking direction and flake scar patterns.
 
 ## Quick Start
 
@@ -26,7 +26,7 @@ Lithic Editor and Annotator is a specialized tool designed for archaeological re
     ```bash
     # Install the package
     pip install git+https://github.com/JasonGellis/lithic-editor.git
-    
+
     # Launch the GUI
     lithic-editor --gui
     ```
@@ -35,7 +35,7 @@ Lithic Editor and Annotator is a specialized tool designed for archaeological re
 
     ```python
     from lithic_editor.processing import process_lithic_drawing
-    
+
     # Process an image
     result = process_lithic_drawing(
         "lithic_drawing.png",
@@ -70,7 +70,7 @@ Lithic Editor and Annotator is a specialized tool designed for archaeological re
 ## Who is this for?
 
 - **Archaeologists** working with lithic illustrations
-- **Researchers** analyzing stone tool technology
+- **Researchers** creating publication ready images
 - **Museum Curators** preparing artifact documentation
 - **Students** studying archaeological illustration techniques
 
@@ -78,19 +78,19 @@ Lithic Editor and Annotator is a specialized tool designed for archaeological re
 
 <div class="card-grid">
   <div class="card">
-    <h3>📦 Installation</h3>
+    <h3>Installation</h3>
     <p>Set up Lithic Editor on your system</p>
     <a href="getting-started/installation/" class="md-button">Install Guide</a>
   </div>
-  
+
   <div class="card">
-    <h3>🚀 Quick Start</h3>
+    <h3>Quick Start</h3>
     <p>Process your first lithic drawing</p>
     <a href="getting-started/quickstart/" class="md-button">Tutorial</a>
   </div>
-  
+
   <div class="card">
-    <h3>📖 User Guide</h3>
+    <h3>User Guide</h3>
     <p>Learn all features and workflows</p>
     <a href="user-guide/overview/" class="md-button">Documentation</a>
   </div>
@@ -99,10 +99,8 @@ Lithic Editor and Annotator is a specialized tool designed for archaeological re
 ## Support
 
 - **Issues**: [GitHub Issues](https://github.com/JasonGellis/lithic-editor/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/JasonGellis/lithic-editor/discussions)
-- **Email**: jg760@cam.ac.uk
 
 ---
 
 !!! info "Acknowledgements"
-    Special thanks to The British Academy for funding this research project.
+    Thank you to The British Academy for funding this project.

@@ -11,7 +11,7 @@ The core feature of Lithic Editor uses advanced graph-based analysis to identify
 - Maintains image quality and resolution
 
 ### Processing Visualization
-View step-by-step processing stages to understand how the algorithm works:
+View and save step-by-step processing stages to understand how the algorithm works and to troubleshoot problematic images:
 
 - Original image analysis
 - Skeletonization process
@@ -23,7 +23,6 @@ View step-by-step processing stages to understand how the algorithm works:
 Fine-tune your images before processing:
 
 - Brush tools for cleanup
-- Eraser for removing artifacts
 - Adjustable brush sizes
 - Real-time preview
 
@@ -45,7 +44,7 @@ Complete control over arrow appearance:
 - **Color**: Choose from full color palette
 - **Position**: Precise placement on image
 
-### Intuitive Controls
+### Arrow Controls
 
 === "Windows/Linux"
     - **Move**: Click and drag
@@ -75,12 +74,12 @@ Complete control over arrow appearance:
 | JPEG | Compressed, wide compatibility | Publications, sharing |
 | TIFF | Uncompressed, professional | Archival, printing |
 
-### Batch Processing
-Process multiple images efficiently:
+### Command-Line Processing
+Process images from the command line:
 
-- Command-line batch operations
+- Single image processing
 - Consistent processing parameters
-- Progress tracking
+- Debug output options
 - Error handling
 
 ### Cross-Platform Support
@@ -121,7 +120,7 @@ Full functionality from the terminal:
 # Process with options
 lithic-editor process image.png --output results/ --debug
 
-# Batch processing
+# Process multiple files with bash
 for file in *.png; do
     lithic-editor process "$file" --quiet
 done
