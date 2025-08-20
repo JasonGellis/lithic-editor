@@ -1,0 +1,29 @@
+LICENSING INFORMATION FOR lithic_blade.png
+===========================================
+
+This image is a derivative work based on:
+"Microburin technique.svg" from Wikimedia Commons
+
+Original Source:
+https://commons.wikimedia.org/wiki/File:Microburin_technique.svg
+http://commons.wikimedia.org/wiki/File:Microburin_technique.gif
+
+Original Authors:
+- José-Manuel Benito
+- CMG Lee
+
+License:
+Creative Commons Attribution-Share Alike 4.0 International (CC BY-SA 4.0)
+https://creativecommons.org/licenses/by-sa/4.0/
+
+Attribution Statement:
+This work is a derivative of "Microburin technique" by José-Manuel Benito and CMG Lee,
+available at https://commons.wikimedia.org/wiki/File:Microburin_technique.svg,
+used under CC BY-SA 4.0. The image has been converted from SVG to PNG format.
+
+Usage:
+"Based on 'Microburin technique' by José-Manuel Benito and CMG Lee (CC BY-SA 4.0)"
+
+Full License Text:
+The full text of the CC BY-SA 4.0 license can be found at:
+https://creativecommons.org/licenses/by-sa/4.0/legalcode

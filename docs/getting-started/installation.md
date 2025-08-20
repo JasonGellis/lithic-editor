@@ -6,11 +6,10 @@
 - **Python**: 3.7 or higher
 - **RAM**: 4GB minimum (8GB recommended)
 - **Storage**: 500MB free space
-- **Display**: 1280x720 resolution
 
 ### Operating Systems
 - Windows 10/11
-- macOS 10.15 (Catalina) or later
+- macOS >= 10.15
 - Linux (Ubuntu 20.04+, Fedora 34+, etc.)
 
 ## Installation Methods
@@ -56,26 +55,17 @@ pip install -e ".[docs]"
 pip install -e ".[dev,test,docs]"
 ```
 
-#### Dependency Groups Explained
+## Dependency Installation
+
+
+### Dependency Groups Explained
 
 | Group | Purpose | Includes |
 |-------|---------|----------|
 | *none* | Users only | Core dependencies for running the app |
 | `test` | Running tests | pytest, pytest-qt, pytest-cov |
 | `dev` | Code quality | black, flake8, mypy + test dependencies |
-| `docs` | Documentation | mkdocs, mkdocs-material + extensions |
-
-### Method 3: Install from PyPI
-
-!!! note "Coming Soon"
-    PyPI distribution will be available in a future release.
-
-```bash
-# Future installation method
-pip install lithic-editor
-```
-
-## Dependency Installation
+| `docs` | Building docs | mkdocs, mkdocs-material + extensions (for contributors only) |
 
 All dependencies are automatically installed with the package. However, if you encounter issues, you can manually install them:
 
@@ -83,7 +73,8 @@ All dependencies are automatically installed with the package. However, if you e
 # Core dependencies
 pip install numpy opencv-python Pillow PyQt5 scikit-image networkx scipy
 
-# Optional: Documentation dependencies
+# Optional: For building/editing documentation (NOT needed for viewing docs)
+# Users can view docs with 'lithic-editor docs' without these packages
 pip install mkdocs mkdocs-material pymdown-extensions
 ```
 
@@ -104,13 +95,11 @@ lithic-editor --gui
 
 ## Accessing Documentation
 
-After installation, you can access the full documentation:
-
-### 📚 Online Documentation
-The complete documentation is always available online:
+### ![](../assets/images/web.svg){: style="width:24px; height:24px; vertical-align:text-bottom; filter:brightness(0); margin-right:8px"} Online Documentation
+Complete, up to date documentation is always available online:
 **https://jasongellis.github.io/lithic-editor/**
 
-### 💻 Local Documentation Access
+### ![](../assets/images/computer.svg){: style="width:24px; height:24px; vertical-align:text-bottom; filter:brightness(0); margin-right:8px"} Local Documentation (Following Installation)
 ```bash
 # Open documentation in your browser
 lithic-editor docs
@@ -119,7 +108,7 @@ lithic-editor docs
 lithic-editor docs --offline
 ```
 
-### 📖 Quick Help
+### ![](../assets/images/quick_reference.svg){: style="width:24px; height:24px; vertical-align:text-bottom; filter:brightness(0); margin-right:8px"} Quick Help
 ```bash
 lithic-editor --help     # Show all commands and options
 lithic-editor help       # Show detailed help information
@@ -155,7 +144,7 @@ lithic-editor help api   # Show Python API usage examples
     ```bash
     # Ubuntu/Debian
     sudo apt-get install python3-pyqt5 libxcb-xinerama0
-    
+
     # Fedora
     sudo dnf install python3-qt5
     ```
@@ -174,13 +163,13 @@ We recommend using a virtual environment:
     ```bash
     # Create virtual environment
     python -m venv lithic-env
-    
+
     # Activate it
     # Windows
     lithic-env\Scripts\activate
     # macOS/Linux
     source lithic-env/bin/activate
-    
+
     # Install package
     pip install git+https://github.com/JasonGellis/lithic-editor.git
     ```
@@ -190,7 +179,7 @@ We recommend using a virtual environment:
     # Create conda environment
     conda create -n lithic python=3.9
     conda activate lithic
-    
+
     # Install package
     pip install git+https://github.com/JasonGellis/lithic-editor.git
     ```

@@ -19,15 +19,15 @@ theme:
     # Dark mode
     - scheme: slate
       primary: indigo
-      accent: indigo  
+      accent: indigo
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
-  
+
   font:
     text: Roboto
     code: Roboto Mono
-  
+
   features:
     - navigation.tabs
     - navigation.tabs.sticky
@@ -93,13 +93,11 @@ extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/JasonGellis/lithic-editor
-    - icon: fontawesome/brands/python
-      link: https://pypi.org/project/lithic-editor/
-  
+
   version:
     provider: mike
     default: stable
-  
+
   analytics:
     provider: google
     property: !ENV GOOGLE_ANALYTICS_KEY
@@ -112,16 +110,21 @@ nav:
     - index.md
     - Features: features.md
     - Screenshots: screenshots.md
-  
+
   - Getting Started:
     - Installation: getting-started/installation.md
     - Quick Start: getting-started/quickstart.md
     - Requirements: getting-started/requirements.md
-  
+
   - User Guide:
     - Overview: user-guide/overview.md
     - Processing Images: user-guide/processing.md
-  
+
+  - API Reference:
+    - Overview: api-reference/overview.md
+    - Python API: api-reference/python-api.md
+    - CLI Reference: api-reference/cli-reference.md
+
   - Developer Guide:
     - Contributing: developer/contributing.md
     - Testing Guide: developer/testing.md

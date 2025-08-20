@@ -128,42 +128,20 @@ lithic-editor process image.png \
 
 ## Python API
 
-### Basic Processing
+### Using the Python API
+
+For detailed API documentation and examples, see the [API Reference](../api-reference/overview.md).
 
 ```python
 from lithic_editor.processing import process_lithic_drawing
 
-# Process with default settings
-result = process_lithic_drawing("drawing.png")
-
-# Process with custom output
-result = process_lithic_drawing(
-    image_path="drawing.png",
-    output_folder="results/",
-    save_debug=True
-)
+# Basic example
+result = process_lithic_drawing("drawing.png", save_debug=True)
 ```
 
-### Advanced Usage
-
-```python
-import numpy as np
-from lithic_editor.processing import process_lithic_drawing
-
-# Process numpy array
-image_array = np.array(...)  # Your image data
-result = process_lithic_drawing(
-    image_path=image_array,
-    dpi_info=(300, 300),
-    save_debug=False
-)
-
-# Access processing stages
-stages = result.get('debug_stages', [])
-for stage_name, stage_image in stages:
-    print(f"Stage: {stage_name}")
-    # Process stage_image
-```
+For advanced usage, batch processing, and integration examples, refer to:
+- [Python API Documentation](../api-reference/python-api.md)
+- [CLI Reference](../api-reference/cli-reference.md)
 
 ## Troubleshooting
 
