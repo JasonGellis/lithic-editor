@@ -187,12 +187,16 @@ class TestGUIHelpers:
             assert window.brush_slider.maximum() <= 50
             assert window.brush_slider.value() >= 1
     
-    def test_save_debug_checkbox(self, qapp):
-        """Test save debug images checkbox."""
+    def test_debug_images_checkbox(self, qapp):
+        """Test debug images checkbox."""
         from lithic_editor.gui.main_window import LithicProcessorGUI
         
         window = LithicProcessorGUI()
         
-        assert hasattr(window, 'save_debug_images')
+        assert hasattr(window, 'debug_images_checkbox')
         # Should be unchecked by default for performance
-        assert window.save_debug_images.isChecked() == False
+        assert window.debug_images_checkbox.isChecked() == False
+        
+        # Check backward compatibility aliases
+        assert window.save_debug_images == window.debug_images_checkbox
+        assert window.show_debug_images == window.debug_images_checkbox

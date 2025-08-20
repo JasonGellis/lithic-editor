@@ -441,16 +441,17 @@ class LithicProcessorGUI(QMainWindow):
         options_layout.setSpacing(10)
         options_layout.setContentsMargins(10, 10, 10, 10)
 
-        # Debug images options
+        # Debug images option (combined view and save)
         debug_images_label = QLabel("Debug Images:")
         debug_images_label.setStyleSheet("font-weight: bold; font-size: 11px;")
 
-        self.show_debug_images = QCheckBox('View Debug Images')
-        self.show_debug_images.setChecked(False)
-        self.show_debug_images.stateChanged.connect(self.toggle_debug_images)
-
-        self.save_debug_images = QCheckBox('Save Debug Images')
-        self.save_debug_images.setChecked(False)
+        self.debug_images_checkbox = QCheckBox('View and Save Debug Images')
+        self.debug_images_checkbox.setChecked(False)
+        self.debug_images_checkbox.stateChanged.connect(self.toggle_debug_images)
+        
+        # Keep the old attributes for backward compatibility
+        self.show_debug_images = self.debug_images_checkbox
+        self.save_debug_images = self.debug_images_checkbox
 
         # DPI settings section
         dpi_title = QLabel("DPI Settings")
@@ -488,14 +489,7 @@ class LithicProcessorGUI(QMainWindow):
 
         # Add all options to the right panel
         options_layout.addWidget(debug_images_label)
-
-        # Create horizontal layout for debug checkboxes
-        debug_checkboxes_layout = QHBoxLayout()
-        debug_checkboxes_layout.addWidget(self.show_debug_images)
-        debug_checkboxes_layout.addWidget(self.save_debug_images)
-        debug_checkboxes_layout.addStretch()  # Push checkboxes to the left
-
-        options_layout.addLayout(debug_checkboxes_layout)
+        options_layout.addWidget(self.debug_images_checkbox)
         options_layout.addWidget(dpi_title)
         options_layout.addWidget(self.current_dpi_label)
         options_layout.addWidget(self.dpi_explanation_label)
@@ -886,14 +880,14 @@ class LithicProcessorGUI(QMainWindow):
         dpi_info = self.image_dpi if hasattr(self, 'image_dpi') else None
         format_info = self.image_format if hasattr(self, 'image_format') else None
         output_dpi = self.get_output_dpi()  # Get user's DPI preference
-        # Determine if debug images should be saved
-        save_debug = self.save_debug_images.isChecked()
+        # Debug images are both viewed and saved when checkbox is checked
+        debug_enabled = self.debug_images_checkbox.isChecked()
         
-        # Only pass output folder if debug images are being saved
-        output_folder = self.output_folder if save_debug else None
+        # Pass output folder for debug images if enabled
+        output_folder = self.output_folder if debug_enabled else None
         
         self.processing_thread = ProcessingThread(self.input_image_path, output_folder,
-                dpi_info, format_info, output_dpi, save_debug)
+                dpi_info, format_info, output_dpi, debug_enabled)
         self.processing_thread.progress_signal.connect(self.update_progress)
         self.processing_thread.finished_signal.connect(self.processing_finished)
         self.processing_thread.start()
@@ -943,8 +937,8 @@ class LithicProcessorGUI(QMainWindow):
             self.status_label.setText('Processing complete!')
             self.log("You can draw on the input image with the brush tools")
             
-            # Load and handle debug images based on user preference
-            if self.show_debug_images.isChecked() and self.save_debug_images.isChecked():
+            # Load and handle debug images if checkbox is enabled
+            if self.debug_images_checkbox.isChecked():
                 self.load_debug_images()
         else:
             # Processing failed
