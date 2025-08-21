@@ -77,10 +77,10 @@ The ripple removal algorithm follows these steps:
 ### Processing Options
 
 #### Debug Mode
-Enable to save intermediate processing steps:
-- Checkbox: "Save debug images"
-- Creates `image_debug/` folder
-- Saves all algorithm stages
+Enable to view and save intermediate processing steps:
+- Checkbox: "View and Save Debug Images"
+- Shows processing steps in the Processing Steps panel
+- Creates `image_debug/` folder with all algorithm stages
 
 #### Quality Settings
 Adjust processing parameters:

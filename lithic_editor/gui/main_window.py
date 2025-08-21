@@ -295,10 +295,6 @@ class LithicProcessorGUI(QMainWindow):
         # No DPI in image, use selected option
         if self.keep_unset_dpi.isChecked():
             return None  # Leave unset
-        elif self.use_standard_dpi.isChecked():
-            return (300, 300)  # Publication standard
-        elif self.use_screen_dpi.isChecked():
-            return (96, 96)  # Screen resolution
         elif self.use_custom_dpi.isChecked():
             dpi_value = self.custom_dpi_spinner.value()
             return (dpi_value, dpi_value)  # Custom value
@@ -466,16 +462,12 @@ class LithicProcessorGUI(QMainWindow):
         # DPI radio buttons
         self.dpi_group = QButtonGroup(self)
         self.keep_unset_dpi = QRadioButton("Leave unset (application defaults)")
-        self.use_standard_dpi = QRadioButton("Use publication standard (300 DPI)")
-        self.use_screen_dpi = QRadioButton("Use screen resolution (96 DPI)")
-        self.use_custom_dpi = QRadioButton("Use custom DPI:")
+        self.use_custom_dpi = QRadioButton("Set custom DPI:")
 
         self.dpi_group.addButton(self.keep_unset_dpi)
-        self.dpi_group.addButton(self.use_standard_dpi)
-        self.dpi_group.addButton(self.use_screen_dpi)
         self.dpi_group.addButton(self.use_custom_dpi)
 
-        # Custom DPI spinner
+        # Custom DPI spinner with helpful hint
         custom_dpi_layout = QHBoxLayout()
         custom_dpi_layout.addWidget(self.use_custom_dpi)
         self.custom_dpi_spinner = QSpinBox()
@@ -483,6 +475,7 @@ class LithicProcessorGUI(QMainWindow):
         self.custom_dpi_spinner.setValue(300)
         self.custom_dpi_spinner.setSuffix(" DPI")
         self.custom_dpi_spinner.setMaximumWidth(100)
+        self.custom_dpi_spinner.setToolTip("Common values: 96 (screen), 300 (print), 600 (high quality)")
         custom_dpi_layout.addWidget(self.custom_dpi_spinner)
         custom_dpi_layout.addStretch()
 
@@ -494,8 +487,6 @@ class LithicProcessorGUI(QMainWindow):
         options_layout.addWidget(self.current_dpi_label)
         options_layout.addWidget(self.dpi_explanation_label)
         options_layout.addWidget(self.keep_unset_dpi)
-        options_layout.addWidget(self.use_standard_dpi)
-        options_layout.addWidget(self.use_screen_dpi)
         options_layout.addLayout(custom_dpi_layout)
         options_layout.addStretch()  # Push everything to top
 
@@ -753,14 +744,14 @@ class LithicProcessorGUI(QMainWindow):
             if self.image_dpi:
                 self.dpi_group.setExclusive(False)  # Allow deselecting all buttons
                 self.keep_unset_dpi.setChecked(False)
-                self.use_standard_dpi.setChecked(False)
-                self.use_screen_dpi.setChecked(False)
                 self.use_custom_dpi.setChecked(False)
                 self.dpi_group.setExclusive(True)  # Restore exclusive behavior
                 dpi_options_explanation = f"Original DPI ({round(self.image_dpi[0])}x{round(self.image_dpi[1])}) will be preserved"
                 self.dpi_explanation_label.setText(dpi_options_explanation)
             else:
                 self.dpi_explanation_label.setText("No DPI found in image. Select what DPI to use for output:")
+                # Default to leave unset when no DPI in image
+                self.keep_unset_dpi.setChecked(True)
 
             # Load and crop the image to content
             img = cv2.imread(file_path)

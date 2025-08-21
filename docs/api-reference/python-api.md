@@ -28,7 +28,7 @@ process_lithic_drawing(
 | `dpi_info` | `tuple` | `None` | Override DPI as (x_dpi, y_dpi) |
 | `format_info` | `str` | `None` | Override output format (png, jpg, tiff) |
 | `output_dpi` | `int` | `None` | Set specific output DPI |
-| `save_debug` | `bool` | `False` | Save intermediate processing steps |
+| `save_debug` | `bool` | `False` | Save intermediate processing steps to disk |
 
 #### Returns
 

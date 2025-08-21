@@ -57,7 +57,7 @@ Show this help:
 CLI PROCESSING OPTIONS
 ---------------------
   --output DIR          Output directory (default: image_debug)
-  --debug               Save debug images showing processing steps
+  --debug               Save debug images and processing steps
   --quiet               Suppress processing output
 
 Examples:
@@ -157,7 +157,7 @@ process_lithic_drawing(
     dpi_info=None,              # DPI tuple (x_dpi, y_dpi)
     format_info=None,           # Original image format
     output_dpi=None,            # Desired output DPI
-    save_debug=False            # Save intermediate steps
+    save_debug=False            # Save intermediate processing steps
 ) -> numpy.ndarray              # Returns processed image
 
 GUI MODULE

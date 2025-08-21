@@ -49,7 +49,7 @@ lithic-editor process IMAGE_PATH [OPTIONS]
 | Option | Short | Default | Description |
 |--------|-------|---------|-------------|
 | `--output` | `-o` | `image_debug` | Output directory |
-| `--debug` | | `False` | Save debug images |
+| `--debug` | | `False` | Save debug images and processing steps |
 | `--quiet` | `-q` | `False` | Suppress output |
 
 **Examples:**
@@ -61,7 +61,7 @@ lithic-editor process drawing.png
 # Specify output directory
 lithic-editor process drawing.png --output results/
 
-# Save debug images
+# Save debug images and processing steps
 lithic-editor process drawing.png --debug
 
 # Quiet mode (no output)

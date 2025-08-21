@@ -81,7 +81,7 @@ from lithic_editor.processing import process_lithic_drawing
 result = process_lithic_drawing(
     "lithic_artifact.png",
     output_folder="results/",
-    save_debug=False  # Set True to save intermediate steps
+    save_debug=False  # Set True to save intermediate processing steps
 )
 
 print("Processing complete!")

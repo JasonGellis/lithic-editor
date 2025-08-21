@@ -76,9 +76,9 @@ Use the sidebar to explore specific topics:
    - Remove unnecessary elements
 
 2. **Processing Settings**
-   - Enable debug mode for complex images
-   - Review intermediate steps
-   - Adjust parameters if needed
+   - Enable "View and Save Debug Images" for complex images
+   - Review intermediate steps in Processing Steps panel
+   - Set custom DPI if needed (default preserves original)
 
 3. **Annotation Guidelines**
    - Maintain consistent arrow sizes
@@ -142,7 +142,7 @@ Cleans up the result and restores line quality.
     Use the CLI for processing multiple images with consistent settings.
 
 !!! tip "Quality Control"
-    Always review the debug steps to ensure important features aren't removed.
+    Enable "View and Save Debug Images" and review the processing steps to ensure important features aren't removed.
 
 ## Troubleshooting Guide
 

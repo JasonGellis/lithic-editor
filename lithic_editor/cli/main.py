@@ -74,7 +74,7 @@ Examples:
     process_parser.add_argument(
         '--debug',
         action='store_true',
-        help='Save debug images showing processing steps'
+        help='Save debug images and processing steps'
     )
     process_parser.add_argument(
         '--quiet', '-q',
