@@ -82,6 +82,32 @@ Examples:
         help='Suppress processing output'
     )
     
+    # Upscaling parameters
+    process_parser.add_argument(
+        '--auto-upscale',
+        action='store_true',
+        help='Automatically upscale images below target DPI without prompting'
+    )
+    process_parser.add_argument(
+        '--default-dpi',
+        type=int,
+        metavar='DPI',
+        help='Default DPI to assume for images without metadata'
+    )
+    process_parser.add_argument(
+        '--upscale-model',
+        choices=['espcn', 'fsrcnn'],
+        default='espcn',
+        help='Model to use for upscaling (default: espcn)'
+    )
+    process_parser.add_argument(
+        '--upscale-threshold',
+        type=int,
+        default=300,
+        metavar='DPI',
+        help='DPI threshold for upscaling (default: 300)'
+    )
+    
     # Help command
     help_parser = subparsers.add_parser(
         'help',
@@ -173,11 +199,26 @@ def process_image_cli(args):
             builtins.print = lambda *args, **kwargs: None
         
         try:
+            # Handle upscaling parameters
+            upscale_params = {}
+            if hasattr(args, 'auto_upscale') and args.auto_upscale:
+                upscale_params['upscale_low_dpi'] = True
+                upscale_params['default_dpi'] = args.default_dpi
+                upscale_params['upscale_model'] = args.upscale_model
+                upscale_params['target_dpi'] = args.upscale_threshold
+            elif hasattr(args, 'default_dpi') and args.default_dpi:
+                # Interactive mode with default DPI provided
+                upscale_params['default_dpi'] = args.default_dpi
+                upscale_params['upscale_model'] = getattr(args, 'upscale_model', 'espcn')
+                upscale_params['target_dpi'] = getattr(args, 'upscale_threshold', 300)
+                # TODO: Add interactive prompting for CLI when not in auto mode
+            
             # Process the image using the exact working algorithm
             result = process_lithic_drawing(
                 image_path=str(input_path),
                 output_folder=args.output,
-                save_debug=args.debug
+                save_debug=args.debug,
+                **upscale_params
             )
             
             # Restore print if it was suppressed

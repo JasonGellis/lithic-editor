@@ -7,6 +7,10 @@ import os
 import traceback
 from PIL import Image
 import numpy as np
+from .upscaling import (
+    detect_image_dpi, needs_upscaling, upscale_image_to_target_dpi,
+    validate_upscaling_inputs
+)
 
 
 def exception_hook(exc_type, exc_value, exc_traceback):
@@ -248,7 +252,9 @@ def debug_image_info(name, img):
     cv2.imwrite(output_path, img)
     print(f"Debug image saved to {output_path}")
 
-def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=None, format_info=None, output_dpi=None, save_debug=False):
+def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=None, format_info=None, output_dpi=None, save_debug=False, 
+                          upscale_low_dpi=False, default_dpi=None, upscale_model='espcn', target_dpi=300, 
+                          scale_image_path=None, return_scale_factor=False, debug_filename=None):
     """
     Process a lithic drawing to remove ripple lines while preserving original line quality and metadata
 
@@ -257,15 +263,32 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
         output_folder: Folder to save all output images
         dpi_info: DPI information to preserve (tuple of x,y dpi)
         format_info: Original image format to preserve
+        output_dpi: DPI for output images
+        save_debug: Whether to save debug images
+        upscale_low_dpi: Whether to upscale images below target_dpi
+        default_dpi: DPI to assume if metadata missing (for upscaling decisions)
+        upscale_model: Model to use for upscaling ('espcn' or 'fsrcnn')
+        target_dpi: Target DPI for upscaling (default: 300)
+        scale_image_path: Optional path to scale image (processed with same factor)
+        return_scale_factor: Whether to return upscaling factor in results
 
     Returns:
         cleaned_image: Image with ripple lines removed but original line quality preserved
+        If return_scale_factor=True, returns dict with image and scale factor
     """
     # Only create output folder if we're saving debug images
     if save_debug and output_folder:
         os.makedirs(output_folder, exist_ok=True)
         print(f"Debug mode enabled. Output folder: {output_folder}")
 
+    # Extract base filename for debug images
+    if debug_filename:
+        base_filename = debug_filename
+    elif isinstance(image_path, str):
+        base_filename = os.path.splitext(os.path.basename(image_path))[0]
+    else:
+        base_filename = "image"
+    
     # Add debugging header
     print("\n=== IMAGE DIMENSIONS DEBUGGING ===")
     print(f"{'Step':<30} {'Width':>10} {'Height':>10} {'Type':>15} {'Min':>8} {'Max':>8}")
@@ -301,6 +324,78 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
         original_image = image_path
         print(f"Using provided numpy array. Shape: {original_image.shape}")
 
+    # Handle upscaling if requested
+    scale_factor = 1.0
+    processed_scale = None
+    
+    if upscale_low_dpi:
+        # Determine current DPI
+        current_dpi = None
+        if dpi_info:
+            if isinstance(dpi_info, tuple):
+                current_dpi = max(dpi_info[0], dpi_info[1])
+            else:
+                current_dpi = int(dpi_info)
+        elif default_dpi:
+            current_dpi = default_dpi
+            print(f"Using default DPI: {current_dpi} (no metadata found)")
+        else:
+            # For non-interactive mode, we can't proceed without DPI
+            print("Warning: No DPI information found and no default_dpi provided. Skipping upscaling.")
+            upscale_low_dpi = False
+        
+        if upscale_low_dpi and current_dpi:
+            # Validate upscaling parameters
+            is_valid, error_msg = validate_upscaling_inputs(current_dpi, target_dpi, upscale_model)
+            if not is_valid:
+                print(f"Upscaling validation failed: {error_msg}")
+                upscale_low_dpi = False
+            elif needs_upscaling(current_dpi, target_dpi):
+                print(f"Image DPI ({current_dpi}) below target ({target_dpi}). Upscaling...")
+                
+                # Save original low-DPI image for comparison
+                if save_debug:
+                    os.makedirs(output_folder, exist_ok=True)  # Ensure folder exists before upscaling
+                    save_debug_image(original_image, os.path.join(output_folder, f'0_{base_filename}_original_low_dpi.png'),
+                                    f'Original Image ({current_dpi} DPI)', dpi_info, format_info, (current_dpi, current_dpi) if isinstance(current_dpi, int) else current_dpi)
+                
+                # Upscale the main image
+                upscaled_image, scale_factor = upscale_image_to_target_dpi(
+                    original_image, current_dpi, target_dpi, upscale_model
+                )
+                original_image = upscaled_image
+                
+                # Update DPI info to reflect upscaling
+                new_dpi = int(current_dpi * scale_factor)
+                if isinstance(dpi_info, tuple):
+                    dpi_info = (new_dpi, new_dpi)
+                else:
+                    dpi_info = new_dpi
+                
+                print(f"Upscaling completed: {current_dpi} DPI → {new_dpi} DPI (factor: {scale_factor:.1f}x)")
+                
+                # Process scale image if provided
+                if scale_image_path:
+                    print(f"Processing scale image with same factor...")
+                    try:
+                        scale_pil = Image.open(scale_image_path)
+                        scale_array = np.array(scale_pil.convert('L'))
+                        processed_scale, _ = upscale_image_to_target_dpi(
+                            scale_array, current_dpi, target_dpi, upscale_model
+                        )
+                        if save_debug:
+                            save_debug_image(processed_scale, os.path.join(output_folder, f'0b_{base_filename}_upscaled_scale.png'),
+                                            f'Upscaled Scale ({new_dpi} DPI)', (new_dpi, new_dpi), 'PNG', (new_dpi, new_dpi))
+                    except Exception as e:
+                        print(f"Error processing scale image: {e}")
+                
+                # Save upscaled main image
+                if save_debug:
+                    save_debug_image(original_image, os.path.join(output_folder, f'0a_{base_filename}_upscaled_300dpi.png'),
+                                    f'Upscaled Image ({new_dpi} DPI)', dpi_info, format_info, (new_dpi, new_dpi) if isinstance(new_dpi, int) else new_dpi)
+            else:
+                print(f"Image DPI ({current_dpi}) already meets target ({target_dpi}). No upscaling needed.")
+
     # Print metadata info
     if dpi_info:
         print(f"Original DPI information: {dpi_info}")
@@ -315,7 +410,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
 
     # Save the original image
     if save_debug:
-        save_debug_image(original_image, os.path.join(output_folder, '1_original_image.png'),
+        save_debug_image(original_image, os.path.join(output_folder, f'1_{base_filename}_original_image.png'),
                         'Original Image', dpi_info, format_info, output_dpi)
 
     # Step 2: Preprocess the image
@@ -341,7 +436,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
 
     # Save the skeleton image
     if save_debug:
-        save_debug_image(skeleton_img, os.path.join(output_folder, '2_skeleton.png'),
+        save_debug_image(skeleton_img, os.path.join(output_folder, f'2_{base_filename}_skeleton.png'),
                         'Skeleton', dpi_info, format_info, output_dpi)
 
     # Step 3: Find endpoints and junctions
@@ -390,7 +485,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
         cv2.circle(debug_img, (x, y), 1, (0, 255, 0), -1)  # Green for junctions
 
     if save_debug:
-        save_debug_image(debug_img, os.path.join(output_folder, '3_endpoints_junctions.png'),
+        save_debug_image(debug_img, os.path.join(output_folder, f'3_{base_filename}_endpoints_junctions.png'),
                         'Skeleton with Endpoints (Red) and Junctions (Green)', dpi_info, format_info, output_dpi)
 
 
@@ -426,7 +521,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
             segment_colors[y, x] = colors[segment_id]
 
     if save_debug:
-        save_debug_image(segment_colors, os.path.join(output_folder, '4_labeled_segments.png'),
+        save_debug_image(segment_colors, os.path.join(output_folder, f'4_{base_filename}_labeled_segments.png'),
                         f'Labeled Segments (Total: {num_segments})', dpi_info, format_info, output_dpi)
 
     # Step 5: Build graph representation
@@ -514,7 +609,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
         cv2.circle(ripple_viz, (x, y), 1, (0, 255, 0), -1)  # Green for junctions
 
     if save_debug:
-        save_debug_image(ripple_viz, os.path.join(output_folder, '5_ripple_identification.png'),
+        save_debug_image(ripple_viz, os.path.join(output_folder, f'5_{base_filename}_ripple_identification.png'),
                         'Ripple Segments (Red) vs. Structural Lines (White)', dpi_info, format_info, output_dpi)
 
     # Step 7: Create mask of structural elements (excluding ripple endpoints)
@@ -567,7 +662,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
 
     # Save the skeleton-based cleaned image (inverted)
     if save_debug:
-        save_debug_image(skeleton_cleaned_inverted, os.path.join(output_folder, '6_skeleton_cleaned.png'),
+        save_debug_image(skeleton_cleaned_inverted, os.path.join(output_folder, f'6_{base_filename}_skeleton_cleaned.png'),
                         'Skeleton Cleaned (Structural Elements Only)', dpi_info, format_info, output_dpi)
 
     # NEW: Create debug image showing filtered endpoints
@@ -595,7 +690,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
 
     if save_debug:
         if save_debug:
-            save_debug_image(filtered_endpoints_viz, os.path.join(output_folder, '6a_endpoint_filtering.png'),
+            save_debug_image(filtered_endpoints_viz, os.path.join(output_folder, f'6a_{base_filename}_endpoint_filtering.png'),
                             'Endpoint Filtering (Blue=Kept, Red=Removed, Green=Junctions)', dpi_info, format_info, output_dpi)
 
     # Step 8: Create final image with hybrid thickness preservation
@@ -625,7 +720,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
 
     # Save the final cleaned image (inverted)
     if save_debug:
-        save_debug_image(final_cleaned_inverted, os.path.join(output_folder, '7_final_cleaned.png'),
+        save_debug_image(final_cleaned_inverted, os.path.join(output_folder, f'7_{base_filename}_final_cleaned.png'),
                         'Final Cleaned (Hybrid Thickness Preserved)', dpi_info, format_info, output_dpi)
 
     # Debug: Save thickness mask visualization
@@ -641,7 +736,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
     debug_thickness_viz[thickness_preserved_mask] = [0, 255, 0]  # Green for preserved areas
 
     if save_debug:
-        save_debug_image(debug_thickness_viz, os.path.join(output_folder, '7a_thickness_preservation.png'),
+        save_debug_image(debug_thickness_viz, os.path.join(output_folder, f'7a_{base_filename}_thickness_preservation.png'),
                         'Hybrid Approach (Gray=Original, Red=Structural Skeleton, Green=Final Result)', dpi_info, format_info, output_dpi)
 
     # Debug: Show before/after comparison of thickness preservation
@@ -658,7 +753,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
     comparison_debug[:, width:] = right_side
 
     if save_debug:
-        save_debug_image(comparison_debug, os.path.join(output_folder, '7b_skeleton_vs_hybrid.png'),
+        save_debug_image(comparison_debug, os.path.join(output_folder, f'7b_{base_filename}_skeleton_vs_hybrid.png'),
                         'Left: Skeleton Only | Right: Hybrid Thickness Preserved', dpi_info, format_info, output_dpi)
 
     # Step 9: Apply line quality improvement
@@ -667,13 +762,13 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
 
     # Save the improved quality image
     if save_debug:
-        save_debug_image(improved_image, os.path.join(output_folder, '8_improved_quality.png'),
+        save_debug_image(improved_image, os.path.join(output_folder, f'8_{base_filename}_improved_quality.png'),
                         'Improved Line Quality', dpi_info, format_info, output_dpi)
 
     # Step 10: Export high-quality version only if save_debug is True
     if save_debug:
         print("Exporting high-quality image...")
-        high_quality_path = os.path.join(output_folder, '9_high_quality.png')
+        high_quality_path = os.path.join(output_folder, f'9_{base_filename}_high_quality.png')
         save_debug_image(improved_image, high_quality_path, None, dpi_info, format_info, output_dpi)
         print(f"High-quality PNG saved to {high_quality_path} with shape {improved_image.shape}")
         if dpi_info:
@@ -684,7 +779,20 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
     # Comparison image removed - not needed
 
     print("Processing complete!")
-    return improved_image  # Return the improved version
+    
+    # Return results based on requested format
+    if return_scale_factor or scale_image_path:
+        result = {
+            'processed_image': improved_image,
+            'scale_factor': scale_factor,
+            'original_dpi': current_dpi if 'current_dpi' in locals() else None,
+            'final_dpi': int(current_dpi * scale_factor) if 'current_dpi' in locals() and scale_factor > 1 else None
+        }
+        if processed_scale is not None:
+            result['processed_scale'] = processed_scale
+        return result
+    else:
+        return improved_image  # Return the improved version
 
 def save_debug_image(image, output_path, title=None, dpi_info=None, format=None, output_dpi=None):
     """

@@ -10,7 +10,7 @@ from PyQt5.QtWidgets import (
     QProgressBar, QMessageBox, QCheckBox, QSplitter,
     QTextEdit, QComboBox, QGroupBox, QScrollArea,
     QRadioButton, QButtonGroup, QSpinBox, QSlider,
-    QColorDialog
+    QColorDialog, QDialog, QLineEdit
 )
 from PyQt5.QtGui import (
     QPixmap, QImage, QPainter, QPen, QColor,
@@ -30,14 +30,122 @@ from lithic_editor.annotations import integration as arrow_integration
 # Import your processing function
 # Import processing function - handle potential circular import
 from lithic_editor.processing import process_lithic_drawing
+from lithic_editor.processing.upscaling import detect_image_dpi, needs_upscaling
 print("Successfully imported process_lithic_drawing from lithic_editor.processing")
+
+
+class DPISelectionDialog(QDialog):
+    """Dialog for selecting DPI when metadata is missing"""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Specify Image DPI")
+        self.setModal(True)
+        self.selected_dpi = None
+        
+        layout = QVBoxLayout()
+        
+        # Info label
+        info_label = QLabel("No DPI information found in image.\nPlease specify the approximate DPI:")
+        layout.addWidget(info_label)
+        
+        # DPI buttons
+        button_layout = QHBoxLayout()
+        for dpi in [72, 96, 150, 200]:
+            btn = QPushButton(str(dpi))
+            btn.clicked.connect(lambda checked, d=dpi: self.select_dpi(d))
+            button_layout.addWidget(btn)
+        layout.addLayout(button_layout)
+        
+        # Custom DPI input
+        custom_layout = QHBoxLayout()
+        custom_layout.addWidget(QLabel("Custom:"))
+        self.custom_input = QLineEdit()
+        self.custom_input.setPlaceholderText("Enter DPI")
+        custom_layout.addWidget(self.custom_input)
+        custom_btn = QPushButton("Use Custom")
+        custom_btn.clicked.connect(self.use_custom_dpi)
+        custom_layout.addWidget(custom_btn)
+        layout.addLayout(custom_layout)
+        
+        # Cancel button
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+        layout.addWidget(cancel_btn)
+        
+        self.setLayout(layout)
+    
+    def select_dpi(self, dpi):
+        self.selected_dpi = dpi
+        self.accept()
+    
+    def use_custom_dpi(self):
+        try:
+            custom_dpi = int(self.custom_input.text())
+            if 50 <= custom_dpi <= 2400:  # Reasonable range
+                self.selected_dpi = custom_dpi
+                self.accept()
+            else:
+                QMessageBox.warning(self, "Invalid DPI", "DPI must be between 50 and 2400")
+        except ValueError:
+            QMessageBox.warning(self, "Invalid Input", "Please enter a valid number")
+
+
+class UpscalingDialog(QDialog):
+    """Dialog for confirming upscaling with model selection"""
+    
+    def __init__(self, current_dpi, target_dpi=300, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Upscale Image")
+        self.setModal(True)
+        self.current_dpi = current_dpi
+        self.target_dpi = target_dpi
+        self.upscale_confirmed = False
+        self.selected_model = 'espcn'
+        
+        layout = QVBoxLayout()
+        
+        # Warning message
+        warning_text = (f"Image is {current_dpi} DPI, below recommended {target_dpi} DPI.\n"
+                       f"This may impact final output quality.\n\n"
+                       f"Upscale to {target_dpi} DPI?")
+        warning_label = QLabel(warning_text)
+        layout.addWidget(warning_label)
+        
+        # Model selection
+        model_layout = QHBoxLayout()
+        model_layout.addWidget(QLabel("Model:"))
+        self.model_combo = QComboBox()
+        self.model_combo.addItem("ESPCN (Recommended)", "espcn")
+        self.model_combo.addItem("FSRCNN (Alternative)", "fsrcnn")
+        model_layout.addWidget(self.model_combo)
+        layout.addLayout(model_layout)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        yes_btn = QPushButton("Yes, Upscale")
+        yes_btn.clicked.connect(self.confirm_upscale)
+        no_btn = QPushButton("No, Continue")
+        no_btn.clicked.connect(self.reject)
+        button_layout.addWidget(yes_btn)
+        button_layout.addWidget(no_btn)
+        layout.addLayout(button_layout)
+        
+        self.setLayout(layout)
+    
+    def confirm_upscale(self):
+        self.upscale_confirmed = True
+        self.selected_model = self.model_combo.currentData()
+        self.accept()
+
 
 class ProcessingThread(QThread):
     """Thread for processing images without freezing the UI"""
     progress_signal = pyqtSignal(str)
     finished_signal = pyqtSignal(object, object, object)  # image_data, dpi_info, format_info
 
-    def __init__(self, input_path, output_folder, dpi_info=None, format_info=None, output_dpi=None, save_debug=False):
+    def __init__(self, input_path, output_folder, dpi_info=None, format_info=None, output_dpi=None, save_debug=False,
+                 upscale_low_dpi=False, default_dpi=None, upscale_model='espcn', target_dpi=300, debug_filename=None):
         super().__init__()
         self.input_path = input_path
         self.output_folder = output_folder
@@ -45,6 +153,11 @@ class ProcessingThread(QThread):
         self.format_info = format_info
         self.output_dpi = output_dpi  # User-selected output DPI
         self.save_debug = save_debug
+        self.upscale_low_dpi = upscale_low_dpi
+        self.default_dpi = default_dpi
+        self.upscale_model = upscale_model
+        self.target_dpi = target_dpi
+        self.debug_filename = debug_filename
 
     def run(self):
         try:
@@ -65,7 +178,12 @@ class ProcessingThread(QThread):
                 dpi_info=self.dpi_info,
                 format_info=self.format_info,
                 output_dpi=self.output_dpi,
-                save_debug=self.save_debug
+                save_debug=self.save_debug,
+                upscale_low_dpi=self.upscale_low_dpi,
+                default_dpi=self.default_dpi,
+                upscale_model=self.upscale_model,
+                target_dpi=self.target_dpi,
+                debug_filename=self.debug_filename
             )
 
             # Restore the original print function
@@ -711,6 +829,9 @@ class LithicProcessorGUI(QMainWindow):
         )
 
         if file_path:
+            # Store original filename for debug naming (before any processing changes it)
+            self.original_filename = os.path.splitext(os.path.basename(file_path))[0]
+            
             # Process the selected file
             self.input_image_path = file_path
 
@@ -822,6 +943,9 @@ class LithicProcessorGUI(QMainWindow):
         if not self.input_image_path:
             return
 
+        # Use the original filename stored during load_image (before cropping/annotation changes it)
+        original_filename = getattr(self, 'original_filename', 'image')
+
         # Get the annotated input image
         if hasattr(self.input_image_display, 'get_annotated_image'):
             annotated_image = self.input_image_display.get_annotated_image()
@@ -874,14 +998,60 @@ class LithicProcessorGUI(QMainWindow):
         # Debug images are both viewed and saved when checkbox is checked
         debug_enabled = self.debug_images_checkbox.isChecked()
         
+        # Handle upscaling logic
+        upscale_params = self.check_and_prompt_upscaling(dpi_info)
+        
         # Pass output folder for debug images if enabled
         output_folder = self.output_folder if debug_enabled else None
         
+        # Use the filename extracted earlier
+        
         self.processing_thread = ProcessingThread(self.input_image_path, output_folder,
-                dpi_info, format_info, output_dpi, debug_enabled)
+                dpi_info, format_info, output_dpi, debug_enabled, debug_filename=original_filename, **upscale_params)
         self.processing_thread.progress_signal.connect(self.update_progress)
         self.processing_thread.finished_signal.connect(self.processing_finished)
         self.processing_thread.start()
+
+    def check_and_prompt_upscaling(self, dpi_info):
+        """Check if upscaling is needed and prompt user for decisions"""
+        upscale_params = {
+            'upscale_low_dpi': False,
+            'default_dpi': None,
+            'upscale_model': 'espcn',
+            'target_dpi': 300
+        }
+        
+        # Determine current DPI
+        current_dpi = None
+        if dpi_info:
+            if isinstance(dpi_info, tuple):
+                current_dpi = max(dpi_info[0], dpi_info[1])
+            else:
+                current_dpi = int(dpi_info)
+        else:
+            # No DPI metadata - prompt user to specify
+            dialog = DPISelectionDialog(self)
+            if dialog.exec_() == QDialog.Accepted and dialog.selected_dpi:
+                current_dpi = dialog.selected_dpi
+                upscale_params['default_dpi'] = current_dpi
+            else:
+                # User cancelled - proceed without upscaling
+                return upscale_params
+        
+        # Check if upscaling is needed
+        if current_dpi and needs_upscaling(current_dpi, 300):
+            # Show upscaling confirmation dialog
+            upscale_dialog = UpscalingDialog(current_dpi, 300, self)
+            if upscale_dialog.exec_() == QDialog.Accepted and upscale_dialog.upscale_confirmed:
+                upscale_params['upscale_low_dpi'] = True
+                upscale_params['upscale_model'] = upscale_dialog.selected_model
+                self.log(f"User confirmed upscaling from {current_dpi} DPI to 300 DPI using {upscale_dialog.selected_model.upper()}")
+            else:
+                self.log(f"User declined upscaling. Proceeding with {current_dpi} DPI")
+        elif current_dpi:
+            self.log(f"Image DPI ({current_dpi}) already meets target (300). No upscaling needed.")
+        
+        return upscale_params
 
     def update_progress(self, message):
             self.status_label.setText(message)
@@ -939,22 +1109,27 @@ class LithicProcessorGUI(QMainWindow):
 
     def load_debug_images(self):
         """Load all debug images from the output folder into the debug panel"""
-        debug_files = [
-            '1_original_image.png',
-            '2_skeleton.png',
-            '3_endpoints_junctions.png',
-            '4_labeled_segments.png',
-            '5_ripple_identification.png',
-            '6_skeleton_cleaned.png',
-            '6a_endpoint_filtering.png',
-            '7_final_cleaned.png',
-            '7a_thickness_preservation.png',
-            '7b_skeleton_vs_hybrid.png',
-            '8_improved_quality.png',
-            '9_high_quality.png'
+        # Get original filename for pattern matching
+        original_filename = getattr(self, 'original_filename', '*')
+        
+        debug_patterns = [
+            f'0_{original_filename}_original_low_dpi.png',
+            f'0a_{original_filename}_upscaled_300dpi.png',
+            f'1_{original_filename}_original_image.png',
+            f'2_{original_filename}_skeleton.png',
+            f'3_{original_filename}_endpoints_junctions.png',
+            f'4_{original_filename}_labeled_segments.png',
+            f'5_{original_filename}_ripple_identification.png',
+            f'6_{original_filename}_skeleton_cleaned.png',
+            f'6a_{original_filename}_endpoint_filtering.png',
+            f'7_{original_filename}_final_cleaned.png',
+            f'7a_{original_filename}_thickness_preservation.png',
+            f'7b_{original_filename}_skeleton_vs_hybrid.png',
+            f'8_{original_filename}_improved_quality.png',
+            f'9_{original_filename}_high_quality.png'
         ]
 
-        for debug_file in debug_files:
+        for debug_file in debug_patterns:
             file_path = os.path.join(self.output_folder, debug_file)
             if os.path.exists(file_path):
                 self.debug_images.append(file_path)
@@ -964,8 +1139,8 @@ class LithicProcessorGUI(QMainWindow):
                 container_layout = QVBoxLayout(container)
                 container_layout.setContentsMargins(5, 10, 5, 10)
 
-                # Image title based on filename
-                title = debug_file.replace('.png', '').replace('_', ' ').title()
+                # Image title based on filename (remove filename prefix and .png)
+                title = debug_file.replace('.png', '').replace(f'_{original_filename}_', '_').replace('_', ' ').title()
                 image_title = QLabel(title)
                 image_title.setAlignment(Qt.AlignCenter)
                 image_title.setStyleSheet("font-weight: bold;")
