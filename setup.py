@@ -48,14 +48,35 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     
-    # Include the working source files
+    # Include the working source files and model files
     package_data={
         '': ['*.py'],  # Include all Python files
+        'lithic_editor': ['models/*.pb'],  # Include neural network models
     },
     
     # Dependencies
     install_requires=get_requirements(),
     python_requires='>=3.7',
+    
+    # Optional dependencies for development
+    extras_require={
+        'test': [
+            'pytest>=7.0.0',
+            'pytest-qt>=4.0.0',
+            'pytest-cov>=3.0.0',
+        ],
+        'dev': [
+            'flake8>=4.0.0',
+            'black>=22.0.0',
+            'mypy>=0.900',
+            'ipython>=8.0.0',
+        ],
+        'docs': [
+            'mkdocs>=1.3.0',
+            'mkdocs-material>=8.0.0',
+            'mkdocstrings[python]>=0.19.0',
+        ],
+    },
     
     # Entry points for CLI
     entry_points={
