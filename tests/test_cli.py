@@ -75,6 +75,25 @@ class TestCLIParser:
         assert args.debug == True
         assert args.quiet == True
     
+    def test_process_with_cortex_preservation(self):
+        """Test process command with cortex preservation flag."""
+        parser = create_parser()
+        args = parser.parse_args([
+            'process', 'image.png',
+            '--no-preserve-cortex'
+        ])
+        
+        assert args.input_image == 'image.png'
+        assert args.no_preserve_cortex == True
+    
+    def test_process_cortex_default(self):
+        """Test that cortex preservation is enabled by default."""
+        parser = create_parser()
+        args = parser.parse_args(['process', 'image.png'])
+        
+        # no_preserve_cortex should be False by default (cortex preserved)
+        assert args.no_preserve_cortex == False
+    
     def test_help_command(self):
         """Test help command parsing."""
         parser = create_parser()
@@ -194,6 +213,26 @@ class TestProcessImageCLI:
         
         result = process_image_cli(args)
         assert result == 1
+    
+    def test_process_with_cortex_parameter(self, sample_image):
+        """Test processing with cortex preservation parameter."""
+        args = MagicMock()
+        args.input_image = str(sample_image)
+        args.output = "test_output"
+        args.debug = False
+        args.quiet = False
+        args.no_preserve_cortex = True
+        
+        with patch('lithic_editor.cli.main.process_lithic_drawing') as mock_process:
+            mock_process.return_value = MagicMock()
+            
+            result = process_image_cli(args)
+            
+            assert result == 0
+            # Should pass preserve_cortex=False when no_preserve_cortex=True
+            mock_process.assert_called_once()
+            call_kwargs = mock_process.call_args[1]
+            assert call_kwargs['preserve_cortex'] == False
 
 
 class TestHelpCLI:

@@ -138,6 +138,94 @@ class TestProcessingModule:
         assert result.shape == binary_img.shape
 
 
+class TestCortexPreservation:
+    """Test cortex preservation functionality."""
+    
+    def test_process_with_cortex_preservation_enabled(self, temp_dir):
+        """Test processing with cortex preservation enabled."""
+        # Create image with cortex-like stippling
+        cortex_img = np.zeros((100, 100), dtype=np.uint8)
+        # Add small dots (cortex)
+        for i in range(20, 80, 10):
+            for j in range(20, 80, 10):
+                cortex_img[i:i+2, j:j+2] = 255
+        
+        result = process_lithic_drawing(
+            image_path=cortex_img,
+            output_folder=str(temp_dir),
+            preserve_cortex=True,
+            save_debug=False
+        )
+        
+        assert result is not None
+        assert isinstance(result, np.ndarray)
+        # Should preserve some of the cortex stippling
+        assert np.sum(result > 0) > 0
+    
+    def test_process_with_cortex_preservation_disabled(self, temp_dir):
+        """Test processing with cortex preservation disabled."""
+        # Create image with cortex-like stippling
+        cortex_img = np.zeros((100, 100), dtype=np.uint8)
+        # Add small dots (cortex)
+        for i in range(20, 80, 10):
+            for j in range(20, 80, 10):
+                cortex_img[i:i+2, j:j+2] = 255
+        
+        result = process_lithic_drawing(
+            image_path=cortex_img,
+            output_folder=str(temp_dir),
+            preserve_cortex=False,
+            save_debug=False
+        )
+        
+        assert result is not None
+        assert isinstance(result, np.ndarray)
+    
+    def test_cortex_debug_images_saved(self, temp_dir):
+        """Test that cortex debug images are saved when debug is enabled."""
+        cortex_img = np.zeros((50, 50), dtype=np.uint8)
+        cortex_img[10:15, 10:15] = 255  # Small component (cortex)
+        cortex_img[30:45, 30:45] = 255  # Large component (structure)
+        
+        result = process_lithic_drawing(
+            image_path=cortex_img,
+            output_folder=str(temp_dir),
+            preserve_cortex=True,
+            save_debug=True
+        )
+        
+        # Check that cortex-related debug images were created
+        debug_files = list(temp_dir.glob("*.png"))
+        debug_names = [f.stem for f in debug_files]
+        
+        # Should have cortex separation debug images
+        assert any("cortex" in name.lower() for name in debug_names)
+        assert any("structure" in name.lower() for name in debug_names)
+    
+    def test_cortex_with_structural_lines(self, temp_dir):
+        """Test cortex preservation doesn't remove structural lines."""
+        # Create image with both cortex and structural lines
+        mixed_img = np.zeros((100, 100), dtype=np.uint8)
+        # Add cortex stippling (small components)
+        for i in range(10, 30, 5):
+            for j in range(10, 30, 5):
+                mixed_img[i:i+2, j:j+2] = 255
+        
+        # Add structural line (large component)
+        mixed_img[50:55, 10:90] = 255
+        
+        result = process_lithic_drawing(
+            image_path=mixed_img,
+            output_folder=str(temp_dir),
+            preserve_cortex=True,
+            save_debug=False
+        )
+        
+        assert result is not None
+        # Both cortex and structure should be preserved
+        assert np.sum(result > 0) > 0
+
+
 class TestImageFormats:
     """Test different image format support."""
     

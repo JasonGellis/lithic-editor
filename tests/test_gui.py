@@ -200,3 +200,90 @@ class TestGUIHelpers:
         # Check backward compatibility aliases
         assert window.save_debug_images == window.debug_images_checkbox
         assert window.show_debug_images == window.debug_images_checkbox
+    
+    def test_cortex_preservation_checkbox(self, qapp):
+        """Test cortex preservation checkbox."""
+        from lithic_editor.gui.main_window import LithicProcessorGUI
+        
+        window = LithicProcessorGUI()
+        
+        assert hasattr(window, 'preserve_cortex_checkbox')
+        # Should be checked by default (cortex preserved)
+        assert window.preserve_cortex_checkbox.isChecked() == True
+    
+    def test_clear_annotations_button(self, qapp):
+        """Test clear annotations button exists."""
+        from lithic_editor.gui.main_window import LithicProcessorGUI
+        
+        window = LithicProcessorGUI()
+        
+        assert hasattr(window, 'clear_annotations_button')
+        # Clear annotations button should be disabled initially
+        assert window.clear_annotations_button.isEnabled() == False
+
+
+class TestDialogs:
+    """Test GUI dialog functionality."""
+    
+    @patch('PyQt5.QtWidgets.QFileDialog.getOpenFileName')
+    def test_load_image_dialog(self, mock_dialog, qapp, sample_image):
+        """Test load image dialog."""
+        from lithic_editor.gui.main_window import LithicProcessorGUI
+        
+        mock_dialog.return_value = (str(sample_image), 'Images (*.png)')
+        
+        window = LithicProcessorGUI()
+        window.load_image()
+        
+        # Should have set input image path (may be cropped version)
+        assert window.input_image_path is not None
+        assert 'input' in window.input_image_path or str(sample_image) in window.input_image_path
+        # Should have enabled process button
+        assert window.process_button.isEnabled() == True
+    
+    @patch('PyQt5.QtWidgets.QFileDialog.getSaveFileName')
+    @patch('lithic_editor.annotations.integration.get_image_with_arrows')
+    def test_save_dialog(self, mock_get_arrows, mock_dialog, qapp, temp_dir, sample_pixmap):
+        """Test save/output file dialog."""
+        from lithic_editor.gui.main_window import LithicProcessorGUI
+        from PyQt5.QtGui import QImage
+        import numpy as np
+        
+        save_path = str(temp_dir / "output.png")
+        mock_dialog.return_value = (save_path, "PNG Files (*.png)")
+        
+        # Mock the arrow integration to return a QImage
+        mock_image = QImage(100, 100, QImage.Format_RGB32)
+        mock_get_arrows.return_value = mock_image
+        
+        window = LithicProcessorGUI()
+        # Mock having a processed image
+        window.processed_image_data = np.zeros((100, 100), dtype=np.uint8)
+        window.save_button.setEnabled(True)
+        
+        window.save_result()
+        
+        # Should have called dialog
+        mock_dialog.assert_called_once()
+    
+    def test_processing_thread_with_cortex_parameter(self, qapp):
+        """Test that processing thread receives cortex parameter."""
+        from lithic_editor.gui.main_window import ProcessingThread
+        
+        thread = ProcessingThread(
+            input_path="test.png",
+            output_folder="output",
+            save_debug=False,
+            preserve_cortex=False
+        )
+        
+        assert thread.preserve_cortex == False
+        
+        # Test default value
+        thread_default = ProcessingThread(
+            input_path="test.png",
+            output_folder="output",
+            save_debug=False
+        )
+        
+        assert thread_default.preserve_cortex == True  # Default
