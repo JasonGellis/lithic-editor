@@ -30,7 +30,7 @@ def exception_hook(exc_type, exc_value, exc_traceback):
 import sys
 sys.excepthook = exception_hook
 
-print("Starting lithic_GUI.py")
+print("Starting Lithic Editor GUI")
 
 
 def improve_line_quality_antialias(binary_image, line_boost=1.0, preserve_thickness=True):
@@ -252,9 +252,53 @@ def debug_image_info(name, img):
     cv2.imwrite(output_path, img)
     print(f"Debug image saved to {output_path}")
 
+def separate_cortex_and_structure(binary_image, preserve_cortex=True, cortex_size_threshold=20):
+    """
+    Separate cortex stippling from structural lines before skeletonization.
+    
+    Args:
+        binary_image: Binary image (0=background, 255=foreground)
+        preserve_cortex: If True, separates cortex; if False, processes everything together
+        cortex_size_threshold: Maximum pixel area for cortex components
+        
+    Returns:
+        Tuple of (structural_image, cortex_mask)
+    """
+    if not preserve_cortex:
+        # Process everything together - no cortex separation
+        return binary_image, np.zeros_like(binary_image, dtype=bool)
+    
+    # Find connected components
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(binary_image, connectivity=8)
+    
+    # Create separate images for cortex and structural elements
+    structural_image = np.zeros_like(binary_image)
+    cortex_mask = np.zeros_like(binary_image, dtype=bool)
+    
+    cortex_count = 0
+    structural_count = 0
+    
+    # Process each component (skip background label 0)
+    for label in range(1, num_labels):
+        component_area = stats[label, cv2.CC_STAT_AREA]
+        component_mask = labels == label
+        
+        if component_area <= cortex_size_threshold:
+            # Small component - classify as cortex stippling
+            cortex_mask[component_mask] = True
+            cortex_count += 1
+        else:
+            # Large component - structural line
+            structural_image[component_mask] = 255
+            structural_count += 1
+    
+    print(f"Separated: {structural_count} structural components, {cortex_count} cortex stipples")
+    return structural_image, cortex_mask
+
+
 def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=None, format_info=None, output_dpi=None, save_debug=False,
                           upscale_low_dpi=False, default_dpi=None, upscale_model='espcn', target_dpi=300,
-                          scale_image_path=None, return_scale_factor=False, debug_filename=None):
+                          scale_image_path=None, return_scale_factor=False, debug_filename=None, preserve_cortex=True):
     """
     Process a lithic drawing to remove ripple lines while preserving original line quality and metadata
 
@@ -271,12 +315,13 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
         target_dpi: Target DPI for upscaling (default: 300)
         scale_image_path: Optional path to scale image (processed with same factor)
         return_scale_factor: Whether to return upscaling factor in results
+        preserve_cortex: Whether to preserve cortex stippling (default: True)
 
     Returns:
         cleaned_image: Image with ripple lines removed but original line quality preserved
         If return_scale_factor=True, returns dict with image and scale factor
     """
-    # Only create output folder if we're saving debug images
+    # Only create output folder if saving debug images
     if save_debug and output_folder:
         os.makedirs(output_folder, exist_ok=True)
         print(f"Debug mode enabled. Output folder: {output_folder}")
@@ -428,9 +473,33 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
     # Save a copy of the binary image for later reconstruction
     binary_image = binary.astype(np.uint8) * 255
 
-    # Skeletonize the binary image to get thin lines
-    print("Skeletonizing image...")
-    skeleton = morphology.skeletonize(binary)
+    # Separate cortex stippling from structural lines
+    structural_image, cortex_mask = separate_cortex_and_structure(binary_image, preserve_cortex=preserve_cortex)
+    
+    # Save debug images for cortex separation
+    if save_debug and preserve_cortex:
+        # Show separated structural elements
+        save_debug_image(structural_image, os.path.join(output_folder, f'1a_{base_filename}_structural_only.png'),
+                        'Structural Lines Only', dpi_info, format_info, output_dpi)
+        
+        # Show cortex mask
+        cortex_debug = cortex_mask.astype(np.uint8) * 255
+        save_debug_image(cortex_debug, os.path.join(output_folder, f'1b_{base_filename}_cortex_mask.png'),
+                        'Cortex Stippling Mask', dpi_info, format_info, output_dpi)
+
+    # Skeletonize only the structural elements (cortex bypasses skeletonization)
+    print("Skeletonizing structural elements...")
+    if preserve_cortex:
+        # Skeletonize only structural lines
+        structural_binary = structural_image > 0
+        skeleton = morphology.skeletonize(structural_binary)
+        # Update binary_image to reflect structural-only processing
+        binary_image = structural_image
+        binary = structural_binary
+    else:
+        # Process everything together (original behavior)
+        binary = binary_image > 0
+        skeleton = morphology.skeletonize(binary)
     skeleton_img = skeleton.astype(np.uint8) * 255
     print(f"Skeleton created. Non-zero pixels: {np.count_nonzero(skeleton)}")
 
@@ -714,6 +783,12 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
     # Apply slight morphological closing to connect any small gaps
     kernel_close = np.ones((2, 2), np.uint8)
     final_cleaned = cv2.morphologyEx(final_cleaned, cv2.MORPH_CLOSE, kernel_close)
+
+    # Add cortex stippling back to final result if preserving
+    if preserve_cortex and 'cortex_mask' in locals():
+        print("Adding cortex stippling back to final result...")
+        final_cleaned[cortex_mask] = 255
+        print(f"Cortex pixels added: {np.count_nonzero(cortex_mask)}")
 
     # INVERT the final cleaned image (black lines on white background)
     final_cleaned_inverted = 255 - final_cleaned
