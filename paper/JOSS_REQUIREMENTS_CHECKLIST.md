@@ -7,22 +7,25 @@ This document outlines what needs to be completed to submit the Lithic Editor an
 ### Software Requirements
 - [x] **Open source license**: MIT License is in place
 - [x] **Substantial scholarly effort**: 3+ months of development evident
-- [x] **Feature-complete**: Core functionality implemented and tested
-- [x] **300+ lines of code**: Package contains ~2,000+ lines
-- [x] **Research application**: Clear archaeological research use case
-- [x] **Package structure**: Professional Python package with proper organization
+- [x] **Feature-complete**: Core functionality implemented including cortex preservation and DPI upscaling
+- [x] **300+ lines of code**: Package contains ~3,000+ lines with new features
+- [x] **Research application**: Clear archaeological research use case with cortex documentation
+- [x] **Package structure**: Professional Python package with modular upscaling/cortex components
 
 ### Basic Documentation
 - [x] **README.md**: Comprehensive documentation with installation and usage
 - [x] **API documentation**: Docstrings throughout codebase (PEP8 compliant)
 - [x] **CHANGELOG.md**: Version history and semantic versioning
-- [x] **Test suite**: pytest-based testing framework
+- [x] **Test suite**: pytest-based testing framework with cortex/upscaling coverage
+- [x] **Feature documentation**: MkDocs site with cortex preservation and upscaling sections
+- [x] **CLI help**: Updated with --no-preserve-cortex parameter
 
 ### Paper Draft
 - [x] **Paper structure**: Following JOSS format requirements
-- [x] **Bibliography**: Academic references in .bib format
+- [x] **Bibliography**: Academic references in .bib format (including ESPCN/FSRCNN citations)
 - [x] **Statement of need**: Clear problem identification
-- [x] **Summary**: Concise software description
+- [x] **Summary**: Concise software description with cortex and upscaling features
+- [x] **Feature documentation**: Updated to include DPI-aware upscaling and cortex preservation
 
 ## ❌ Missing/Needs Completion
 
@@ -66,7 +69,7 @@ This document outlines what needs to be completed to submit the Lithic Editor an
 
 #### 7. Software Quality Assurance
 - [ ] **Continuous integration**: GitHub Actions or similar CI/CD
-- [ ] **Test coverage**: Aim for >80% code coverage
+- [x] **Test coverage**: Comprehensive test suite including upscaling, cortex, GUI, CLI, and integration tests
 - [ ] **Code quality badges**: Add status badges to README
 - [ ] **Linting compliance**: Ensure flake8/black compliance
 
