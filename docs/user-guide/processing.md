@@ -15,9 +15,19 @@ The image processing engine in Lithic Editor uses advanced algorithms to automat
 ### Image Requirements
 For best results, your images should have:
 - High contrast (black lines on white background)
-- Resolution of at least 300 DPI
+- Resolution of at least 300 DPI (automatic upscaling available for lower DPI)
 - Clean, continuous lines
 - Minimal noise or artifacts
+
+### Neural Network Upscaling
+Lithic Editor includes ESPCN and FSRCNN neural network models to automatically upscale low-DPI images:
+- **ESPCN**: Efficient Sub-Pixel CNN, faster processing
+- **FSRCNN**: Fast Super-Resolution CNN, higher quality
+- **Automatic DPI detection** from image metadata
+- **User dialogs** for DPI selection when metadata is missing
+- **300 DPI target** for optimal processing results
+
+For technical details about these super-resolution models, see [OpenCV Super Resolution Tutorial](https://learnopencv.com/super-resolution-in-opencv/#sec3).
 
 ## Processing Algorithm
 
@@ -25,30 +35,40 @@ For best results, your images should have:
 
 The ripple removal algorithm follows these steps:
 
-1. **Image Preprocessing**
+1. **Neural Network Upscaling** (if needed)
+   - Detect DPI from image metadata or prompt user
+   - Upscale low-DPI images using ESPCN/FSRCNN models
+   - Maintain aspect ratio and line quality
+
+2. **Image Preprocessing**
    - Convert to grayscale if needed
    - Apply threshold to create binary image
    - Remove small noise artifacts
 
-2. **Skeletonization**
+3. **Skeletonization**
    - Reduce lines to single-pixel width
    - Preserve connectivity and topology
    - Create network representation
 
-3. **Line Analysis**
+4. **Line Analysis**
    - Detect individual line segments
    - Calculate orientation and length
    - Build connectivity graph
 
-4. **Ripple Detection**
+5. **Ripple Detection**
    - Identify parallel line patterns
    - Analyze spacing consistency
    - Classify as ripple or structural
 
-5. **Selective Removal**
+6. **Selective Removal**
    - Remove identified ripple lines
    - Preserve structural boundaries
    - Maintain artifact integrity
+
+7. **Endpoint Filtering**
+   - Refine endpoint decisions after cleaning
+   - Remove artifacts created by ripple removal
+   - Preserve important structural endpoints
 
 ## Using the GUI
 
@@ -59,17 +79,22 @@ The ripple removal algorithm follows these steps:
    Click "Load Image" → Select file → Open
    ```
 
-2. **Review Input**
+2. **DPI Detection and Upscaling**
+   - System automatically detects DPI from image metadata
+   - If missing, dialog prompts for DPI selection (72, 96, 150, 200 or custom)
+   - If below 300 DPI, upscaling dialog offers ESPCN/FSRCNN options
+
+3. **Review Input**
    - Check image quality in Input panel
    - Verify correct orientation
    - Note any problem areas
 
-3. **Process Image**
+4. **Process Image**
    ```
    Click "Process Image" → Wait for completion
    ```
 
-4. **Review Results**
+5. **Review Results**
    - Compare before/after
    - Check debug steps if enabled
    - Verify structural preservation
@@ -118,12 +143,21 @@ find . -name "*.png" | parallel lithic-editor process {} --quiet
 ### Advanced Options
 
 ```bash
-# Custom parameters
-lithic-editor process image.png \
-    --output results/ \
-    --debug \
-    --threshold 127 \
-    --min-line-length 10
+# Neural network upscaling with debug output
+lithic-editor process low_res.png \
+    --auto-upscale \
+    --default-dpi 150 \
+    --upscale-model fsrcnn \
+    --upscale-threshold 300 \
+    --debug
+
+# Batch processing with upscaling
+for file in *.png; do
+    lithic-editor process "$file" \
+        --auto-upscale \
+        --default-dpi 200 \
+        --output "processed/${file%.png}/"
+done
 ```
 
 ## Python API
@@ -137,6 +171,16 @@ from lithic_editor.processing import process_lithic_drawing
 
 # Basic example
 result = process_lithic_drawing("drawing.png", save_debug=True)
+
+# With neural network upscaling
+result = process_lithic_drawing(
+    "low_dpi.png",
+    save_debug=True,
+    upscale_low_dpi=True,
+    default_dpi=150,
+    upscale_model='espcn',
+    target_dpi=300
+)
 ```
 
 For advanced usage, batch processing, and integration examples, refer to:

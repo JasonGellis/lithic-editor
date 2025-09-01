@@ -357,7 +357,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
                 if save_debug:
                     os.makedirs(output_folder, exist_ok=True)  # Ensure folder exists before upscaling
                     save_debug_image(original_image, os.path.join(output_folder, f'0_{base_filename}_original_low_dpi.png'),
-                                    f'Original Image ({current_dpi} DPI)', dpi_info, format_info, (current_dpi, current_dpi) if isinstance(current_dpi, int) else current_dpi)
+                                    f'Input ({current_dpi} DPI)', dpi_info, format_info, (current_dpi, current_dpi) if isinstance(current_dpi, int) else current_dpi)
 
                 # Upscale the main image
                 upscaled_image, scale_factor = upscale_image_to_target_dpi(
@@ -392,7 +392,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
                 # Save upscaled main image
                 if save_debug:
                     save_debug_image(original_image, os.path.join(output_folder, f'0a_{base_filename}_upscaled_300dpi.png'),
-                                    f'Upscaled Image ({new_dpi} DPI)', dpi_info, format_info, (new_dpi, new_dpi) if isinstance(new_dpi, int) else new_dpi)
+                                    f'Upscaled ({new_dpi} DPI)', dpi_info, format_info, (new_dpi, new_dpi) if isinstance(new_dpi, int) else new_dpi)
             else:
                 print(f"Image DPI ({current_dpi}) already meets target ({target_dpi}). No upscaling needed.")
 
@@ -723,67 +723,12 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
         save_debug_image(final_cleaned_inverted, os.path.join(output_folder, f'7_{base_filename}_final_cleaned.png'),
                         'Final Cleaned', dpi_info, format_info, output_dpi)
 
-    # Debug: Save thickness mask visualization
-    debug_thickness_viz = np.zeros((*thickness_preserved_mask.shape, 3), dtype=np.uint8)
-
-    # Show original binary in gray
-    debug_thickness_viz[binary_bool] = [128, 128, 128]  # Gray for original content
-
-    # Show structural skeleton in red
-    debug_thickness_viz[structural_mask] = [255, 0, 0]  # Red for skeleton
-
-    # Show preserved areas in bright green
-    debug_thickness_viz[thickness_preserved_mask] = [0, 255, 0]  # Green for preserved areas
-
-    if save_debug:
-        save_debug_image(debug_thickness_viz, os.path.join(output_folder, f'7a_{base_filename}_thickness_preservation.png'),
-                        'Thickness Preservation', dpi_info, format_info, output_dpi)
-
-    # Debug: Show before/after comparison of thickness preservation
-    comparison_debug = np.zeros((height, width * 2, 3), dtype=np.uint8)
-
-    # Left side: skeleton-based result
-    left_side = np.zeros((height, width, 3), dtype=np.uint8)
-    left_side[structural_mask] = [255, 255, 255]  # Skeleton approach
-    comparison_debug[:, :width] = left_side
-
-    # Right side: hybrid thickness-preserved result
-    right_side = np.zeros((height, width, 3), dtype=np.uint8)
-    right_side[thickness_preserved_mask] = [255, 255, 255]  # Hybrid approach
-    comparison_debug[:, width:] = right_side
-
-    if save_debug:
-        save_debug_image(comparison_debug, os.path.join(output_folder, f'7b_{base_filename}_skeleton_vs_hybrid.png'),
-                        'Skeleton vs Hybrid', dpi_info, format_info, output_dpi)
-
-    # Step 9: Apply line quality improvement
-    print("Improving line quality...")
-    improved_image = improve_line_quality_antialias(final_cleaned_inverted, line_boost=1.0, preserve_thickness=True)
-
-    # Save the improved quality image
-    if save_debug:
-        save_debug_image(improved_image, os.path.join(output_folder, f'8_{base_filename}_improved_quality.png'),
-                        'Improved Line Quality', dpi_info, format_info, output_dpi)
-
-    # Step 10: Export high-quality version only if save_debug is True
-    if save_debug:
-        print("Exporting high-quality image...")
-        high_quality_path = os.path.join(output_folder, f'9_{base_filename}_high_quality.png')
-        save_debug_image(improved_image, high_quality_path, None, dpi_info, format_info, output_dpi)
-        print(f"High-quality PNG saved to {high_quality_path} with shape {improved_image.shape}")
-        if dpi_info:
-            print(f"DPI information preserved: {dpi_info}")
-        if format_info:
-            print(f"Original format preserved: {format_info}")
-
-    # Comparison image removed - not needed
-
     print("Processing complete!")
 
     # Return results based on requested format
     if return_scale_factor or scale_image_path:
         result = {
-            'processed_image': improved_image,
+            'processed_image': final_cleaned_inverted,
             'scale_factor': scale_factor,
             'original_dpi': current_dpi if 'current_dpi' in locals() else None,
             'final_dpi': int(current_dpi * scale_factor) if 'current_dpi' in locals() and scale_factor > 1 else None
@@ -792,7 +737,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
             result['processed_scale'] = processed_scale
         return result
     else:
-        return improved_image  # Return the improved version
+        return final_cleaned_inverted
 
 def save_debug_image(image, output_path, title=None, dpi_info=None, format=None, output_dpi=None):
     """

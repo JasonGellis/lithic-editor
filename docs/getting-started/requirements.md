@@ -48,7 +48,7 @@ All dependencies are automatically installed with the package:
 | Package | Version | Purpose |
 |---------|---------|---------|
 | numpy | ≥1.20.0 | Numerical operations |
-| opencv-python | ≥4.5.0 | Image processing |
+| opencv-contrib-python | ≥4.5.0 | Image processing and neural network upscaling |
 | Pillow | ≥8.0.0 | Image I/O |
 | PyQt5 | ≥5.15.0 | GUI framework |
 | scikit-image | ≥0.18.0 | Advanced image processing |

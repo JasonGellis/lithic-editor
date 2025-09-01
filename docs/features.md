@@ -2,8 +2,19 @@
 
 ## Image Processing
 
+### Neural Network Upscaling
+Automatically enhance low-resolution images using state-of-the-art neural networks:
+
+- **ESPCN** (Efficient Sub-Pixel CNN): Fast, efficient upscaling
+- **FSRCNN** (Fast Super-Resolution CNN): Higher quality results
+- **Automatic DPI detection** from image metadata
+- **Interactive dialogs** for user control when metadata is missing
+- **300 DPI target** for optimal processing quality
+
+Learn more about these models: [OpenCV Super Resolution Tutorial](https://learnopencv.com/super-resolution-in-opencv/#sec3)
+
 ### Intelligent Ripple Removal
-The core feature of Lithic Editor uses advanced graph-based analysis to identify and remove hatching/ripple lines while preserving structural features. The algorithm:
+The core feature uses advanced graph-based analysis to identify and remove hatching/ripple lines while preserving structural features. The algorithm:
 
 - Analyzes line patterns using skeletonization
 - Identifies ripple lines through pattern recognition
@@ -13,10 +24,14 @@ The core feature of Lithic Editor uses advanced graph-based analysis to identify
 ### Processing Visualization
 View and save step-by-step processing stages to understand how the algorithm works and to troubleshoot problematic images:
 
+- Neural network upscaling (if needed)
 - Original image analysis
 - Skeletonization process
-- Line segment detection
+- Endpoint and junction detection
+- Line segment labeling
 - Ripple identification
+- Structural cleaning
+- Endpoint filtering
 - Final cleaned result
 
 ### Manual Editing Tools

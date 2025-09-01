@@ -31,7 +31,6 @@ from lithic_editor.annotations import integration as arrow_integration
 # Import processing function - handle potential circular import
 from lithic_editor.processing import process_lithic_drawing
 from lithic_editor.processing.upscaling import detect_image_dpi, needs_upscaling
-print("Successfully imported process_lithic_drawing from lithic_editor.processing")
 
 
 class DPISelectionDialog(QDialog):
@@ -1122,11 +1121,7 @@ class LithicProcessorGUI(QMainWindow):
             f'5_{original_filename}_ripple_identification.png',
             f'6_{original_filename}_skeleton_cleaned.png',
             f'6a_{original_filename}_endpoint_filtering.png',
-            f'7_{original_filename}_final_cleaned.png',
-            f'7a_{original_filename}_thickness_preservation.png',
-            f'7b_{original_filename}_skeleton_vs_hybrid.png',
-            f'8_{original_filename}_improved_quality.png',
-            f'9_{original_filename}_high_quality.png'
+            f'7_{original_filename}_final_cleaned.png'
         ]
 
         for debug_file in debug_patterns:
@@ -1153,11 +1148,7 @@ class LithicProcessorGUI(QMainWindow):
                     '_ripple_identification': 'Ripple ID',
                     '_skeleton_cleaned': 'Cleaned',
                     '_endpoint_filtering': 'Filtered',
-                    '_final_cleaned': 'Final',
-                    '_thickness_preservation': 'Thickness',
-                    '_skeleton_vs_hybrid': 'Comparison',
-                    '_improved_quality': 'Enhanced',
-                    '_high_quality': 'Export'
+                    '_final_cleaned': 'Final'
                 }
 
                 # Apply title mapping

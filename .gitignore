@@ -41,9 +41,6 @@ image_debug/
 error_log.txt
 *.tmp
 
-# Developer files (not for distribution)
-developer/
-
 # Personal scopes directory (local only)
 scopes/
 

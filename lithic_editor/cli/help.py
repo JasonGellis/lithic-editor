@@ -60,9 +60,18 @@ CLI PROCESSING OPTIONS
   --debug               Save debug images and processing steps
   --quiet               Suppress processing output
 
+UPSCALING OPTIONS (New!)
+-----------------------
+  --auto-upscale        Automatically upscale images below target DPI
+  --default-dpi DPI     Default DPI to assume for images without metadata
+  --upscale-model MODEL Model to use for upscaling (espcn, fsrcnn)
+  --upscale-threshold DPI DPI threshold for upscaling (default: 300)
+
 Examples:
   lithic-editor process lithic.png --output results/ --debug
   lithic-editor process image.jpg --quiet
+  lithic-editor process low_res.png --auto-upscale --default-dpi 150
+  lithic-editor process drawing.png --upscale-model fsrcnn --upscale-threshold 300
 
 PROGRAMMATIC API USAGE
 ---------------------
@@ -157,7 +166,14 @@ process_lithic_drawing(
     dpi_info=None,              # DPI tuple (x_dpi, y_dpi)
     format_info=None,           # Original image format
     output_dpi=None,            # Desired output DPI
-    save_debug=False            # Save intermediate processing steps
+    save_debug=False,           # Save intermediate processing steps
+    upscale_low_dpi=False,      # Enable neural network upscaling
+    default_dpi=None,           # DPI to assume if metadata missing
+    upscale_model='espcn',      # ESPCN or FSRCNN model
+    target_dpi=300,             # Target DPI for upscaling
+    scale_image_path=None,      # Scale image to process with same factor
+    return_scale_factor=False,  # Return upscaling details
+    debug_filename=None         # Custom filename for debug images
 ) -> numpy.ndarray              # Returns processed image
 
 GUI MODULE

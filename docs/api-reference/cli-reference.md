@@ -51,6 +51,10 @@ lithic-editor process IMAGE_PATH [OPTIONS]
 | `--output` | `-o` | `image_debug` | Output directory |
 | `--debug` | | `False` | Save debug images and processing steps |
 | `--quiet` | `-q` | `False` | Suppress output |
+| `--auto-upscale` | | `False` | Automatically upscale images below target DPI |
+| `--default-dpi` | | `None` | Default DPI to assume for images without metadata |
+| `--upscale-model` | | `espcn` | Model to use for upscaling (espcn, fsrcnn) |
+| `--upscale-threshold` | | `300` | DPI threshold for upscaling |
 
 **Examples:**
 
@@ -69,6 +73,12 @@ lithic-editor process drawing.png --quiet
 
 # Combine options
 lithic-editor process artifact.png -o output/ --debug --quiet
+
+# Neural network upscaling for low-DPI images
+lithic-editor process low_dpi.png --auto-upscale --default-dpi 150
+
+# Use FSRCNN model with custom threshold
+lithic-editor process drawing.png --upscale-model fsrcnn --upscale-threshold 250
 ```
 
 ### docs

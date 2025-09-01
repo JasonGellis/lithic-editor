@@ -15,8 +15,15 @@ process_lithic_drawing(
     dpi_info: Optional[Tuple[int, int]] = None,
     format_info: Optional[str] = None,
     output_dpi: Optional[int] = None,
-    save_debug: bool = False
-) -> Dict[str, Any]
+    save_debug: bool = False,
+    upscale_low_dpi: bool = False,
+    default_dpi: Optional[int] = None,
+    upscale_model: str = 'espcn',
+    target_dpi: int = 300,
+    scale_image_path: Optional[str] = None,
+    return_scale_factor: bool = False,
+    debug_filename: Optional[str] = None
+) -> Union[np.ndarray, Dict[str, Any]]
 ```
 
 #### Parameters
@@ -29,6 +36,13 @@ process_lithic_drawing(
 | `format_info` | `str` | `None` | Override output format (png, jpg, tiff) |
 | `output_dpi` | `int` | `None` | Set specific output DPI |
 | `save_debug` | `bool` | `False` | Save intermediate processing steps to disk |
+| `upscale_low_dpi` | `bool` | `False` | Enable neural network upscaling for low-DPI images |
+| `default_dpi` | `int` | `None` | DPI to assume if metadata missing |
+| `upscale_model` | `str` | `'espcn'` | Model to use: 'espcn' or 'fsrcnn' |
+| `target_dpi` | `int` | `300` | Target DPI for upscaling |
+| `scale_image_path` | `str` | `None` | Scale image to process with same factor |
+| `return_scale_factor` | `bool` | `False` | Return upscaling details in result |
+| `debug_filename` | `str` | `None` | Custom filename for debug images |
 
 #### Returns
 
@@ -47,14 +61,18 @@ from lithic_editor.processing import process_lithic_drawing
 # Basic usage
 result = process_lithic_drawing("artifact.png")
 
-# With all options
+# With all options including upscaling
 result = process_lithic_drawing(
     image_path="drawing.png",
     output_folder="results",
     dpi_info=(300, 300),
     format_info="png",
     output_dpi=300,
-    save_debug=True
+    save_debug=True,
+    upscale_low_dpi=True,
+    default_dpi=150,
+    upscale_model='fsrcnn',
+    target_dpi=300
 )
 
 # Check results
