@@ -13,6 +13,14 @@ Automatically enhance low-resolution images using state-of-the-art neural networ
 
 Learn more about these models: [OpenCV Super Resolution Tutorial](https://learnopencv.com/super-resolution-in-opencv/#sec3)
 
+### Cortex Preservation
+Intelligently preserves natural cortex stippling on lithic artifacts:
+
+- **Archaeological accuracy**: Maintains distinction between cortex and worked surfaces
+- **Smart separation**: Identifies cortex stippling before processing
+- **Selective processing**: Only structural lines undergo ripple removal
+- **User control**: Toggle preservation via GUI checkbox or CLI flag
+
 ### Intelligent Ripple Removal
 The core feature uses advanced graph-based analysis to identify and remove hatching/ripple lines while preserving structural features. The algorithm:
 
@@ -26,13 +34,14 @@ View and save step-by-step processing stages to understand how the algorithm wor
 
 - Neural network upscaling (if needed)
 - Original image analysis
-- Skeletonization process
+- Cortex separation and preservation
+- Skeletonization of structural elements only
 - Endpoint and junction detection
 - Line segment labeling
 - Ripple identification
 - Structural cleaning
 - Endpoint filtering
-- Final cleaned result
+- Final assembly with cortex restoration
 
 ### Manual Editing Tools
 Fine-tune your images before processing:

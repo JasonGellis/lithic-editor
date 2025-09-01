@@ -529,6 +529,24 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#neural-network-upscaling" class="md-nav__link">
+    <span class="md-ellipsis">
+      Neural Network Upscaling
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cortex-preservation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cortex Preservation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#intelligent-ripple-removal" class="md-nav__link">
     <span class="md-ellipsis">
       Intelligent Ripple Removal
@@ -1206,8 +1224,26 @@
 
 <h1 id="features">Features<a class="headerlink" href="#features" title="Permanent link">&para;</a></h1>
 <h2 id="image-processing">Image Processing<a class="headerlink" href="#image-processing" title="Permanent link">&para;</a></h2>
+<h3 id="neural-network-upscaling">Neural Network Upscaling<a class="headerlink" href="#neural-network-upscaling" title="Permanent link">&para;</a></h3>
+<p>Automatically enhance low-resolution images using state-of-the-art neural networks:</p>
+<ul>
+<li><strong>ESPCN</strong> (Efficient Sub-Pixel CNN): Fast, efficient upscaling</li>
+<li><strong>FSRCNN</strong> (Fast Super-Resolution CNN): Higher quality results</li>
+<li><strong>Automatic DPI detection</strong> from image metadata</li>
+<li><strong>Interactive dialogs</strong> for user control when metadata is missing</li>
+<li><strong>300 DPI target</strong> for optimal processing quality</li>
+</ul>
+<p>Learn more about these models: <a href="https://learnopencv.com/super-resolution-in-opencv/#sec3">OpenCV Super Resolution Tutorial</a></p>
+<h3 id="cortex-preservation">Cortex Preservation<a class="headerlink" href="#cortex-preservation" title="Permanent link">&para;</a></h3>
+<p>Intelligently preserves natural cortex stippling on lithic artifacts:</p>
+<ul>
+<li><strong>Archaeological accuracy</strong>: Maintains distinction between cortex and worked surfaces</li>
+<li><strong>Smart separation</strong>: Identifies cortex stippling before processing</li>
+<li><strong>Selective processing</strong>: Only structural lines undergo ripple removal</li>
+<li><strong>User control</strong>: Toggle preservation via GUI checkbox or CLI flag</li>
+</ul>
 <h3 id="intelligent-ripple-removal">Intelligent Ripple Removal<a class="headerlink" href="#intelligent-ripple-removal" title="Permanent link">&para;</a></h3>
-<p>The core feature of Lithic Editor uses advanced graph-based analysis to identify and remove hatching/ripple lines while preserving structural features. The algorithm:</p>
+<p>The core feature uses advanced graph-based analysis to identify and remove hatching/ripple lines while preserving structural features. The algorithm:</p>
 <ul>
 <li>Analyzes line patterns using skeletonization</li>
 <li>Identifies ripple lines through pattern recognition</li>
@@ -1217,11 +1253,16 @@
 <h3 id="processing-visualization">Processing Visualization<a class="headerlink" href="#processing-visualization" title="Permanent link">&para;</a></h3>
 <p>View and save step-by-step processing stages to understand how the algorithm works and to troubleshoot problematic images:</p>
 <ul>
+<li>Neural network upscaling (if needed)</li>
 <li>Original image analysis</li>
-<li>Skeletonization process</li>
-<li>Line segment detection</li>
+<li>Cortex separation and preservation</li>
+<li>Skeletonization of structural elements only</li>
+<li>Endpoint and junction detection</li>
+<li>Line segment labeling</li>
 <li>Ripple identification</li>
-<li>Final cleaned result</li>
+<li>Structural cleaning</li>
+<li>Endpoint filtering</li>
+<li>Final assembly with cortex restoration</li>
 </ul>
 <h3 id="manual-editing-tools">Manual Editing Tools<a class="headerlink" href="#manual-editing-tools" title="Permanent link">&para;</a></h3>
 <p>Fine-tune your images before processing:</p>

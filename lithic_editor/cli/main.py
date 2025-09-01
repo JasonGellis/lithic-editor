@@ -108,6 +108,13 @@ Examples:
         help='DPI threshold for upscaling (default: 300)'
     )
     
+    # Cortex preservation parameters
+    process_parser.add_argument(
+        '--no-preserve-cortex',
+        action='store_true',
+        help='Disable cortex stippling preservation (process all components)'
+    )
+    
     # Help command
     help_parser = subparsers.add_parser(
         'help',
@@ -218,6 +225,7 @@ def process_image_cli(args):
                 image_path=str(input_path),
                 output_folder=args.output,
                 save_debug=args.debug,
+                preserve_cortex=not args.no_preserve_cortex,  # Default True, inverted flag
                 **upscale_params
             )
             

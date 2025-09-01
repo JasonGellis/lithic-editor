@@ -43,6 +43,7 @@ Developed specifically for archaeological research, the application maintains th
 ### Image Processing
 
 - **Neural Network Upscaling**: ESPCN and FSRCNN models automatically enhance low-DPI images to 300 DPI ([Learn more](https://learnopencv.com/super-resolution-in-opencv/#sec3))
+- **Cortex Preservation**: Intelligently preserves natural cortex stippling while processing structural elements
 - **Intelligent Ripple Removal**: Uses graph-based analysis to identify and remove hatching lines while preserving structural features
 - **Processing Visualization**: View step-by-step processing stages to understand how the algorithm works
 - **Manual Editing**: Tools for touching up images before processing

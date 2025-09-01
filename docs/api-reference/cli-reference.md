@@ -55,6 +55,7 @@ lithic-editor process IMAGE_PATH [OPTIONS]
 | `--default-dpi` | | `None` | Default DPI to assume for images without metadata |
 | `--upscale-model` | | `espcn` | Model to use for upscaling (espcn, fsrcnn) |
 | `--upscale-threshold` | | `300` | DPI threshold for upscaling |
+| `--no-preserve-cortex` | | `False` | Disable cortex stippling preservation |
 
 **Examples:**
 
@@ -79,6 +80,9 @@ lithic-editor process low_dpi.png --auto-upscale --default-dpi 150
 
 # Use FSRCNN model with custom threshold
 lithic-editor process drawing.png --upscale-model fsrcnn --upscale-threshold 250
+
+# Disable cortex preservation for specific images
+lithic-editor process artifact.png --no-preserve-cortex --debug
 ```
 
 ### docs

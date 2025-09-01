@@ -29,6 +29,13 @@ Lithic Editor includes ESPCN and FSRCNN neural network models to automatically u
 
 For technical details about these super-resolution models, see [OpenCV Super Resolution Tutorial](https://learnopencv.com/super-resolution-in-opencv/#sec3).
 
+### Cortex Preservation
+Automatically preserves natural cortex stippling on lithic artifacts:
+- **Intelligent separation**: Distinguishes cortex stippling from structural lines
+- **Pre-processing preservation**: Cortex bypasses destructive skeletonization
+- **Archaeological accuracy**: Maintains cortex vs. worked surface distinction
+- **User control**: Toggle preservation on/off via GUI checkbox or CLI flag
+
 ## Processing Algorithm
 
 ### How It Works
@@ -40,10 +47,11 @@ The ripple removal algorithm follows these steps:
    - Upscale low-DPI images using ESPCN/FSRCNN models
    - Maintain aspect ratio and line quality
 
-2. **Image Preprocessing**
+2. **Image Preprocessing & Cortex Separation**
    - Convert to grayscale if needed
    - Apply threshold to create binary image
-   - Remove small noise artifacts
+   - Separate cortex stippling from structural lines
+   - Preserve cortex areas before skeletonization
 
 3. **Skeletonization**
    - Reduce lines to single-pixel width
@@ -65,10 +73,10 @@ The ripple removal algorithm follows these steps:
    - Preserve structural boundaries
    - Maintain artifact integrity
 
-7. **Endpoint Filtering**
+7. **Final Assembly**
+   - Combine cleaned structural lines with preserved cortex
    - Refine endpoint decisions after cleaning
-   - Remove artifacts created by ripple removal
-   - Preserve important structural endpoints
+   - Create final archaeologically accurate result
 
 ## Using the GUI
 
@@ -179,7 +187,8 @@ result = process_lithic_drawing(
     upscale_low_dpi=True,
     default_dpi=150,
     upscale_model='espcn',
-    target_dpi=300
+    target_dpi=300,
+    preserve_cortex=True
 )
 ```
 

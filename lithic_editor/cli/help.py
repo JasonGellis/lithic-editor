@@ -67,11 +67,16 @@ UPSCALING OPTIONS (New!)
   --upscale-model MODEL Model to use for upscaling (espcn, fsrcnn)
   --upscale-threshold DPI DPI threshold for upscaling (default: 300)
 
+CORTEX PRESERVATION OPTIONS (New!)
+----------------------------------
+  --no-preserve-cortex  Disable cortex stippling preservation
+
 Examples:
   lithic-editor process lithic.png --output results/ --debug
   lithic-editor process image.jpg --quiet
   lithic-editor process low_res.png --auto-upscale --default-dpi 150
   lithic-editor process drawing.png --upscale-model fsrcnn --upscale-threshold 300
+  lithic-editor process cortex_image.png --no-preserve-cortex
 
 PROGRAMMATIC API USAGE
 ---------------------
@@ -173,7 +178,8 @@ process_lithic_drawing(
     target_dpi=300,             # Target DPI for upscaling
     scale_image_path=None,      # Scale image to process with same factor
     return_scale_factor=False,  # Return upscaling details
-    debug_filename=None         # Custom filename for debug images
+    debug_filename=None,        # Custom filename for debug images
+    preserve_cortex=True        # Preserve cortex stippling (default: True)
 ) -> numpy.ndarray              # Returns processed image
 
 GUI MODULE

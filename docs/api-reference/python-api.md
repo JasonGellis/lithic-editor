@@ -43,6 +43,7 @@ process_lithic_drawing(
 | `scale_image_path` | `str` | `None` | Scale image to process with same factor |
 | `return_scale_factor` | `bool` | `False` | Return upscaling details in result |
 | `debug_filename` | `str` | `None` | Custom filename for debug images |
+| `preserve_cortex` | `bool` | `True` | Preserve cortex stippling (default: enabled) |
 
 #### Returns
 
@@ -72,7 +73,8 @@ result = process_lithic_drawing(
     upscale_low_dpi=True,
     default_dpi=150,
     upscale_model='fsrcnn',
-    target_dpi=300
+    target_dpi=300,
+    preserve_cortex=True
 )
 
 # Check results

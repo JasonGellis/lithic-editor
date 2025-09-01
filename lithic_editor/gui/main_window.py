@@ -144,7 +144,7 @@ class ProcessingThread(QThread):
     finished_signal = pyqtSignal(object, object, object)  # image_data, dpi_info, format_info
 
     def __init__(self, input_path, output_folder, dpi_info=None, format_info=None, output_dpi=None, save_debug=False,
-                 upscale_low_dpi=False, default_dpi=None, upscale_model='espcn', target_dpi=300, debug_filename=None):
+                 upscale_low_dpi=False, default_dpi=None, upscale_model='espcn', target_dpi=300, debug_filename=None, preserve_cortex=True):
         super().__init__()
         self.input_path = input_path
         self.output_folder = output_folder
@@ -157,6 +157,7 @@ class ProcessingThread(QThread):
         self.upscale_model = upscale_model
         self.target_dpi = target_dpi
         self.debug_filename = debug_filename
+        self.preserve_cortex = preserve_cortex
 
     def run(self):
         try:
@@ -182,7 +183,8 @@ class ProcessingThread(QThread):
                 default_dpi=self.default_dpi,
                 upscale_model=self.upscale_model,
                 target_dpi=self.target_dpi,
-                debug_filename=self.debug_filename
+                debug_filename=self.debug_filename,
+                preserve_cortex=self.preserve_cortex
             )
 
             # Restore the original print function
@@ -562,6 +564,11 @@ class LithicProcessorGUI(QMainWindow):
         self.debug_images_checkbox.setChecked(False)
         self.debug_images_checkbox.stateChanged.connect(self.toggle_debug_images)
 
+        # Cortex preservation checkbox
+        self.preserve_cortex_checkbox = QCheckBox('Preserve Cortex Stippling')
+        self.preserve_cortex_checkbox.setChecked(True)  # Default ON
+        self.preserve_cortex_checkbox.setToolTip('Preserve small cortex dots while processing structural lines')
+
         # Keep the old attributes for backward compatibility
         self.show_debug_images = self.debug_images_checkbox
         self.save_debug_images = self.debug_images_checkbox
@@ -600,6 +607,7 @@ class LithicProcessorGUI(QMainWindow):
         # Add all options to the right panel
         options_layout.addWidget(debug_images_label)
         options_layout.addWidget(self.debug_images_checkbox)
+        options_layout.addWidget(self.preserve_cortex_checkbox)
         options_layout.addWidget(dpi_title)
         options_layout.addWidget(self.current_dpi_label)
         options_layout.addWidget(self.dpi_explanation_label)
@@ -714,7 +722,7 @@ class LithicProcessorGUI(QMainWindow):
         self.log_display = QTextEdit()
         self.log_display.setReadOnly(True)
         self.log_display.setMaximumHeight(80)
-        self.log_display.setStyleSheet("font-family: monospace; font-size: 10px;")
+        self.log_display.setStyleSheet("font-family: 'Monaco', 'Courier New', monospace; font-size: 10px;")
         log_layout.addWidget(self.log_display)
 
         # Progress area
@@ -1006,7 +1014,8 @@ class LithicProcessorGUI(QMainWindow):
         # Use the filename extracted earlier
 
         self.processing_thread = ProcessingThread(self.input_image_path, output_folder,
-                dpi_info, format_info, output_dpi, debug_enabled, debug_filename=original_filename, **upscale_params)
+                dpi_info, format_info, output_dpi, debug_enabled, debug_filename=original_filename, 
+                preserve_cortex=self.preserve_cortex_checkbox.isChecked(), **upscale_params)
         self.processing_thread.progress_signal.connect(self.update_progress)
         self.processing_thread.finished_signal.connect(self.processing_finished)
         self.processing_thread.start()
@@ -1115,6 +1124,8 @@ class LithicProcessorGUI(QMainWindow):
             f'0_{original_filename}_original_low_dpi.png',
             f'0a_{original_filename}_upscaled_300dpi.png',
             f'1_{original_filename}_original_image.png',
+            f'1a_{original_filename}_structural_only.png',
+            f'1b_{original_filename}_cortex_mask.png',
             f'2_{original_filename}_skeleton.png',
             f'3_{original_filename}_endpoints_junctions.png',
             f'4_{original_filename}_labeled_segments.png',
@@ -1142,6 +1153,8 @@ class LithicProcessorGUI(QMainWindow):
                     '_original_low_dpi': 'Input (Low DPI)',
                     '_upscaled_300dpi': 'Upscaled (300 DPI)',
                     '_original_image': 'Original',
+                    '_structural_only': 'Structural Only',
+                    '_cortex_mask': 'Cortex Mask',
                     '_skeleton': 'Skeleton',
                     '_endpoints_junctions': 'Endpoints',
                     '_labeled_segments': 'Segments',

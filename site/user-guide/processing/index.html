@@ -797,6 +797,24 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#neural-network-upscaling" class="md-nav__link">
+    <span class="md-ellipsis">
+      Neural Network Upscaling
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cortex-preservation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cortex Preservation
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1323,18 +1341,41 @@
 <h3 id="image-requirements">Image Requirements<a class="headerlink" href="#image-requirements" title="Permanent link">&para;</a></h3>
 <p>For best results, your images should have:
 - High contrast (black lines on white background)
-- Resolution of at least 300 DPI
+- Resolution of at least 300 DPI (automatic upscaling available for lower DPI)
 - Clean, continuous lines
 - Minimal noise or artifacts</p>
+<h3 id="neural-network-upscaling">Neural Network Upscaling<a class="headerlink" href="#neural-network-upscaling" title="Permanent link">&para;</a></h3>
+<p>Lithic Editor includes ESPCN and FSRCNN neural network models to automatically upscale low-DPI images:
+- <strong>ESPCN</strong>: Efficient Sub-Pixel CNN, faster processing
+- <strong>FSRCNN</strong>: Fast Super-Resolution CNN, higher quality
+- <strong>Automatic DPI detection</strong> from image metadata
+- <strong>User dialogs</strong> for DPI selection when metadata is missing
+- <strong>300 DPI target</strong> for optimal processing results</p>
+<p>For technical details about these super-resolution models, see <a href="https://learnopencv.com/super-resolution-in-opencv/#sec3">OpenCV Super Resolution Tutorial</a>.</p>
+<h3 id="cortex-preservation">Cortex Preservation<a class="headerlink" href="#cortex-preservation" title="Permanent link">&para;</a></h3>
+<p>Automatically preserves natural cortex stippling on lithic artifacts:
+- <strong>Intelligent separation</strong>: Distinguishes cortex stippling from structural lines
+- <strong>Pre-processing preservation</strong>: Cortex bypasses destructive skeletonization
+- <strong>Archaeological accuracy</strong>: Maintains cortex vs. worked surface distinction
+- <strong>User control</strong>: Toggle preservation on/off via GUI checkbox or CLI flag</p>
 <h2 id="processing-algorithm">Processing Algorithm<a class="headerlink" href="#processing-algorithm" title="Permanent link">&para;</a></h2>
 <h3 id="how-it-works">How It Works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h3>
 <p>The ripple removal algorithm follows these steps:</p>
 <ol>
-<li><strong>Image Preprocessing</strong></li>
+<li><strong>Neural Network Upscaling</strong> (if needed)</li>
+<li>Detect DPI from image metadata or prompt user</li>
+<li>Upscale low-DPI images using ESPCN/FSRCNN models</li>
+<li>
+<p>Maintain aspect ratio and line quality</p>
+</li>
+<li>
+<p><strong>Image Preprocessing &amp; Cortex Separation</strong></p>
+</li>
 <li>Convert to grayscale if needed</li>
 <li>Apply threshold to create binary image</li>
+<li>Separate cortex stippling from structural lines</li>
 <li>
-<p>Remove small noise artifacts</p>
+<p>Preserve cortex areas before skeletonization</p>
 </li>
 <li>
 <p><strong>Skeletonization</strong></p>
@@ -1365,7 +1406,15 @@
 </li>
 <li>Remove identified ripple lines</li>
 <li>Preserve structural boundaries</li>
-<li>Maintain artifact integrity</li>
+<li>
+<p>Maintain artifact integrity</p>
+</li>
+<li>
+<p><strong>Final Assembly</strong></p>
+</li>
+<li>Combine cleaned structural lines with preserved cortex</li>
+<li>Refine endpoint decisions after cleaning</li>
+<li>Create final archaeologically accurate result</li>
 </ol>
 <h2 id="using-the-gui">Using the GUI<a class="headerlink" href="#using-the-gui" title="Permanent link">&para;</a></h2>
 <h3 id="step-by-step-processing">Step-by-Step Processing<a class="headerlink" href="#step-by-step-processing" title="Permanent link">&para;</a></h3>
@@ -1374,6 +1423,14 @@
 <p><strong>Load Your Image</strong>
    <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Click &quot;Load Image&quot; → Select file → Open
 </span></code></pre></div></p>
+</li>
+<li>
+<p><strong>DPI Detection and Upscaling</strong></p>
+</li>
+<li>System automatically detects DPI from image metadata</li>
+<li>If missing, dialog prompts for DPI selection (72, 96, 150, 200 or custom)</li>
+<li>
+<p>If below 300 DPI, upscaling dialog offers ESPCN/FSRCNN options</p>
 </li>
 <li>
 <p><strong>Review Input</strong></p>
@@ -1397,10 +1454,10 @@
 </ol>
 <h3 id="processing-options">Processing Options<a class="headerlink" href="#processing-options" title="Permanent link">&para;</a></h3>
 <h4 id="debug-mode">Debug Mode<a class="headerlink" href="#debug-mode" title="Permanent link">&para;</a></h4>
-<p>Enable to save intermediate processing steps:
-- Checkbox: "Save debug images"
-- Creates <code>image_debug/</code> folder
-- Saves all algorithm stages</p>
+<p>Enable to view and save intermediate processing steps:
+- Checkbox: "View and Save Debug Images"
+- Shows processing steps in the Processing Steps panel
+- Creates <code>image_debug/</code> folder with all algorithm stages</p>
 <h4 id="quality-settings">Quality Settings<a class="headerlink" href="#quality-settings" title="Permanent link">&para;</a></h4>
 <p>Adjust processing parameters:
 - Line thickness tolerance
@@ -1427,12 +1484,21 @@
 </span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>find<span class="w"> </span>.<span class="w"> </span>-name<span class="w"> </span><span class="s2">&quot;*.png&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>parallel<span class="w"> </span>lithic-editor<span class="w"> </span>process<span class="w"> </span><span class="o">{}</span><span class="w"> </span>--quiet
 </span></code></pre></div>
 <h3 id="advanced-options">Advanced Options<a class="headerlink" href="#advanced-options" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Custom parameters</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>lithic-editor<span class="w"> </span>process<span class="w"> </span>image.png<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span>--output<span class="w"> </span>results/<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span>--debug<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span>--threshold<span class="w"> </span><span class="m">127</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">    </span>--min-line-length<span class="w"> </span><span class="m">10</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Neural network upscaling with debug output</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>lithic-editor<span class="w"> </span>process<span class="w"> </span>low_res.png<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span>--auto-upscale<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span>--default-dpi<span class="w"> </span><span class="m">150</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span>--upscale-model<span class="w"> </span>fsrcnn<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">    </span>--upscale-threshold<span class="w"> </span><span class="m">300</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span>--debug
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="c1"># Batch processing with upscaling</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="k">for</span><span class="w"> </span>file<span class="w"> </span><span class="k">in</span><span class="w"> </span>*.png<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">    </span>lithic-editor<span class="w"> </span>process<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$file</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">        </span>--auto-upscale<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="w">        </span>--default-dpi<span class="w"> </span><span class="m">200</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="w">        </span>--output<span class="w"> </span><span class="s2">&quot;processed/</span><span class="si">${</span><span class="nv">file</span><span class="p">%.png</span><span class="si">}</span><span class="s2">/&quot;</span>
+</span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="k">done</span>
 </span></code></pre></div>
 <h2 id="python-api">Python API<a class="headerlink" href="#python-api" title="Permanent link">&para;</a></h2>
 <h3 id="using-the-python-api">Using the Python API<a class="headerlink" href="#using-the-python-api" title="Permanent link">&para;</a></h3>
@@ -1441,6 +1507,17 @@
 </span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
 </span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="c1"># Basic example</span>
 </span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="n">result</span> <span class="o">=</span> <span class="n">process_lithic_drawing</span><span class="p">(</span><span class="s2">&quot;drawing.png&quot;</span><span class="p">,</span> <span class="n">save_debug</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="c1"># With neural network upscaling</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="n">result</span> <span class="o">=</span> <span class="n">process_lithic_drawing</span><span class="p">(</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>    <span class="s2">&quot;low_dpi.png&quot;</span><span class="p">,</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>    <span class="n">save_debug</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>    <span class="n">upscale_low_dpi</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>    <span class="n">default_dpi</span><span class="o">=</span><span class="mi">150</span><span class="p">,</span>
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>    <span class="n">upscale_model</span><span class="o">=</span><span class="s1">&#39;espcn&#39;</span><span class="p">,</span>
+</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>    <span class="n">target_dpi</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span>
+</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>    <span class="n">preserve_cortex</span><span class="o">=</span><span class="kc">True</span>
+</span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="p">)</span>
 </span></code></pre></div>
 <p>For advanced usage, batch processing, and integration examples, refer to:
 - <a href="../../api-reference/python-api/">Python API Documentation</a>
