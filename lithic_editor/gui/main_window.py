@@ -36,19 +36,19 @@ print("Successfully imported process_lithic_drawing from lithic_editor.processin
 
 class DPISelectionDialog(QDialog):
     """Dialog for selecting DPI when metadata is missing"""
-    
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Specify Image DPI")
         self.setModal(True)
         self.selected_dpi = None
-        
+
         layout = QVBoxLayout()
-        
+
         # Info label
         info_label = QLabel("No DPI information found in image.\nPlease specify the approximate DPI:")
         layout.addWidget(info_label)
-        
+
         # DPI buttons
         button_layout = QHBoxLayout()
         for dpi in [72, 96, 150, 200]:
@@ -56,7 +56,7 @@ class DPISelectionDialog(QDialog):
             btn.clicked.connect(lambda checked, d=dpi: self.select_dpi(d))
             button_layout.addWidget(btn)
         layout.addLayout(button_layout)
-        
+
         # Custom DPI input
         custom_layout = QHBoxLayout()
         custom_layout.addWidget(QLabel("Custom:"))
@@ -67,18 +67,18 @@ class DPISelectionDialog(QDialog):
         custom_btn.clicked.connect(self.use_custom_dpi)
         custom_layout.addWidget(custom_btn)
         layout.addLayout(custom_layout)
-        
+
         # Cancel button
         cancel_btn = QPushButton("Cancel")
         cancel_btn.clicked.connect(self.reject)
         layout.addWidget(cancel_btn)
-        
+
         self.setLayout(layout)
-    
+
     def select_dpi(self, dpi):
         self.selected_dpi = dpi
         self.accept()
-    
+
     def use_custom_dpi(self):
         try:
             custom_dpi = int(self.custom_input.text())
@@ -93,7 +93,7 @@ class DPISelectionDialog(QDialog):
 
 class UpscalingDialog(QDialog):
     """Dialog for confirming upscaling with model selection"""
-    
+
     def __init__(self, current_dpi, target_dpi=300, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Upscale Image")
@@ -102,16 +102,16 @@ class UpscalingDialog(QDialog):
         self.target_dpi = target_dpi
         self.upscale_confirmed = False
         self.selected_model = 'espcn'
-        
+
         layout = QVBoxLayout()
-        
+
         # Warning message
         warning_text = (f"Image is {current_dpi} DPI, below recommended {target_dpi} DPI.\n"
                        f"This may impact final output quality.\n\n"
                        f"Upscale to {target_dpi} DPI?")
         warning_label = QLabel(warning_text)
         layout.addWidget(warning_label)
-        
+
         # Model selection
         model_layout = QHBoxLayout()
         model_layout.addWidget(QLabel("Model:"))
@@ -120,7 +120,7 @@ class UpscalingDialog(QDialog):
         self.model_combo.addItem("FSRCNN (Alternative)", "fsrcnn")
         model_layout.addWidget(self.model_combo)
         layout.addLayout(model_layout)
-        
+
         # Buttons
         button_layout = QHBoxLayout()
         yes_btn = QPushButton("Yes, Upscale")
@@ -130,9 +130,9 @@ class UpscalingDialog(QDialog):
         button_layout.addWidget(yes_btn)
         button_layout.addWidget(no_btn)
         layout.addLayout(button_layout)
-        
+
         self.setLayout(layout)
-    
+
     def confirm_upscale(self):
         self.upscale_confirmed = True
         self.selected_model = self.model_combo.currentData()
@@ -163,7 +163,7 @@ class ProcessingThread(QThread):
         try:
             # Store the original print function first
             original_print = print
-            
+
             # Override print to capture progress updates
             def progress_print(msg):
                 self.progress_signal.emit(msg)
@@ -562,7 +562,7 @@ class LithicProcessorGUI(QMainWindow):
         self.debug_images_checkbox = QCheckBox('View and Save Debug Images')
         self.debug_images_checkbox.setChecked(False)
         self.debug_images_checkbox.stateChanged.connect(self.toggle_debug_images)
-        
+
         # Keep the old attributes for backward compatibility
         self.show_debug_images = self.debug_images_checkbox
         self.save_debug_images = self.debug_images_checkbox
@@ -831,7 +831,7 @@ class LithicProcessorGUI(QMainWindow):
         if file_path:
             # Store original filename for debug naming (before any processing changes it)
             self.original_filename = os.path.splitext(os.path.basename(file_path))[0]
-            
+
             # Process the selected file
             self.input_image_path = file_path
 
@@ -884,7 +884,7 @@ class LithicProcessorGUI(QMainWindow):
                 # Define output folder path but don't create it yet
                 base_name = os.path.splitext(os.path.basename(file_path))[0]
                 self.output_folder = os.path.join('image_debug', base_name)
-                
+
                 # Use a temp location for the cropped input to avoid creating folders prematurely
                 import tempfile
                 temp_dir = tempfile.mkdtemp()
@@ -997,15 +997,15 @@ class LithicProcessorGUI(QMainWindow):
         output_dpi = self.get_output_dpi()  # Get user's DPI preference
         # Debug images are both viewed and saved when checkbox is checked
         debug_enabled = self.debug_images_checkbox.isChecked()
-        
+
         # Handle upscaling logic
         upscale_params = self.check_and_prompt_upscaling(dpi_info)
-        
+
         # Pass output folder for debug images if enabled
         output_folder = self.output_folder if debug_enabled else None
-        
+
         # Use the filename extracted earlier
-        
+
         self.processing_thread = ProcessingThread(self.input_image_path, output_folder,
                 dpi_info, format_info, output_dpi, debug_enabled, debug_filename=original_filename, **upscale_params)
         self.processing_thread.progress_signal.connect(self.update_progress)
@@ -1020,7 +1020,7 @@ class LithicProcessorGUI(QMainWindow):
             'upscale_model': 'espcn',
             'target_dpi': 300
         }
-        
+
         # Determine current DPI
         current_dpi = None
         if dpi_info:
@@ -1037,7 +1037,7 @@ class LithicProcessorGUI(QMainWindow):
             else:
                 # User cancelled - proceed without upscaling
                 return upscale_params
-        
+
         # Check if upscaling is needed
         if current_dpi and needs_upscaling(current_dpi, 300):
             # Show upscaling confirmation dialog
@@ -1050,7 +1050,7 @@ class LithicProcessorGUI(QMainWindow):
                 self.log(f"User declined upscaling. Proceeding with {current_dpi} DPI")
         elif current_dpi:
             self.log(f"Image DPI ({current_dpi}) already meets target (300). No upscaling needed.")
-        
+
         return upscale_params
 
     def update_progress(self, message):
@@ -1070,7 +1070,7 @@ class LithicProcessorGUI(QMainWindow):
             self.processed_image_data = image_data
             self.processed_dpi_info = dpi_info
             self.processed_format_info = format_info
-            
+
             self.log(f"Processing complete. Image ready for annotation.")
 
             # Debug dimensions for processed image
@@ -1082,7 +1082,7 @@ class LithicProcessorGUI(QMainWindow):
 
             # Display the processed image from memory
             self.display_image_from_array(image_data, self.canvas)
-            
+
             # Enable arrow tools
             arrow_integration.enable_arrow_controls(self)
             self.log("You can now add arrows to the processed image (Alt+drag to resize, Shift+drag to rotate)")
@@ -1097,7 +1097,7 @@ class LithicProcessorGUI(QMainWindow):
             self.clear_annotations_button.setEnabled(True)
             self.status_label.setText('Processing complete!')
             self.log("You can draw on the input image with the brush tools")
-            
+
             # Load and handle debug images if checkbox is enabled
             if self.debug_images_checkbox.isChecked():
                 self.load_debug_images()
@@ -1111,7 +1111,7 @@ class LithicProcessorGUI(QMainWindow):
         """Load all debug images from the output folder into the debug panel"""
         # Get original filename for pattern matching
         original_filename = getattr(self, 'original_filename', '*')
-        
+
         debug_patterns = [
             f'0_{original_filename}_original_low_dpi.png',
             f'0a_{original_filename}_upscaled_300dpi.png',
@@ -1139,11 +1139,46 @@ class LithicProcessorGUI(QMainWindow):
                 container_layout = QVBoxLayout(container)
                 container_layout.setContentsMargins(5, 10, 5, 10)
 
-                # Image title based on filename (remove filename prefix and .png)
-                title = debug_file.replace('.png', '').replace(f'_{original_filename}_', '_').replace('_', ' ').title()
-                image_title = QLabel(title)
+                # Create shorter, cleaner titles
+                base_name = debug_file.replace('.png', '').replace(f'_{original_filename}_', '_')
+
+                # Shorten common long titles
+                title_map = {
+                    '_original_low_dpi': 'Input (Low DPI)',
+                    '_upscaled_300dpi': 'Upscaled (300 DPI)',
+                    '_original_image': 'Original',
+                    '_skeleton': 'Skeleton',
+                    '_endpoints_junctions': 'Endpoints',
+                    '_labeled_segments': 'Segments',
+                    '_ripple_identification': 'Ripple ID',
+                    '_skeleton_cleaned': 'Cleaned',
+                    '_endpoint_filtering': 'Filtered',
+                    '_final_cleaned': 'Final',
+                    '_thickness_preservation': 'Thickness',
+                    '_skeleton_vs_hybrid': 'Comparison',
+                    '_improved_quality': 'Enhanced',
+                    '_high_quality': 'Export'
+                }
+
+                # Apply title mapping
+                short_title = base_name
+                for pattern, replacement in title_map.items():
+                    if pattern in base_name:
+                        # Keep step number and apply short name
+                        step_num = base_name.split('_')[0]
+                        short_title = f"{step_num}. {replacement}"
+                        break
+                else:
+                    # Fallback to cleaned version
+                    short_title = base_name.replace('_', ' ').title()
+
+                image_title = QLabel(short_title)
                 image_title.setAlignment(Qt.AlignCenter)
-                image_title.setStyleSheet("font-weight: bold;")
+                image_title.setStyleSheet("font-weight: bold; padding: 2px;")
+                image_title.setWordWrap(True)  # Allow text wrapping
+                image_title.setMinimumHeight(30)  # Minimum height
+                image_title.setSizePolicy(image_title.sizePolicy().horizontalPolicy(),
+                                        image_title.sizePolicy().Expanding)  # Allow vertical expansion
 
                 # Image display
                 image_label = QLabel()
@@ -1344,7 +1379,7 @@ class LithicProcessorGUI(QMainWindow):
         """Display an image from a numpy array in the given widget"""
         if image_array is None:
             return
-        
+
         # Ensure image is in the right format for display
         if len(image_array.shape) == 2:
             # Grayscale image
@@ -1358,17 +1393,17 @@ class LithicProcessorGUI(QMainWindow):
         else:
             # BGR
             img_rgb = cv2.cvtColor(image_array, cv2.COLOR_BGR2RGB)
-        
+
         # Create QImage and QPixmap
         h, w = img_rgb.shape[:2]
         bytes_per_line = 3 * w
         q_img = QImage(img_rgb.data, w, h, bytes_per_line, QImage.Format_RGB888)
         pixmap = QPixmap.fromImage(q_img)
-        
+
         # If displaying in the arrow canvas, update the DPI information
         if display_widget == self.canvas and hasattr(self, 'image_dpi'):
             self.canvas.set_image_dpi(self.image_dpi)
-        
+
         # If the widget is a CanvasWidget or ArrowCanvasWidget, use set_base_image
         if isinstance(display_widget, CanvasWidget) or isinstance(display_widget, ArrowCanvasWidget):
             display_widget.set_base_image(pixmap)
@@ -1376,15 +1411,15 @@ class LithicProcessorGUI(QMainWindow):
             # For regular QLabel, do scaling and use setPixmap
             display_width = display_widget.width() - 10
             display_height = display_widget.height() - 10
-            
+
             # Calculate scaling factor to fit within display
             scale = min(display_width / w, display_height / h, 1.0)
             new_width = int(w * scale)
             new_height = int(h * scale)
-            
+
             # Scale pixmap
             scaled_pixmap = pixmap.scaled(new_width, new_height, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-            
+
             # Update display
             display_widget.setPixmap(scaled_pixmap)
 

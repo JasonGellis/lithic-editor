@@ -252,8 +252,8 @@ def debug_image_info(name, img):
     cv2.imwrite(output_path, img)
     print(f"Debug image saved to {output_path}")
 
-def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=None, format_info=None, output_dpi=None, save_debug=False, 
-                          upscale_low_dpi=False, default_dpi=None, upscale_model='espcn', target_dpi=300, 
+def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=None, format_info=None, output_dpi=None, save_debug=False,
+                          upscale_low_dpi=False, default_dpi=None, upscale_model='espcn', target_dpi=300,
                           scale_image_path=None, return_scale_factor=False, debug_filename=None):
     """
     Process a lithic drawing to remove ripple lines while preserving original line quality and metadata
@@ -288,7 +288,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
         base_filename = os.path.splitext(os.path.basename(image_path))[0]
     else:
         base_filename = "image"
-    
+
     # Add debugging header
     print("\n=== IMAGE DIMENSIONS DEBUGGING ===")
     print(f"{'Step':<30} {'Width':>10} {'Height':>10} {'Type':>15} {'Min':>8} {'Max':>8}")
@@ -327,7 +327,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
     # Handle upscaling if requested
     scale_factor = 1.0
     processed_scale = None
-    
+
     if upscale_low_dpi:
         # Determine current DPI
         current_dpi = None
@@ -343,7 +343,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
             # For non-interactive mode, we can't proceed without DPI
             print("Warning: No DPI information found and no default_dpi provided. Skipping upscaling.")
             upscale_low_dpi = False
-        
+
         if upscale_low_dpi and current_dpi:
             # Validate upscaling parameters
             is_valid, error_msg = validate_upscaling_inputs(current_dpi, target_dpi, upscale_model)
@@ -352,28 +352,28 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
                 upscale_low_dpi = False
             elif needs_upscaling(current_dpi, target_dpi):
                 print(f"Image DPI ({current_dpi}) below target ({target_dpi}). Upscaling...")
-                
+
                 # Save original low-DPI image for comparison
                 if save_debug:
                     os.makedirs(output_folder, exist_ok=True)  # Ensure folder exists before upscaling
                     save_debug_image(original_image, os.path.join(output_folder, f'0_{base_filename}_original_low_dpi.png'),
                                     f'Original Image ({current_dpi} DPI)', dpi_info, format_info, (current_dpi, current_dpi) if isinstance(current_dpi, int) else current_dpi)
-                
+
                 # Upscale the main image
                 upscaled_image, scale_factor = upscale_image_to_target_dpi(
                     original_image, current_dpi, target_dpi, upscale_model
                 )
                 original_image = upscaled_image
-                
+
                 # Update DPI info to reflect upscaling
                 new_dpi = int(current_dpi * scale_factor)
                 if isinstance(dpi_info, tuple):
                     dpi_info = (new_dpi, new_dpi)
                 else:
                     dpi_info = new_dpi
-                
+
                 print(f"Upscaling completed: {current_dpi} DPI → {new_dpi} DPI (factor: {scale_factor:.1f}x)")
-                
+
                 # Process scale image if provided
                 if scale_image_path:
                     print(f"Processing scale image with same factor...")
@@ -388,7 +388,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
                                             f'Upscaled Scale ({new_dpi} DPI)', (new_dpi, new_dpi), 'PNG', (new_dpi, new_dpi))
                     except Exception as e:
                         print(f"Error processing scale image: {e}")
-                
+
                 # Save upscaled main image
                 if save_debug:
                     save_debug_image(original_image, os.path.join(output_folder, f'0a_{base_filename}_upscaled_300dpi.png'),
@@ -486,7 +486,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
 
     if save_debug:
         save_debug_image(debug_img, os.path.join(output_folder, f'3_{base_filename}_endpoints_junctions.png'),
-                        'Skeleton with Endpoints (Red) and Junctions (Green)', dpi_info, format_info, output_dpi)
+                        'Endpoints & Junctions', dpi_info, format_info, output_dpi)
 
 
     # Step 4: Identify line segments by removing junctions and endpoints
@@ -522,7 +522,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
 
     if save_debug:
         save_debug_image(segment_colors, os.path.join(output_folder, f'4_{base_filename}_labeled_segments.png'),
-                        f'Labeled Segments (Total: {num_segments})', dpi_info, format_info, output_dpi)
+                        f'Labeled Segments ({num_segments})', dpi_info, format_info, output_dpi)
 
     # Step 5: Build graph representation
     print("Building graph representation...")
@@ -610,7 +610,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
 
     if save_debug:
         save_debug_image(ripple_viz, os.path.join(output_folder, f'5_{base_filename}_ripple_identification.png'),
-                        'Ripple Segments (Red) vs. Structural Lines (White)', dpi_info, format_info, output_dpi)
+                        'Ripple vs Structural', dpi_info, format_info, output_dpi)
 
     # Step 7: Create mask of structural elements (excluding ripple endpoints)
     print("Creating structural mask...")
@@ -663,7 +663,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
     # Save the skeleton-based cleaned image (inverted)
     if save_debug:
         save_debug_image(skeleton_cleaned_inverted, os.path.join(output_folder, f'6_{base_filename}_skeleton_cleaned.png'),
-                        'Skeleton Cleaned (Structural Elements Only)', dpi_info, format_info, output_dpi)
+                        'Skeleton Cleaned', dpi_info, format_info, output_dpi)
 
     # NEW: Create debug image showing filtered endpoints
     filtered_endpoints_viz = np.zeros((height, width, 3), dtype=np.uint8)
@@ -691,7 +691,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
     if save_debug:
         if save_debug:
             save_debug_image(filtered_endpoints_viz, os.path.join(output_folder, f'6a_{base_filename}_endpoint_filtering.png'),
-                            'Endpoint Filtering (Blue=Kept, Red=Removed, Green=Junctions)', dpi_info, format_info, output_dpi)
+                            'Endpoint Filtering', dpi_info, format_info, output_dpi)
 
     # Step 8: Create final image with hybrid thickness preservation
     print("Creating final image with hybrid thickness preservation...")
@@ -721,7 +721,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
     # Save the final cleaned image (inverted)
     if save_debug:
         save_debug_image(final_cleaned_inverted, os.path.join(output_folder, f'7_{base_filename}_final_cleaned.png'),
-                        'Final Cleaned (Hybrid Thickness Preserved)', dpi_info, format_info, output_dpi)
+                        'Final Cleaned', dpi_info, format_info, output_dpi)
 
     # Debug: Save thickness mask visualization
     debug_thickness_viz = np.zeros((*thickness_preserved_mask.shape, 3), dtype=np.uint8)
@@ -737,7 +737,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
 
     if save_debug:
         save_debug_image(debug_thickness_viz, os.path.join(output_folder, f'7a_{base_filename}_thickness_preservation.png'),
-                        'Hybrid Approach (Gray=Original, Red=Structural Skeleton, Green=Final Result)', dpi_info, format_info, output_dpi)
+                        'Thickness Preservation', dpi_info, format_info, output_dpi)
 
     # Debug: Show before/after comparison of thickness preservation
     comparison_debug = np.zeros((height, width * 2, 3), dtype=np.uint8)
@@ -754,7 +754,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
 
     if save_debug:
         save_debug_image(comparison_debug, os.path.join(output_folder, f'7b_{base_filename}_skeleton_vs_hybrid.png'),
-                        'Left: Skeleton Only | Right: Hybrid Thickness Preserved', dpi_info, format_info, output_dpi)
+                        'Skeleton vs Hybrid', dpi_info, format_info, output_dpi)
 
     # Step 9: Apply line quality improvement
     print("Improving line quality...")
@@ -779,7 +779,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
     # Comparison image removed - not needed
 
     print("Processing complete!")
-    
+
     # Return results based on requested format
     if return_scale_factor or scale_image_path:
         result = {
@@ -853,7 +853,7 @@ def save_debug_image(image, output_path, title=None, dpi_info=None, format=None,
 
         # Add title using OpenCV (PIL doesn't have good text support)
         display_np = np.array(display_img)
-        cv2.putText(display_np, title, (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(display_np, title, (10, 20), cv2.FONT_HERSHEY_DUPLEX, 0.6, (0, 0, 0), 1, cv2.LINE_AA)
         display_img = Image.fromarray(display_np)
 
         # Save the titled version
@@ -919,7 +919,7 @@ def create_comparison_image(images, titles=None):
         # Add title if provided
         if titles and i < len(titles):
             cv2.putText(grid, titles[i], (x_start + 10, y_start + 20),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 1, cv2.LINE_AA)
+                       cv2.FONT_HERSHEY_DUPLEX, 0.6, (0, 0, 0), 1, cv2.LINE_AA)
 
         # Add image
         grid[y_start + title_height:y_start + title_height + max_height,
