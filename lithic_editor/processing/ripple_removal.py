@@ -850,9 +850,15 @@ def save_debug_image(image, output_path, title=None, dpi_info=None, format=None,
 
     # Set DPI if provided (output_dpi takes precedence over dpi_info)
     if output_dpi:
-        save_kwargs = {'dpi': output_dpi}
+        if isinstance(output_dpi, (int, float)):
+            save_kwargs = {'dpi': (output_dpi, output_dpi)}
+        else:
+            save_kwargs = {'dpi': output_dpi}
     elif dpi_info:
-        save_kwargs = {'dpi': dpi_info}
+        if isinstance(dpi_info, (int, float)):
+            save_kwargs = {'dpi': (dpi_info, dpi_info)}
+        else:
+            save_kwargs = {'dpi': dpi_info}
     else:
         save_kwargs = {}
 

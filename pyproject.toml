@@ -78,6 +78,10 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v"
 qt_api = "pyqt5"
+filterwarnings = [
+    "ignore:.*np\\.bool8.*is a deprecated alias:DeprecationWarning",
+    "ignore:.*sipPyTypeDict.*is deprecated:DeprecationWarning"
+]
 
 [tool.black]
 line-length = 88

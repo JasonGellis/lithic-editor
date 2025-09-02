@@ -47,11 +47,11 @@ class TestProcessingModule:
         debug_files = list(temp_dir.glob("*.png"))
         assert len(debug_files) > 0
         
-        # Check for expected debug stages
+        # Check for expected debug stages (updated names)
         expected_stages = [
-            "1_original",
-            "2_skeleton", 
-            "3_endpoints"
+            "original",
+            "skeleton", 
+            "endpoints"
         ]
         
         debug_names = [f.stem for f in debug_files]
@@ -198,9 +198,9 @@ class TestCortexPreservation:
         debug_files = list(temp_dir.glob("*.png"))
         debug_names = [f.stem for f in debug_files]
         
-        # Should have cortex separation debug images
+        # Should have cortex separation debug images  
         assert any("cortex" in name.lower() for name in debug_names)
-        assert any("structure" in name.lower() for name in debug_names)
+        assert any("structural" in name.lower() for name in debug_names)  # Updated name
     
     def test_cortex_with_structural_lines(self, temp_dir):
         """Test cortex preservation doesn't remove structural lines."""

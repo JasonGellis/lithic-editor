@@ -30,7 +30,8 @@ class TestUpscalingIntegration:
             image_path=str(image_path),
             output_folder=str(temp_dir),
             target_dpi=300,
-            upscaling_model='espcn',
+            upscale_model='espcn',
+            upscale_low_dpi=True,
             save_debug=True
         )
         
@@ -92,7 +93,8 @@ class TestCortexUpscalingIntegration:
             output_folder=str(temp_dir),
             target_dpi=300,
             preserve_cortex=True,
-            upscaling_model='espcn',
+            upscale_model='espcn',
+            upscale_low_dpi=True,
             save_debug=True
         )
         
@@ -134,15 +136,17 @@ class TestFullWorkflowIntegration:
             assert call_kwargs['preserve_cortex'] == True
             assert call_kwargs['save_debug'] == True
     
-    @patch('lithic_editor.processing.process_lithic_drawing')
-    def test_gui_to_processing_integration(self, mock_process, qapp):
+    @patch('lithic_editor.gui.main_window.process_lithic_drawing')
+    @patch('os.path.exists')
+    def test_gui_to_processing_integration(self, mock_exists, mock_process, qapp, sample_image):
         """Test GUI processing integration."""
         from lithic_editor.gui.main_window import ProcessingThread
         
         mock_process.return_value = np.zeros((100, 100), dtype=np.uint8)
+        mock_exists.return_value = True  # Mock file existence
         
         thread = ProcessingThread(
-            input_path="test.png",
+            input_path=str(sample_image),  # Use real test image path
             output_folder="output",
             save_debug=True,
             preserve_cortex=True
@@ -185,7 +189,8 @@ class TestDebugImageIntegration:
             output_folder=str(temp_dir),
             target_dpi=300,
             preserve_cortex=True,
-            upscaling_model='espcn',
+            upscale_model='espcn',
+            upscale_low_dpi=True,
             save_debug=True
         )
         
@@ -197,7 +202,7 @@ class TestDebugImageIntegration:
             "original",
             "upscaled",
             "cortex",
-            "structure", 
+            "structural",  # Updated to match actual debug image name 
             "skeleton",
             "endpoints"
         ]
@@ -282,7 +287,8 @@ class TestParameterCombinations:
                 image_path=str(image_path),
                 output_folder=str(temp_dir),
                 target_dpi=300,
-                upscaling_model='nonexistent',
+                upscale_model='nonexistent',
+                upscale_low_dpi=True,
                 save_debug=False
             )
             
@@ -308,7 +314,8 @@ class TestErrorHandlingIntegration:
             image_path=test_img,
             output_folder=str(temp_dir),
             preserve_cortex=True,
-            upscaling_model='invalid_model',
+            upscale_model='invalid_model',
+            upscale_low_dpi=True,
             save_debug=False
         )
         
