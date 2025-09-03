@@ -268,7 +268,7 @@
           
   
   
-  Getting Started
+  Installation
 
         </a>
       </li>
@@ -542,7 +542,7 @@
   
   
   <span class="md-ellipsis">
-    Getting Started
+    Installation
     
   </span>
   
@@ -553,7 +553,7 @@
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
-            Getting Started
+            Installation
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -587,7 +587,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../getting-started/quickstart/" class="md-nav__link">
+      <a href="../../getting-started/overview.md" class="md-nav__link">
         
   
   
@@ -756,6 +756,57 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#quick-start-tutorial" class="md-nav__link">
+    <span class="md-ellipsis">
+      Quick Start Tutorial
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quick Start Tutorial">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-load-your-image" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 1: Load Your Image
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-process-the-image" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 2: Process the Image
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-add-annotations-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 3: Add Annotations (Optional)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-4-save-your-result" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 4: Save Your Result
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#main-interface" class="md-nav__link">
     <span class="md-ellipsis">
       Main Interface
@@ -766,36 +817,81 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#1-input-panel-top-left" class="md-nav__link">
+  <a href="#1-file-controls-top-left" class="md-nav__link">
     <span class="md-ellipsis">
-      1. Input Panel (Top Left)
+      1. File Controls (Top Left)
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#2-processed-panel-top-right" class="md-nav__link">
+  <a href="#2-drawing-tools-top-left-below-file-controls" class="md-nav__link">
     <span class="md-ellipsis">
-      2. Processed Panel (Top Right)
+      2. Drawing Tools (Top Left, Below File Controls)
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#3-annotation-panel-bottom-left" class="md-nav__link">
+  <a href="#3-arrow-annotations-bottom-left" class="md-nav__link">
     <span class="md-ellipsis">
-      3. Annotation Panel (Bottom Left)
+      3. Arrow Annotations (Bottom Left)
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#4-debug-panel-bottom-right" class="md-nav__link">
+  <a href="#4-options-and-dpi-settings-top-right" class="md-nav__link">
     <span class="md-ellipsis">
-      4. Debug Panel (Bottom Right)
+      4. Options and DPI Settings (Top Right)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-input-image-window-center-left" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Input Image Window (Center Left)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-processed-image-arrow-annotations-center-right" class="md-nav__link">
+    <span class="md-ellipsis">
+      6. Processed Image / Arrow Annotations (Center Right)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-processing-steps-right-panel" class="md-nav__link">
+    <span class="md-ellipsis">
+      7. Processing Steps (Right Panel)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-processing-log-bottom" class="md-nav__link">
+    <span class="md-ellipsis">
+      8. Processing Log (Bottom)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#9-processing-status-bottom" class="md-nav__link">
+    <span class="md-ellipsis">
+      9. Processing Status (Bottom)
     </span>
   </a>
   
@@ -1310,31 +1406,87 @@
     B --&gt; C[Remove Ripples]
     C --&gt; D[Add Annotations]
     D --&gt; E[Save Result]</code></pre>
+<h2 id="quick-start-tutorial">Quick Start Tutorial<a class="headerlink" href="#quick-start-tutorial" title="Permanent link">&para;</a></h2>
+<p>Launch the application:
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>lithic-editor<span class="w"> </span>--gui
+</span></code></pre></div></p>
+<h3 id="step-1-load-your-image">Step 1: Load Your Image<a class="headerlink" href="#step-1-load-your-image" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Click <strong>"Load Image"</strong> button</li>
+<li>Select a lithic drawing file (PNG, JPEG, TIFF, or BMP)</li>
+<li>Image appears in the Input Image panel</li>
+</ol>
+<h3 id="step-2-process-the-image">Step 2: Process the Image<a class="headerlink" href="#step-2-process-the-image" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Click <strong>"Process Image"</strong> button</li>
+<li>Wait for processing to complete (5-30 seconds)</li>
+<li>View the cleaned result in Processed Image panel</li>
+</ol>
+<h3 id="step-3-add-annotations-optional">Step 3: Add Annotations (Optional)<a class="headerlink" href="#step-3-add-annotations-optional" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Click <strong>"Add Arrow"</strong> - arrow appears in center</li>
+<li><strong>Drag</strong> to position over feature</li>
+<li><strong>Shift+drag</strong> to rotate to desired angle</li>
+<li><strong>Alt/Option+drag</strong> to resize</li>
+</ol>
+<h3 id="step-4-save-your-result">Step 4: Save Your Result<a class="headerlink" href="#step-4-save-your-result" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Click <strong>"Save Result"</strong> button</li>
+<li>Choose format (PNG recommended)</li>
+<li>Select output location</li>
+</ol>
 <h2 id="main-interface">Main Interface<a class="headerlink" href="#main-interface" title="Permanent link">&para;</a></h2>
-<p>The Lithic Editor interface is divided into four main sections:</p>
-<h3 id="1-input-panel-top-left">1. Input Panel (Top Left)<a class="headerlink" href="#1-input-panel-top-left" title="Permanent link">&para;</a></h3>
+<p>The Lithic Editor interface contains eight main sections:</p>
+<h3 id="1-file-controls-top-left">1. File Controls (Top Left)<a class="headerlink" href="#1-file-controls-top-left" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Displays the original image</li>
-<li>Provides editing tools for cleanup</li>
-<li>Shows image information (size, DPI)</li>
+<li><strong>Load Image</strong> - Select input file</li>
+<li><strong>Process Image</strong> - Start ripple removal</li>
+<li><strong>Save Result</strong> - Export processed image</li>
+<li><strong>Exit</strong> - Close application</li>
 </ul>
-<h3 id="2-processed-panel-top-right">2. Processed Panel (Top Right)<a class="headerlink" href="#2-processed-panel-top-right" title="Permanent link">&para;</a></h3>
+<h3 id="2-drawing-tools-top-left-below-file-controls">2. Drawing Tools (Top Left, Below File Controls)<a class="headerlink" href="#2-drawing-tools-top-left-below-file-controls" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Shows the cleaned image after ripple removal</li>
-<li>Updates in real-time during processing</li>
-<li>Maintains original image quality</li>
+<li><strong>Activate Brush</strong> - Enable/disable brush editing</li>
+<li><strong>Color</strong> - Choose brush color (White/Black)</li>
+<li><strong>Size</strong> - Adjust brush size (1-10)</li>
+<li><strong>Clear Brush</strong> - Reset brush settings</li>
 </ul>
-<h3 id="3-annotation-panel-bottom-left">3. Annotation Panel (Bottom Left)<a class="headerlink" href="#3-annotation-panel-bottom-left" title="Permanent link">&para;</a></h3>
+<h3 id="3-arrow-annotations-bottom-left">3. Arrow Annotations (Bottom Left)<a class="headerlink" href="#3-arrow-annotations-bottom-left" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Canvas for adding directional arrows</li>
-<li>Interactive arrow manipulation</li>
-<li>Color and size controls</li>
+<li><strong>Add Arrow</strong> - Create new arrow</li>
+<li><strong>Arrow Color</strong> - Change arrow color</li>
+<li><strong>Delete Arrow</strong> - Remove selected arrow</li>
+<li><strong>Clear Arrows</strong> - Remove all arrows</li>
 </ul>
-<h3 id="4-debug-panel-bottom-right">4. Debug Panel (Bottom Right)<a class="headerlink" href="#4-debug-panel-bottom-right" title="Permanent link">&para;</a></h3>
+<h3 id="4-options-and-dpi-settings-top-right">4. Options and DPI Settings (Top Right)<a class="headerlink" href="#4-options-and-dpi-settings-top-right" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Displays processing steps</li>
-<li>Shows algorithm visualization</li>
-<li>Helps understand the cleaning process</li>
+<li><strong>Debug Images</strong> - View and save debug images (checkbox)</li>
+<li><strong>Preserve Cortex Stippling</strong> - Keep cortex texture (checkbox)</li>
+<li><strong>DPI Settings</strong> - Leave unset or set custom DPI</li>
+</ul>
+<h3 id="5-input-image-window-center-left">5. Input Image Window (Center Left)<a class="headerlink" href="#5-input-image-window-center-left" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Displays original drawing</li>
+<li>Shows loaded image</li>
+</ul>
+<h3 id="6-processed-image-arrow-annotations-center-right">6. Processed Image / Arrow Annotations (Center Right)<a class="headerlink" href="#6-processed-image-arrow-annotations-center-right" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Shows cleaned result after processing</li>
+<li>Canvas for arrow annotation overlay</li>
+</ul>
+<h3 id="7-processing-steps-right-panel">7. Processing Steps (Right Panel)<a class="headerlink" href="#7-processing-steps-right-panel" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Debug visualization window</li>
+<li>Appears when debug images option is enabled</li>
+</ul>
+<h3 id="8-processing-log-bottom">8. Processing Log (Bottom)<a class="headerlink" href="#8-processing-log-bottom" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Shows real-time processing information</li>
+<li>Displays brush settings and status messages</li>
+</ul>
+<h3 id="9-processing-status-bottom">9. Processing Status (Bottom)<a class="headerlink" href="#9-processing-status-bottom" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Shows current application state ("Ready", processing status)</li>
 </ul>
 <h2 id="core-functions">Core Functions<a class="headerlink" href="#core-functions" title="Permanent link">&para;</a></h2>
 <h3 id="image-loading">Image Loading<a class="headerlink" href="#image-loading" title="Permanent link">&para;</a></h3>

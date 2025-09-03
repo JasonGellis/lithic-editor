@@ -111,9 +111,9 @@ nav:
     - Features: features.md
     - Screenshots: screenshots.md
 
-  - Getting Started:
+  - Installation:
     - Installation: getting-started/installation.md
-    - Quick Start: getting-started/quickstart.md
+    - Quick Start: getting-started/overview.md
     - Requirements: getting-started/requirements.md
 
   - User Guide:

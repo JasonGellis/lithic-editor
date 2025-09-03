@@ -63,31 +63,13 @@ illustration preparation and enhancement:
 - **Museum Curators** preparing artifact documentation
 - **Students** studying archaeological illustration techniques
 
-## Getting Started
-
-<div class="card-grid">
-  <div class="card">
-    <h3>Installation</h3>
-    <p>Set up Lithic Editor on your system</p>
-    <a href="getting-started/installation/" class="md-button">Install Guide</a>
-  </div>
-
-  <div class="card">
-    <h3>Quick Start</h3>
-    <p>Process your first lithic drawing</p>
-    <a href="getting-started/quickstart/" class="md-button">Tutorial</a>
-  </div>
-
-  <div class="card">
-    <h3>User Guide</h3>
-    <p>Learn all features and workflows</p>
-    <a href="user-guide/overview/" class="md-button">Documentation</a>
-  </div>
-</div>
-
 ## Support
 
 - **Issues**: [GitHub Issues](https://github.com/JasonGellis/lithic-editor/issues)
+
+## Next Steps
+
+Follow the [installation guide](getting-started/installation.md) to set up Lithic Editor on your computer.
 
 ---
 

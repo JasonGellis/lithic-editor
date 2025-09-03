@@ -12,11 +12,51 @@
 - macOS >= 10.15
 - Linux (Ubuntu 20.04+, Fedora 34+, etc.)
 
-## Installation Methods
+## Step 1: Prerequisites
 
-### Method 1: Install from GitHub (Recommended)
+Before installing Lithic Editor, ensure you have:
 
-This method installs the latest stable version directly from the repository.
+- **Python 3.7+** installed on your system ([Download Python](https://www.python.org/downloads/))
+- **Git** installed for GitHub access ([Download Git](https://git-scm.com/downloads))
+- **pip** package manager (included with Python 3.4+)
+
+Verify your setup:
+```bash
+python --version    # Should show 3.7 or higher
+git --version       # Should show git version
+pip --version       # Should show pip version
+```
+
+## Step 2: Virtual Environment Setup (Recommended)
+
+Create an isolated environment for Lithic Editor:
+
+=== "venv"
+    ```bash
+    # Create virtual environment
+    python -m venv lithic-env
+
+    # Activate it
+    # Windows
+    lithic-env\Scripts\activate
+    # macOS/Linux
+    source lithic-env/bin/activate
+    ```
+
+=== "conda"
+    ```bash
+    # Create conda environment
+    conda create -n lithic python=3.9
+    conda activate lithic
+    ```
+
+## Step 3: Installation
+
+Choose your installation method:
+
+### Method 1: Install from GitHub (Most Users)
+
+With your virtual environment activated:
 
 ```bash
 # Install directly from GitHub
@@ -24,13 +64,12 @@ pip install git+https://github.com/JasonGellis/lithic-editor.git
 ```
 
 To install a specific version:
-
 ```bash
 # Install a specific release
 pip install git+https://github.com/JasonGellis/lithic-editor.git@v1.0.0
 ```
 
-### Method 2: Development Installation
+### Method 2: Development Installation (Contributors)
 
 For developers, contributors, or users who want to modify the code:
 
@@ -55,32 +94,9 @@ pip install -e ".[docs]"
 pip install -e ".[dev,test,docs]"
 ```
 
-## Dependency Installation
+## Step 4: Verify Installation
 
-
-### Dependency Groups Explained
-
-| Group | Purpose | Includes |
-|-------|---------|----------|
-| *none* | Users only | Core dependencies for running the app |
-| `test` | Running tests | pytest, pytest-qt, pytest-cov |
-| `dev` | Code quality | black, flake8, mypy + test dependencies |
-| `docs` | Building docs | mkdocs, mkdocs-material + extensions (for contributors only) |
-
-All dependencies are automatically installed with the package. However, if you encounter issues, you can manually install them:
-
-```bash
-# Core dependencies
-pip install numpy opencv-python Pillow PyQt5 scikit-image networkx scipy
-
-# Optional: For building/editing documentation (NOT needed for viewing docs)
-# Users can view docs with 'lithic-editor docs' without these packages
-pip install mkdocs mkdocs-material pymdown-extensions
-```
-
-## Verifying Installation
-
-After installation, verify everything is working:
+Test that everything is working:
 
 ```bash
 # Check version
@@ -93,34 +109,39 @@ lithic-editor --help
 lithic-editor --gui
 ```
 
-## Accessing Documentation
+## Dependency Information
 
-### ![](../assets/images/web.svg){: style="width:24px; height:24px; vertical-align:text-bottom; filter:brightness(0); margin-right:8px"} Online Documentation
-Complete, up to date documentation is always available online:
-**https://jasongellis.github.io/lithic-editor/**
+### Core Dependencies
+All dependencies are automatically installed:
 
-### ![](../assets/images/computer.svg){: style="width:24px; height:24px; vertical-align:text-bottom; filter:brightness(0); margin-right:8px"} Local Documentation (Following Installation)
+| Package | Purpose |
+|---------|---------|
+| numpy | Numerical operations |
+| opencv-python | Image processing |
+| Pillow | Image I/O |
+| PyQt5 | GUI framework |
+| scikit-image | Advanced image processing |
+| networkx | Graph algorithms |
+| scipy | Scientific computing |
+
+### Development Dependencies
+
+| Group | Purpose | Includes |
+|-------|---------|----------|
+| `test` | Running tests | pytest, pytest-qt, pytest-cov |
+| `dev` | Code quality | black, flake8, mypy + test dependencies |
+| `docs` | Building docs | mkdocs, mkdocs-material + extensions |
+
+All dependencies are automatically installed with the package. However, if you encounter issues, you can manually install them:
+
 ```bash
-# Open documentation in your browser
-lithic-editor docs
+# Core dependencies
+pip install numpy opencv-python Pillow PyQt5 scikit-image networkx scipy
 
-# Serve documentation locally (for offline viewing)
-lithic-editor docs --offline
+# Optional: For building/editing documentation (NOT needed for viewing docs)
+# Users can view docs with 'lithic-editor docs' without these packages
+pip install mkdocs mkdocs-material pymdown-extensions
 ```
-
-### ![](../assets/images/quick_reference.svg){: style="width:24px; height:24px; vertical-align:text-bottom; filter:brightness(0); margin-right:8px"} Quick Help
-```bash
-lithic-editor --help     # Show all commands and options
-lithic-editor help       # Show detailed help information
-lithic-editor help api   # Show Python API usage examples
-```
-
-### What's in the Documentation?
-- **Installation Guide** - Detailed setup instructions (this page!)
-- **Quick Start Tutorial** - Process your first image in minutes
-- **User Guide** - Complete feature documentation with examples
-- **Developer Guide** - Contributing, testing, and extending the application
-- **API Reference** - Python API documentation for programmatic usage
 
 ## Troubleshooting
 
@@ -155,60 +176,27 @@ lithic-editor help api   # Show Python API usage examples
     pip install --user git+https://github.com/JasonGellis/lithic-editor.git
     ```
 
-### Virtual Environment Setup
+### Platform-Specific Setup
 
-We recommend using a virtual environment:
+=== "Windows"
+    You might need Visual C++ redistributables:
+    - [Download from Microsoft](https://aka.ms/vs/17/release/vc_redist.x64.exe)
 
-=== "venv"
+=== "macOS"
+    You might need to allow the application in Security & Privacy settings the first time you run it.
+
+=== "Linux"
+    Some distributions require additional packages:
     ```bash
-    # Create virtual environment
-    python -m venv lithic-env
+    # Ubuntu/Debian
+    sudo apt-get install python3-dev python3-pip python3-venv
 
-    # Activate it
-    # Windows
-    lithic-env\Scripts\activate
-    # macOS/Linux
-    source lithic-env/bin/activate
+    # Fedora
+    sudo dnf install python3-devel
 
-    # Install package
-    pip install git+https://github.com/JasonGellis/lithic-editor.git
+    # Arch
+    sudo pacman -S python python-pip
     ```
-
-=== "conda"
-    ```bash
-    # Create conda environment
-    conda create -n lithic python=3.9
-    conda activate lithic
-
-    # Install package
-    pip install git+https://github.com/JasonGellis/lithic-editor.git
-    ```
-
-## Platform-Specific Notes
-
-### macOS
-
-On macOS, you might need to allow the application in Security & Privacy settings the first time you run it.
-
-### Windows
-
-Windows users might need to install Visual C++ redistributables if not already present:
-- [Download from Microsoft](https://aka.ms/vs/17/release/vc_redist.x64.exe)
-
-### Linux
-
-Some Linux distributions require additional packages:
-
-```bash
-# Ubuntu/Debian
-sudo apt-get install python3-dev python3-pip python3-venv
-
-# Fedora
-sudo dnf install python3-devel
-
-# Arch
-sudo pacman -S python python-pip
-```
 
 ## Updating
 
@@ -234,4 +222,4 @@ pip uninstall lithic-editor
 
 ## Next Steps
 
-Once installed, proceed to the [Quick Start Guide](quickstart.md) to process your first lithic drawing!
+Once installed, proceed to the [User Guide](../user-guide/overview.md) to begin processing lithic drawings.
