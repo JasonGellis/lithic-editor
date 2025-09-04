@@ -2,7 +2,77 @@
 
 ## Introduction
 
-This comprehensive guide covers all aspects of using Lithic Editor and Annotator for processing archaeological lithic drawings. Whether you're new to the software or looking to master advanced features, this guide will help you achieve professional results.
+This section covers all aspects of the Lithic Editor and Annotator GUI.
+
+## Launch Lithic Editor GUI
+
+To launch the application GUI from your terminal:
+```bash
+lithic-editor --gui
+```
+
+## Main Interface
+
+The Lithic Editor interface contains eight main sections:
+
+### 1. File Controls (Top Left)
+- **Load Image** - Select input file
+- **Process Image** - Start ripple removal
+- **Save Result** - Export processed image
+- **Exit** - Close application
+
+### 2. Drawing Tools (Left, Below File Controls)
+
+The brush tool is used to edit images in the **Input Image** window and will not affect your original image.
+
+- **Activate Brush** - Enable/disable brush editing
+- **Color** - Choose brush color (White/Black)
+- **Size** - Adjust brush size (1-10)
+- **Clear Brush** - Reset brush settings and clear brush marks
+
+### 3. Arrow Annotations (Left, Below Drawing Tools)
+
+After ripples are remove arrows can be added to indicate striking direction.
+
+- **Add Arrow** - Create new arrow
+- **Arrow Color** - Change arrow color
+- **Delete Arrow** - Remove selected arrow
+- **Clear Arrows** - Remove all arrows
+- **Rotate** - Shift+drag to rotate
+- **Rresize** - Option+drag to resize
+
+### 4. Options and DPI Settings (Top Right)
+- **Debug Images** - View and save debug images (checkbox). Images load in **Processing Steps** window. Images automatically saved to image_debug directory. Unchecked by default
+- **Preserve Cortex Stippling** - Keep cortex texture (checkbox). Checked by default
+- **DPI Settings** - Leave unset or set custom DPI
+
+### 5. Input Image Window (Center Left)
+- Shows imported image copy of original drawing
+
+### 6. Processed Image / Arrow Annotations (Center)
+- Shows cleaned result after processing
+- Canvas for arrow annotation overlay
+
+### 7. Processing Steps (Center Right when enabled)
+- Debug visualization window
+- Appears when debug images option is enabled (hidden by default)
+
+### 8. Processing Log (Bottom)
+- Shows real-time processing information
+- Displays brush settings and status messages
+
+### 9. Processing Status (Bottom)
+- Shows current application state ("Ready", processing status)
+
+
+## Navigation
+
+Use the sidebar to explore specific topics:
+
+- [Processing Images](../user-guide/processing.md) - Detailed processing guide
+- [Adding Annotations](../user-guide/arrows.md) - Arrow annotation techniques
+- [Saving Results](../user-guide/output.md) - Export options and formats
+
 
 ## Workflow Overview
 
@@ -10,91 +80,14 @@ The typical workflow for processing lithic drawings follows these steps:
 
 ```mermaid
 graph LR
-    A[Load Image] --> B[Pre-Process]
-    B --> C[Remove Ripples]
-    C --> D[Add Annotations]
-    D --> E[Save Result]
+    A[Load Image] --> B[Check DPI]
+    B --> C[Process Image]
+    C --> D{Success?}
+    D -->|No| E[Image Debug & Adjust]
+    E --> C
+    D -->|Yes| F[Add Annotations]
+    F --> G[Save Result]
 ```
-
-## Main Interface
-
-The Lithic Editor interface is divided into four main sections:
-
-### 1. Input Panel (Top Left)
-- Displays the original image
-- Provides editing tools for cleanup
-- Shows image information (size, DPI)
-
-### 2. Processed Panel (Top Right)
-- Shows the cleaned image after ripple removal
-- Updates in real-time during processing
-- Maintains original image quality
-
-### 3. Annotation Panel (Bottom Left)
-- Canvas for adding directional arrows
-- Interactive arrow manipulation
-- Color and size controls
-
-### 4. Debug Panel (Bottom Right)
-- Displays processing steps
-- Shows algorithm visualization
-- Helps understand the cleaning process
-
-## Core Functions
-
-### Image Loading
-- Support for multiple formats
-- Automatic DPI detection
-- Image validation and error checking
-
-### Processing Engine
-- Graph-based line analysis
-- Pattern recognition algorithms
-- Structural preservation logic
-
-### Annotation System
-- Vector-based arrows
-- DPI-aware sizing
-- Export-ready graphics
-
-## Navigation
-
-Use the sidebar to explore specific topics:
-
-- [Processing Images](../processing-images/) - Detailed processing guide
-
-## Best Practices
-
-### For Optimal Results
-
-1. **Image Preparation**
-   - Use high-resolution scans (300+ DPI)
-   - Ensure good contrast
-   - Remove unnecessary elements
-
-2. **Processing Settings**
-   - Enable "View and Save Debug Images" for complex images
-   - Review intermediate steps in Processing Steps panel
-   - Set custom DPI if needed (default preserves original)
-
-3. **Annotation Guidelines**
-   - Maintain consistent arrow sizes
-   - Use appropriate colors
-   - Align with archaeological standards
-
-### Common Workflows
-
-#### Single Image Processing
-1. Load image
-2. Process
-3. Annotate
-4. Save
-
-#### Batch Processing
-1. Prepare image folder
-2. Use CLI for batch operations
-3. Review results
-4. Apply annotations as needed
 
 #### Research Documentation
 1. Process with debug enabled
@@ -141,24 +134,7 @@ Cleans up the result and restores line quality.
 !!! tip "Quality Control"
     Enable "View and Save Debug Images" and review the processing steps to ensure important features aren't removed.
 
-## Troubleshooting Guide
 
-### Processing Issues
-
-| Problem | Solution |
-|---------|----------|
-| Structural lines removed | Adjust algorithm sensitivity |
-| Ripples not fully removed | Check image contrast |
-| Processing too slow | Reduce image size |
-| Memory errors | Close other applications |
-
-### Annotation Issues
-
-| Problem | Solution |
-|---------|----------|
-| Arrows too small | Increase DPI setting |
-| Can't select arrow | Click closer to arrow center |
-| Arrows disappear | Check arrow color vs background |
 
 ## Getting Support
 
@@ -171,4 +147,5 @@ If you need help:
 
 ## Next Steps
 
-- Continue to [Processing Images](../processing-images/) for detailed processing instructions
+- Continue to [Processing Images](../user-guide/processing.md) for detailed processing instructions
+- Explore [Output and Saving Options](../user-guide/output.md) for export settings and saving images

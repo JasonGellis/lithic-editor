@@ -1,8 +1,21 @@
 # Processing Images
 
-## Overview
-
 The image processing engine in Lithic Editor uses advanced algorithms to automatically identify and remove ripple lines while preserving the structural elements of lithic drawings.
+
+## Workflow Overview
+
+The typical workflow for processing lithic drawings follows these steps:
+
+```mermaid
+graph LR
+    A[Load Image] --> B[Check DPI]
+    B --> C[Process Image]
+    C --> D{Success?}
+    D -->|No| E[Image Debug & Adjust]
+    E --> C
+    D -->|Yes| F[Add Annotations]
+    F --> G[Save Result]
+```
 
 ## Loading Images
 
@@ -121,171 +134,33 @@ Adjust processing parameters:
 - Ripple pattern sensitivity
 - Structural preservation level
 
-## Command Line Processing
-
-### Basic Usage
-
-```bash
-# Process single image
-lithic-editor process input.png
-
-# Specify output directory
-lithic-editor process input.png --output results/
-
-# Enable debug mode
-lithic-editor process input.png --debug
-```
-
-### Batch Processing
-
-```bash
-# Process all PNG files
-for file in *.png; do
-    lithic-editor process "$file" --output processed/
-done
-
-# Process with parallel jobs
-find . -name "*.png" | parallel lithic-editor process {} --quiet
-```
-
-### Advanced Options
-
-```bash
-# Neural network upscaling with debug output
-lithic-editor process low_res.png \
-    --auto-upscale \
-    --default-dpi 150 \
-    --upscale-model fsrcnn \
-    --upscale-threshold 300 \
-    --debug
-
-# Batch processing with upscaling
-for file in *.png; do
-    lithic-editor process "$file" \
-        --auto-upscale \
-        --default-dpi 200 \
-        --output "processed/${file%.png}/"
-done
-```
-
-## Python API
-
-### Using the Python API
-
-For detailed API documentation and examples, see the [API Reference](../api-reference/overview.md).
-
-```python
-from lithic_editor.processing import process_lithic_drawing
-
-# Basic example
-result = process_lithic_drawing("drawing.png", save_debug=True)
-
-# With neural network upscaling
-result = process_lithic_drawing(
-    "low_dpi.png",
-    save_debug=True,
-    upscale_low_dpi=True,
-    default_dpi=150,
-    upscale_model='espcn',
-    target_dpi=300,
-    preserve_cortex=True
-)
-```
-
-For advanced usage, batch processing, and integration examples, refer to:
-- [Python API Documentation](../api-reference/python-api.md)
-- [CLI Reference](../api-reference/cli-reference.md)
-
-## Troubleshooting
-
-### Common Issues
-
-??? problem "Structural lines are removed"
-    **Causes:**
-    - Lines too similar to ripple pattern
-    - Incorrect threshold settings
-    
-    **Solutions:**
-    - Increase structural preservation setting
-    - Manually edit before processing
-    - Use debug mode to identify issue
-
-??? problem "Ripples not fully removed"
-    **Causes:**
-    - Inconsistent ripple pattern
-    - Poor image quality
-    - Ripples too thick
-    
-    **Solutions:**
-    - Improve scan quality
-    - Pre-process to enhance contrast
-    - Adjust sensitivity settings
-
-??? problem "Processing takes too long"
-    **Causes:**
-    - Image too large
-    - Insufficient memory
-    - Complex line patterns
-    
-    **Solutions:**
-    - Resize image to 3000px max
-    - Close other applications
-    - Use batch processing overnight
-
-### Image Preparation Tips
-
-1. **Scanning**
-   - Use 300+ DPI
-   - Black and white mode
-   - Clean scanner glass
-
-2. **Editing**
-   - Remove text and scales
-   - Fill gaps in lines
-   - Increase contrast
-
-3. **Format**
-   - Save as PNG
-   - Use lossless compression
-   - Preserve metadata
-
-## Best Practices
-
 ### Quality Control
 
 !!! tip "Always Review Debug Images"
     Enable debug mode for important images to verify the algorithm isn't removing structural elements.
 
-### Workflow Optimization
 
-1. **Test on Sample**
-   - Process small section first
-   - Adjust settings as needed
-   - Apply to full image
+## Best Practices
 
-2. **Batch Similar Images**
-   - Group by drawing style
-   - Use consistent settings
-   - Review results together
+### For Optimal Results
 
-3. **Archive Originals**
-   - Keep unprocessed versions
-   - Document processing parameters
-   - Note any manual edits
+1. **Image Preparation**
+   - Use high-resolution scans (300+ DPI)
+   - Ensure good contrast
+   - Remove unnecessary elements
 
-## Performance Optimization
+2. **Processing Settings**
+   - Enable "View and Save Debug Images" for complex images
+   - Review intermediate steps in Processing Steps panel
+   - Set custom DPI if needed (default preserves original)
 
-### Memory Management
-- Process images under 4000×4000 pixels
-- Close unnecessary applications
-- Use 64-bit Python
+3. **Annotation Guidelines**
+   - Maintain consistent arrow sizes
+   - Use appropriate colors
+   - Align with archaeological standards
 
-### Speed Improvements
-- Resize large images first
-- Process in batches overnight
-- Use SSD for temp files
 
-### Parallel Processing
+### Parallel Processing (using the API)
 ```python
 from multiprocessing import Pool
 from lithic_editor.processing import process_lithic_drawing
@@ -299,6 +174,4 @@ with Pool(processes=4) as pool:
 
 ## Next Steps
 
-- Learn about [Adding Annotations](annotations.md)
-- Explore [Saving Options](saving.md)
-- Read [API Reference](../developer/api.md)
+- Continue to [Output Guide](output.md) for information about output files and formats
