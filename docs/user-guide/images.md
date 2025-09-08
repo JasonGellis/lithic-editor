@@ -15,7 +15,7 @@ This section covers image types, formats, and quality requirements for optimal p
 ## Image Quality Requirements
 
 <div style="float: right; margin-left: 20px; margin-bottom: 20px; max-width: 350px;">
-  <img src="/assets/images/lithic_flake_300dpi.png" alt="Example lithic flake at 300 DPI" style="width: 100%; border: 1px solid #ddd; padding: 10px; background: white;">
+  <img src="/assets/images/lithic_300dpi.png" alt="Example lithic flake at 300 DPI" style="width: 100%; border: 1px solid #ddd; padding: 10px; background: white;">
   <p style="font-size: 0.9em; font-style: italic; text-align: center; margin-top: 8px; color: #666;">
     Example of a high-quality lithic flake illustration at 300 DPI showing ripple lines, cortex stippling, and clear structural boundaries suitable for processing
   </p>
