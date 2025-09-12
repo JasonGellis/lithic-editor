@@ -9,12 +9,15 @@ The typical workflow for processing lithic drawings follows these steps:
 ```mermaid
 graph LR
     A[Load Image] --> B[Check DPI]
-    B --> C[Process Image]
-    C --> D{Success?}
-    D -->|No| E[Image Debug & Adjust]
-    E --> C
-    D -->|Yes| F[Add Annotations]
-    F --> G[Save Result]
+    B --> C{DPI < 300?}
+    C -->|Yes| D[Neural Network Upscaling]
+    C -->|No| E[Process Image]
+    D --> E
+    E --> F{Success?}
+    F -->|No| G[Image Debug & Adjust]
+    G --> E
+    F -->|Yes| H[Add Annotations]
+    H --> I[Save Result]
 ```
 
 ## Loading Images
@@ -48,48 +51,6 @@ Automatically preserves natural cortex stippling on lithic artifacts:
 - **Pre-processing preservation**: Cortex bypasses destructive skeletonization
 - **Archaeological accuracy**: Maintains cortex vs. worked surface distinction
 - **User control**: Toggle preservation on/off via GUI checkbox or CLI flag
-
-## Processing Algorithm
-
-### How It Works
-
-The ripple removal algorithm follows these steps:
-
-1. **Neural Network Upscaling** (if needed)
-   - Detect DPI from image metadata or prompt user
-   - Upscale low-DPI images using ESPCN/FSRCNN models
-   - Maintain aspect ratio and line quality
-
-2. **Image Preprocessing & Cortex Separation**
-   - Convert to grayscale if needed
-   - Apply threshold to create binary image
-   - Separate cortex stippling from structural lines
-   - Preserve cortex areas before skeletonization
-
-3. **Skeletonization**
-   - Reduce lines to single-pixel width
-   - Preserve connectivity and topology
-   - Create network representation
-
-4. **Line Analysis**
-   - Detect individual line segments
-   - Calculate orientation and length
-   - Build connectivity graph
-
-5. **Ripple Detection**
-   - Identify parallel line patterns
-   - Analyze spacing consistency
-   - Classify as ripple or structural
-
-6. **Selective Removal**
-   - Remove identified ripple lines
-   - Preserve structural boundaries
-   - Maintain artifact integrity
-
-7. **Final Assembly**
-   - Combine cleaned structural lines with preserved cortex
-   - Refine endpoint decisions after cleaning
-   - Create final archaeologically accurate result
 
 ## Using the GUI
 

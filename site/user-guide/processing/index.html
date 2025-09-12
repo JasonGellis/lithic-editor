@@ -775,30 +775,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#processing-algorithm" class="md-nav__link">
-    <span class="md-ellipsis">
-      Processing Algorithm
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Processing Algorithm">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#how-it-works" class="md-nav__link">
-    <span class="md-ellipsis">
-      How It Works
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#using-the-gui" class="md-nav__link">
     <span class="md-ellipsis">
       Using the GUI
@@ -1178,12 +1154,15 @@
 <p>The typical workflow for processing lithic drawings follows these steps:</p>
 <pre class="mermaid"><code>graph LR
     A[Load Image] --&gt; B[Check DPI]
-    B --&gt; C[Process Image]
-    C --&gt; D{Success?}
-    D --&gt;|No| E[Image Debug &amp; Adjust]
-    E --&gt; C
-    D --&gt;|Yes| F[Add Annotations]
-    F --&gt; G[Save Result]</code></pre>
+    B --&gt; C{DPI &lt; 300?}
+    C --&gt;|Yes| D[Neural Network Upscaling]
+    C --&gt;|No| E[Process Image]
+    D --&gt; E
+    E --&gt; F{Success?}
+    F --&gt;|No| G[Image Debug &amp; Adjust]
+    G --&gt; E
+    F --&gt;|Yes| H[Add Annotations]
+    H --&gt; I[Save Result]</code></pre>
 <h2 id="loading-images">Loading Images<a class="headerlink" href="#loading-images" title="Permanent link">&para;</a></h2>
 <h3 id="supported-formats">Supported Formats<a class="headerlink" href="#supported-formats" title="Permanent link">&para;</a></h3>
 <ul>
@@ -1212,64 +1191,6 @@
 - <strong>Pre-processing preservation</strong>: Cortex bypasses destructive skeletonization
 - <strong>Archaeological accuracy</strong>: Maintains cortex vs. worked surface distinction
 - <strong>User control</strong>: Toggle preservation on/off via GUI checkbox or CLI flag</p>
-<h2 id="processing-algorithm">Processing Algorithm<a class="headerlink" href="#processing-algorithm" title="Permanent link">&para;</a></h2>
-<h3 id="how-it-works">How It Works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h3>
-<p>The ripple removal algorithm follows these steps:</p>
-<ol>
-<li><strong>Neural Network Upscaling</strong> (if needed)</li>
-<li>Detect DPI from image metadata or prompt user</li>
-<li>Upscale low-DPI images using ESPCN/FSRCNN models</li>
-<li>
-<p>Maintain aspect ratio and line quality</p>
-</li>
-<li>
-<p><strong>Image Preprocessing &amp; Cortex Separation</strong></p>
-</li>
-<li>Convert to grayscale if needed</li>
-<li>Apply threshold to create binary image</li>
-<li>Separate cortex stippling from structural lines</li>
-<li>
-<p>Preserve cortex areas before skeletonization</p>
-</li>
-<li>
-<p><strong>Skeletonization</strong></p>
-</li>
-<li>Reduce lines to single-pixel width</li>
-<li>Preserve connectivity and topology</li>
-<li>
-<p>Create network representation</p>
-</li>
-<li>
-<p><strong>Line Analysis</strong></p>
-</li>
-<li>Detect individual line segments</li>
-<li>Calculate orientation and length</li>
-<li>
-<p>Build connectivity graph</p>
-</li>
-<li>
-<p><strong>Ripple Detection</strong></p>
-</li>
-<li>Identify parallel line patterns</li>
-<li>Analyze spacing consistency</li>
-<li>
-<p>Classify as ripple or structural</p>
-</li>
-<li>
-<p><strong>Selective Removal</strong></p>
-</li>
-<li>Remove identified ripple lines</li>
-<li>Preserve structural boundaries</li>
-<li>
-<p>Maintain artifact integrity</p>
-</li>
-<li>
-<p><strong>Final Assembly</strong></p>
-</li>
-<li>Combine cleaned structural lines with preserved cortex</li>
-<li>Refine endpoint decisions after cleaning</li>
-<li>Create final archaeologically accurate result</li>
-</ol>
 <h2 id="using-the-gui">Using the GUI<a class="headerlink" href="#using-the-gui" title="Permanent link">&para;</a></h2>
 <h3 id="step-by-step-processing">Step-by-Step Processing<a class="headerlink" href="#step-by-step-processing" title="Permanent link">&para;</a></h3>
 <ol>

@@ -19,13 +19,13 @@ Reads image files and extracts embedded DPI information from EXIF metadata. Supp
 Converts color images to 8-bit grayscale using luminance-preserving algorithms for consistent processing.</p>
 
 <p><strong>3. Neural Network Upscaling (Optional)</strong><br>
-Applies deep learning models (ESPCN or FSRCNN) to enhance images below 300 DPI, improving line clarity and detail preservation.</p>
+Detects DPI from image metadata or prompts user for DPI selection. Upscales low-DPI images using ESPCN or FSRCNN models while maintaining aspect ratio and line quality to improve detail preservation.</p>
 
 <p><strong>4. Binary Thresholding</strong><br>
-Employs Otsu's adaptive thresholding to convert grayscale images to binary format, separating foreground lines from background.</p>
+Converts to grayscale if needed and employs Otsu's adaptive thresholding to create binary image, separating foreground lines from background.</p>
 
 <p><strong>5. Cortex Separation</strong><br>
-Identifies and isolates cortex stippling using DPI-adaptive connected component analysis. Threshold scales quadratically with resolution.</p>
+Separates cortex stippling from structural lines using DPI-adaptive connected component analysis. Preserves cortex areas before skeletonization to prevent destruction during processing.</p>
 
 <p><strong>6. Morphological Operations</strong><br>
 Applies targeted morphological transformations exclusively to structural elements:</p>
@@ -38,22 +38,22 @@ Applies targeted morphological transformations exclusively to structural element
 <h5>Structural Analysis & Ripple Detection</h5>
 
 <p><strong>7. Skeletonization</strong><br>
-Reduces structural lines to single-pixel width using morphological thinning, preserving topological features.</p>
+Reduces lines to single-pixel width using morphological thinning while preserving connectivity and topology to create network representation.</p>
 
 <p><strong>8. Junction and Endpoint Detection</strong><br>
 Analyzes skeleton connectivity to identify line terminations (endpoints) and intersections (junctions) through neighbor counting.</p>
 
 <p><strong>9. Line Segmentation</strong><br>
-Labels connected components after junction removal, creating discrete line segments for individual analysis.</p>
+Detects individual line segments and calculates orientation and length, creating discrete segments for individual analysis.</p>
 
 <p><strong>10. Graph Construction</strong><br>
-Builds NetworkX graph representation with segments as edges and junctions/endpoints as nodes.</p>
+Builds connectivity graph using NetworkX with segments as edges and junctions/endpoints as nodes.</p>
 
 <p><strong>11. Ripple Identification</strong><br>
-Classifies segments connected to endpoints as ripple lines, distinguishing them from structural elements.</p>
+Identifies parallel line patterns and analyzes spacing consistency to classify segments as ripple or structural elements.</p>
 
-<p><strong>12. Structural Mask Creation</strong><br>
-Generates binary mask containing only non-ripple segments and essential junctions for connectivity preservation.</p>
+<p><strong>12. Selective Removal</strong><br>
+Removes identified ripple lines while preserving structural boundaries to maintain artifact integrity.</p>
 
 <h5>Output Generation</h5>
 
@@ -63,8 +63,8 @@ Applies controlled dilation to restore original line thickness while maintaining
 <p><strong>14. Quality Enhancement</strong><br>
 Implements anti-aliasing and smoothing algorithms to produce publication-quality output.</p>
 
-<p><strong>15. Cortex Restoration</strong><br>
-Merges preserved cortex stippling with processed structural elements, maintaining archaeological accuracy.</p>
+<p><strong>15. Final Assembly</strong><br>
+Combines cleaned structural lines with preserved cortex and refines endpoint decisions after cleaning to create final archaeologically accurate result.</p>
 
 <p><strong>16. Final Output</strong><br>
 Produces cleaned image with proper contrast orientation and preserved metadata for publication use.</p>
