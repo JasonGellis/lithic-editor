@@ -1,151 +1,136 @@
 # Features
 
-## Image Processing
+## Image Processing Pipeline
 
-### Neural Network Upscaling
-Automatically enhance low-resolution images using state-of-the-art neural networks:
+### Processing Workflow
 
-- **ESPCN** (Efficient Sub-Pixel CNN): Fast, efficient upscaling
-- **FSRCNN** (Fast Super-Resolution CNN): Higher quality results
-- **Automatic DPI detection** from image metadata
-- **Interactive dialogs** for user control when metadata is missing
-- **300 DPI target** for optimal processing quality
+<div style="display: flex; gap: 30px; align-items: flex-start;">
 
-Learn more about these models: [OpenCV Super Resolution Tutorial](https://learnopencv.com/super-resolution-in-opencv/#sec3)
+<div style="flex: 1; min-width: 45%;">
 
-### Cortex Preservation
-Intelligently preserves natural cortex stippling on lithic artifacts:
+<h4>Processing Steps</h4>
 
-- **Archaeological accuracy**: Maintains distinction between cortex and worked surfaces
-- **Smart separation**: Identifies cortex stippling before processing
-- **Selective processing**: Only structural lines undergo ripple removal
-- **User control**: Toggle preservation via GUI checkbox or CLI flag
+<h5>Input & Preprocessing</h5>
 
-### Intelligent Ripple Removal
-The core feature uses advanced graph-based analysis to identify and remove hatching/ripple lines while preserving structural features. The algorithm:
+<p><strong>1. Image Loading and Metadata Extraction</strong><br>
+Reads image files and extracts embedded DPI information from EXIF metadata. Supports PNG, JPEG, TIFF, and BMP formats.</p>
 
-- Analyzes line patterns using skeletonization
-- Identifies ripple lines through pattern recognition
-- Preserves structural elements and edges
-- Maintains image quality and resolution
+<p><strong>2. Grayscale Conversion</strong><br>
+Converts color images to 8-bit grayscale using luminance-preserving algorithms for consistent processing.</p>
 
-### Processing Visualization
-View and save step-by-step processing stages to understand how the algorithm works and to troubleshoot problematic images:
+<p><strong>3. Neural Network Upscaling (Optional)</strong><br>
+Applies deep learning models (ESPCN or FSRCNN) to enhance images below 300 DPI, improving line clarity and detail preservation.</p>
 
-- Neural network upscaling (if needed)
-- Original image analysis
-- Cortex separation and preservation
-- Skeletonization of structural elements only
-- Endpoint and junction detection
-- Line segment labeling
-- Ripple identification
-- Structural cleaning
-- Endpoint filtering
-- Final assembly with cortex restoration
+<p><strong>4. Binary Thresholding</strong><br>
+Employs Otsu's adaptive thresholding to convert grayscale images to binary format, separating foreground lines from background.</p>
 
-### Manual Editing Tools
-Fine-tune your images before processing:
+<p><strong>5. Cortex Separation</strong><br>
+Identifies and isolates cortex stippling using DPI-adaptive connected component analysis. Threshold scales quadratically with resolution.</p>
 
-- Brush tools for cleanup
-- Adjustable brush sizes
-- Real-time preview
+<p><strong>6. Morphological Operations</strong><br>
+Applies targeted morphological transformations exclusively to structural elements:</p>
+<ul>
+<li>Dilation strengthens thin lines</li>
+<li>Closing bridges small gaps</li>
+<li>Opening smooths irregular edges</li>
+</ul>
 
-## Annotation Tools
+<h5>Structural Analysis & Ripple Detection</h5>
 
-### Directional Arrows
-Add professional-quality arrows to indicate:
+<p><strong>7. Skeletonization</strong><br>
+Reduces structural lines to single-pixel width using morphological thinning, preserving topological features.</p>
 
-- Force direction on lithic artifacts
-- Flake scar patterns
-- Manufacturing techniques
-- Impact points
+<p><strong>8. Junction and Endpoint Detection</strong><br>
+Analyzes skeleton connectivity to identify line terminations (endpoints) and intersections (junctions) through neighbor counting.</p>
 
-### Arrow Customization
-Complete control over arrow appearance:
+<p><strong>9. Line Segmentation</strong><br>
+Labels connected components after junction removal, creating discrete line segments for individual analysis.</p>
 
-- **Size**: Adjust arrow dimensions
-- **Rotation**: Orient to any angle
-- **Color**: Choose from full color palette
-- **Position**: Precise placement on image
+<p><strong>10. Graph Construction</strong><br>
+Builds NetworkX graph representation with segments as edges and junctions/endpoints as nodes.</p>
 
-### Arrow Controls
+<p><strong>11. Ripple Identification</strong><br>
+Classifies segments connected to endpoints as ripple lines, distinguishing them from structural elements.</p>
 
-=== "Windows/Linux"
-    - **Move**: Click and drag
-    - **Rotate**: Shift + drag
-    - **Resize**: Alt + drag
-    - **Delete**: Select and press Delete
+<p><strong>12. Structural Mask Creation</strong><br>
+Generates binary mask containing only non-ripple segments and essential junctions for connectivity preservation.</p>
 
-=== "macOS"
-    - **Move**: Click and drag
-    - **Rotate**: Shift + drag
-    - **Resize**: Option + drag
-    - **Delete**: Select and press Delete
+<h5>Output Generation</h5>
 
-## Technical Features
+<p><strong>13. Thickness Reconstruction</strong><br>
+Applies controlled dilation to restore original line thickness while maintaining clean edges.</p>
 
-### DPI Preservation
-- Maintains original image resolution
-- Preserves DPI metadata
-- Ensures publication-quality output
-- Supports high-resolution displays
+<p><strong>14. Quality Enhancement</strong><br>
+Implements anti-aliasing and smoothing algorithms to produce publication-quality output.</p>
 
-### Multiple Output Formats
+<p><strong>15. Cortex Restoration</strong><br>
+Merges preserved cortex stippling with processed structural elements, maintaining archaeological accuracy.</p>
 
-| Format | Features | Best For |
-|--------|----------|----------|
-| PNG | Lossless, transparency support | Web, presentations |
-| JPEG | Compressed, wide compatibility | Publications, sharing |
-| TIFF | Uncompressed, professional | Archival, printing |
+<p><strong>16. Final Output</strong><br>
+Produces cleaned image with proper contrast orientation and preserved metadata for publication use.</p>
 
-### Command-Line Processing
-Process images from the command line:
+</div>
 
-- Single image processing
-- Consistent processing parameters
-- Debug output options
-- Error handling
+<div style="flex: 1; min-width: 45%;">
 
-### Cross-Platform Support
-Works seamlessly on:
+```mermaid
+flowchart TB
+    subgraph section1 ["Input & Preprocessing"]
+        direction TB
+        subgraph row1a [" "]
+            direction LR
+            A["Load Image"] --> B["Extract Metadata"]
+            B --> C["Convert to Grayscale"]
+            C --> D{"`DPI < 300?`"}
+            D -->|Yes| E["Neural Network<br/>Upscaling"]
+            D -->|No| F["Binary Threshold"]
+            E --> F
+        end
 
-- ✅ Windows 10/11
-- ✅ macOS 10.15+
-- ✅ Linux (Ubuntu, Fedora, etc.)
+        subgraph row1b [" "]
+            direction LR
+            G["Separate Cortex"] --> H["Morphological<br/>Operations"]
+        end
 
-## Advanced Features
+        F --> G
+    end
 
-### Debug Mode
-Save intermediate processing steps for:
+    subgraph section2 ["Structural Analysis & Ripple Detection"]
+        direction TB
+        subgraph row2a [" "]
+            direction LR
+            I["Skeletonization"] --> J["Junction/Endpoint<br/>Detection"]
+            J --> K["Line Segmentation"]
+        end
 
-- Algorithm verification
-- Quality assurance
-- Research purposes
-- Teaching and training
+        subgraph row2b [" "]
+            direction LR
+            L["Graph Construction"] --> M["Ripple<br/>Identification"]
+            M --> N["Structural Mask<br/>Creation"]
+        end
 
-### API Integration
-Integrate Lithic Editor into your workflow:
+        K --> L
+    end
 
-```python
-from lithic_editor.processing import process_lithic_drawing
+    subgraph section3 ["Output Generation"]
+        direction LR
+        O["Thickness<br/>Reconstruction"] --> P["Quality<br/>Enhancement"]
+        P --> Q["Cortex<br/>Restoration"]
+        Q --> R["Final Output"]
+    end
 
-# Process with custom parameters
-result = process_lithic_drawing(
-    image_path="artifact.png",
-    save_debug=True,
-    output_dpi=300
-)
+    H --> I
+    N --> O
+
+    style D fill:#f9f,stroke:#333,stroke-width:2px
+    style E fill:#bbf,stroke:#333,stroke-width:2px
+    style section1 fill:#f8f9fa,stroke:#dee2e6,stroke-width:2px
+    style section2 fill:#fff3cd,stroke:#ffeaa7,stroke-width:2px
+    style section3 fill:#d1ecf1,stroke:#bee5eb,stroke-width:2px
+    style row1a fill:transparent,stroke:none
+    style row1b fill:transparent,stroke:none
+    style row2a fill:transparent,stroke:none
+    style row2b fill:transparent,stroke:none
 ```
 
-### Command-Line Interface
-Full functionality from the terminal:
-
-```bash
-# Process with options
-lithic-editor process image.png --output results/ --debug
-
-# Process multiple files with bash
-for file in *.png; do
-    lithic-editor process "$file" --quiet
-done
-```
+</div>

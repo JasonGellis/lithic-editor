@@ -119,7 +119,7 @@ def create_thickness_aware_mask(original_binary, structural_mask, min_thickness=
     from scipy.ndimage import distance_transform_edt
 
     # Create distance transform from structural skeleton
-    # This gives us zones around structural lines where we should preserve original content
+    # Creates zones around structural lines where original content should be preserved
     structural_distance = distance_transform_edt(~structural_mask)
 
     # Create adaptive dilation zones based on local line thickness in original
@@ -252,37 +252,39 @@ def debug_image_info(name, img):
     cv2.imwrite(output_path, img)
     print(f"Debug image saved to {output_path}")
 
-def separate_cortex_and_structure(binary_image, preserve_cortex=True, cortex_size_threshold=20):
+def separate_cortex_and_structure(binary_image, preserve_cortex=True, cortex_size_threshold=60):
     """
     Separate cortex stippling from structural lines before skeletonization.
-    
+
     Args:
         binary_image: Binary image (0=background, 255=foreground)
         preserve_cortex: If True, separates cortex; if False, processes everything together
-        cortex_size_threshold: Maximum pixel area for cortex components
-        
+        cortex_size_threshold: Maximum pixel area for cortex components. This is dynamically
+                                calculated based on DPI (base 60 pixels at 150 DPI, scaling
+                                quadratically with resolution)
+
     Returns:
         Tuple of (structural_image, cortex_mask)
     """
     if not preserve_cortex:
         # Process everything together - no cortex separation
         return binary_image, np.zeros_like(binary_image, dtype=bool)
-    
+
     # Find connected components
     num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(binary_image, connectivity=8)
-    
+
     # Create separate images for cortex and structural elements
     structural_image = np.zeros_like(binary_image)
     cortex_mask = np.zeros_like(binary_image, dtype=bool)
-    
+
     cortex_count = 0
     structural_count = 0
-    
+
     # Process each component (skip background label 0)
     for label in range(1, num_labels):
         component_area = stats[label, cv2.CC_STAT_AREA]
         component_mask = labels == label
-        
+
         if component_area <= cortex_size_threshold:
             # Small component - classify as cortex stippling
             cortex_mask[component_mask] = True
@@ -291,7 +293,7 @@ def separate_cortex_and_structure(binary_image, preserve_cortex=True, cortex_siz
             # Large component - structural line
             structural_image[component_mask] = 255
             structural_count += 1
-    
+
     print(f"Separated: {structural_count} structural components, {cortex_count} cortex stipples")
     return structural_image, cortex_mask
 
@@ -300,12 +302,22 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
                           upscale_low_dpi=False, default_dpi=None, upscale_model='espcn', target_dpi=300,
                           scale_image_path=None, return_scale_factor=False, debug_filename=None, preserve_cortex=True):
     """
-    Process a lithic drawing to remove ripple lines while preserving original line quality and metadata
+    Process a lithic drawing to remove ripple lines while preserving original line quality and metadata.
+    
+    Processing steps:
+    1. Load image and extract DPI metadata
+    2. Optional: Upscale low-DPI images using neural networks
+    3. Threshold to binary
+    4. Separate cortex from structural elements (DPI-adaptive threshold)
+    5. Apply morphological operations to structural elements only
+    6. Skeletonize and build graph representation
+    7. Identify and remove ripple lines
+    8. Reconstruct lines and add cortex back
 
     Args:
         image_path: Path to the input image
         output_folder: Folder to save all output images
-        dpi_info: DPI information to preserve (tuple of x,y dpi)
+        dpi_info: DPI information to preserve (tuple of x,y dpi or single value)
         format_info: Original image format to preserve
         output_dpi: DPI for output images
         save_debug: Whether to save debug images
@@ -385,7 +397,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
             current_dpi = default_dpi
             print(f"Using default DPI: {current_dpi} (no metadata found)")
         else:
-            # For non-interactive mode, we can't proceed without DPI
+            # Non-interactive mode requires DPI information to proceed
             print("Warning: No DPI information found and no default_dpi provided. Skipping upscaling.")
             upscale_low_dpi = False
 
@@ -473,15 +485,94 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
     # Save a copy of the binary image for later reconstruction
     binary_image = binary.astype(np.uint8) * 255
 
-    # Separate cortex stippling from structural lines
-    structural_image, cortex_mask = separate_cortex_and_structure(binary_image, preserve_cortex=preserve_cortex)
-    
+    # Extract DPI value first for cortex threshold scaling
+    current_dpi_value = None
+    if dpi_info:
+        if isinstance(dpi_info, tuple):
+            current_dpi_value = max(dpi_info[0], dpi_info[1])
+        else:
+            current_dpi_value = int(dpi_info)
+    elif default_dpi:
+        current_dpi_value = default_dpi
+
+    # Calculate DPI-scaled cortex threshold
+    # Base threshold is 60 pixels at 150 DPI
+    # Area scales quadratically with resolution
+    # Results: 75 DPI=30, 150 DPI=60, 300 DPI=240, 600 DPI=960 pixels
+    if current_dpi_value:
+        dpi_scale = current_dpi_value / 150.0
+        cortex_threshold = int(60 * dpi_scale * dpi_scale)
+        # Set minimum threshold to avoid being too restrictive at low DPI
+        cortex_threshold = max(30, cortex_threshold)
+    else:
+        cortex_threshold = 60  # Default if no DPI info
+
+    print(f"Using cortex threshold: {cortex_threshold} pixels (DPI: {current_dpi_value})")
+
+    # Separate cortex stippling from structural lines before morphological operations
+    # Preserves cortex dots from being merged or modified during processing
+    structural_image, cortex_mask = separate_cortex_and_structure(
+        binary_image,
+        preserve_cortex=preserve_cortex,
+        cortex_size_threshold=cortex_threshold
+    )
+
+    # Apply morphological operations to structural elements only
+    # Determine kernel sizes based on DPI
+    if current_dpi_value:
+        # Scale kernel sizes based on DPI ranges
+        if current_dpi_value >= 600:
+            # Very high resolution - aggressive processing
+            dilate_size = 5
+            close_size = 9
+            open_size = 5
+        elif current_dpi_value >= 300:
+            # High resolution - moderate processing
+            dilate_size = 3
+            close_size = 5
+            open_size = 3
+        elif current_dpi_value >= 150:
+            # Medium resolution - minimal processing
+            dilate_size = 3
+            close_size = 3
+            open_size = 3
+        else:
+            # Low resolution - very minimal processing
+            dilate_size = 0  # Skip dilation
+            close_size = 3
+            open_size = 0  # Skip opening
+    else:
+        # Default sizes if no DPI info (assume medium resolution)
+        dilate_size = 3
+        close_size = 3
+        open_size = 3
+
+    print(f"Using kernel sizes - dilate: {dilate_size}, close: {close_size}, open: {open_size}")
+
+    # Apply morphological operations to structural image only
+    # Dilate to thicken thin areas (skipped if size is 0)
+    if dilate_size > 0:
+        kernel_dilate = cv2.getStructuringElement(cv2.MORPH_CROSS, (dilate_size, dilate_size))
+        structural_image = cv2.dilate(structural_image, kernel_dilate, iterations=1)
+        print("Applied dilation to thicken lines (structural only)")
+
+    # Close to bridge gaps (always applied)
+    kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (close_size, close_size))
+    structural_image = cv2.morphologyEx(structural_image, cv2.MORPH_CLOSE, kernel_close)
+    print("Applied closing to bridge gaps (structural only)")
+
+    # Smooth rough edges (skipped if size is 0)
+    if open_size > 0:
+        kernel_open = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (open_size, open_size))
+        structural_image = cv2.morphologyEx(structural_image, cv2.MORPH_OPEN, kernel_open)
+        print("Applied opening to smooth edges (structural only)")
+
     # Save debug images for cortex separation
     if save_debug and preserve_cortex:
         # Show separated structural elements
         save_debug_image(structural_image, os.path.join(output_folder, f'1a_{base_filename}_structural_only.png'),
                         'Structural Lines Only', dpi_info, format_info, output_dpi)
-        
+
         # Show cortex mask
         cortex_debug = cortex_mask.astype(np.uint8) * 255
         save_debug_image(cortex_debug, os.path.join(output_folder, f'1b_{base_filename}_cortex_mask.png'),
