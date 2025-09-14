@@ -252,7 +252,7 @@ def debug_image_info(name, img):
     cv2.imwrite(output_path, img)
     print(f"Debug image saved to {output_path}")
 
-def separate_cortex_and_structure(binary_image, preserve_cortex=True, cortex_size_threshold=60, cortex_min_threshold=10):
+def separate_cortex_and_structure(binary_image, preserve_cortex=True, cortex_size_threshold=60, cortex_min_threshold=5):
     """
     Separate cortex stippling from structural lines before skeletonization.
 
@@ -900,12 +900,28 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
     # Convert binary_image to boolean for processing
     binary_bool = binary_image > 0
 
+    # Calculate DPI-aware thickness parameters
+    if current_dpi_value and current_dpi_value >= 300:
+        # High DPI (300+): use thickest preservation
+        min_thickness = 4
+        max_thickness = 6
+    elif current_dpi_value and current_dpi_value >= 150:
+        # Medium DPI (150-299): moderate thickness preservation
+        min_thickness = 3
+        max_thickness = 4
+    else:
+        # Low DPI (<150): use thinner preservation to avoid over-thickening
+        min_thickness = 1
+        max_thickness = 2
+
+    print(f"Using thickness range: {min_thickness}-{max_thickness} pixels (DPI: {current_dpi_value})")
+
     # Use the new thickness-aware reconstruction
     thickness_preserved_mask = create_thickness_aware_mask(
         original_binary=binary_bool,
         structural_mask=structural_mask,
-        min_thickness=1,
-        max_thickness=2
+        min_thickness=min_thickness,
+        max_thickness=max_thickness
     )
 
     # Create the final cleaned image
