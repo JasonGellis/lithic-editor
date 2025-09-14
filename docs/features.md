@@ -24,8 +24,8 @@ Detects DPI from image metadata or prompts user for DPI selection. Upscales low-
 <p><strong>4. Binary Thresholding</strong><br>
 Converts to grayscale if needed and employs Otsu's adaptive thresholding to create binary image, separating foreground lines from background.</p>
 
-<p><strong>5. Cortex Separation</strong><br>
-Separates cortex stippling from structural lines using DPI-adaptive connected component analysis. Preserves cortex areas before skeletonization to prevent destruction during processing.</p>
+<p><strong>5. DPI-Adaptive Cortex Separation</strong><br>
+Separates cortex stippling from structural lines using connected component analysis with DPI-scaled minimum/maximum thresholds. Filters noise pixels while preserving legitimate cortex stippling before skeletonization.</p>
 
 <p><strong>6. Morphological Operations</strong><br>
 Applies targeted morphological transformations exclusively to structural elements:</p>
@@ -49,24 +49,27 @@ Detects individual line segments and calculates orientation and length, creating
 <p><strong>10. Graph Construction</strong><br>
 Builds connectivity graph using NetworkX with segments as edges and junctions/endpoints as nodes.</p>
 
-<p><strong>11. Ripple Identification</strong><br>
+<p><strong>11. Y-tip Junction Conversion</strong><br>
+Converts junctions within DPI-scaled threshold distance (2-8 pixels) of endpoints to endpoints, eliminating Y-tip artifacts while preserving structural integrity.</p>
+
+<p><strong>12. Ripple Identification</strong><br>
 Identifies parallel line patterns and analyzes spacing consistency to classify segments as ripple or structural elements.</p>
 
-<p><strong>12. Selective Removal</strong><br>
+<p><strong>13. Selective Removal</strong><br>
 Removes identified ripple lines while preserving structural boundaries to maintain artifact integrity.</p>
 
 <h5>Output Generation</h5>
 
-<p><strong>13. Thickness Reconstruction</strong><br>
-Applies controlled dilation to restore original line thickness while maintaining clean edges.</p>
+<p><strong>14. DPI-Adaptive Thickness Reconstruction</strong><br>
+Applies controlled dilation with DPI-scaled parameters (1-6 pixels) to restore original line thickness while preventing over-thickening at low resolutions.</p>
 
-<p><strong>14. Quality Enhancement</strong><br>
+<p><strong>15. Quality Enhancement</strong><br>
 Implements anti-aliasing and smoothing algorithms to produce publication-quality output.</p>
 
-<p><strong>15. Final Assembly</strong><br>
+<p><strong>16. Final Assembly</strong><br>
 Combines cleaned structural lines with preserved cortex and refines endpoint decisions after cleaning to create final archaeologically accurate result.</p>
 
-<p><strong>16. Final Output</strong><br>
+<p><strong>17. Final Output</strong><br>
 Produces cleaned image with proper contrast orientation and preserved metadata for publication use.</p>
 
 </div>
@@ -106,7 +109,8 @@ flowchart TB
         subgraph row2b [" "]
             direction LR
             L["Graph Construction"] --> M["Ripple<br/>Identification"]
-            M --> N["Structural Mask<br/>Creation"]
+            M --> N["Y-tip Junction<br/>Conversion"]
+            N --> O["Structural Mask<br/>Creation"]
         end
 
         K --> L
@@ -114,13 +118,13 @@ flowchart TB
 
     subgraph section3 ["Output Generation"]
         direction LR
-        O["Thickness<br/>Reconstruction"] --> P["Quality<br/>Enhancement"]
-        P --> Q["Cortex<br/>Restoration"]
-        Q --> R["Final Output"]
+        P["DPI-Adaptive<br/>Thickness Reconstruction"] --> Q["Quality<br/>Enhancement"]
+        Q --> R["Cortex<br/>Restoration"]
+        R --> S["Final Output"]
     end
 
     H --> I
-    N --> O
+    O --> P
 
     style D fill:#f9f,stroke:#333,stroke-width:2px
     style E fill:#bbf,stroke:#333,stroke-width:2px

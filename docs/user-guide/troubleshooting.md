@@ -4,8 +4,8 @@
 
 | Problem | Solution |
 |---------|----------|
-| Structural lines removed | Adjust algorithm sensitivity |
-| Ripples not fully removed | Check image contrast |
+| Structural lines removed | Check DPI detection; algorithm auto-adapts thresholds |
+| Ripples not fully removed | Ensure 300+ DPI; Y-tip conversion scales with resolution |
 | Processing too slow | Reduce image size |
 | Memory errors | Close other applications |
 
@@ -24,23 +24,27 @@
 ??? problem "Structural lines are removed"
     **Causes:**
     - Lines too similar to ripple pattern
-    - Incorrect threshold settings
+    - Y-tip threshold too aggressive for image DPI
+    - Cortex filtering removing legitimate structures
 
     **Solutions:**
-    - Increase structural preservation setting
-    - Manually edit before processing
-    - Use debug mode to identify issue
+    - Check image DPI is correctly detected (algorithm auto-adapts)
+    - For low-DPI images (<150), Y-tip threshold is conservative (2px)
+    - Use debug mode to verify DPI-aware parameter scaling
+    - Manually edit before processing if needed
 
 ??? problem "Ripples not fully removed"
     **Causes:**
     - Inconsistent ripple pattern
     - Poor image quality
     - Ripples too thick
+    - Y-tip artifacts creating junction remnants
 
     **Solutions:**
-    - Improve scan quality
+    - Improve scan quality (300+ DPI recommended)
     - Pre-process to enhance contrast
-    - Adjust sensitivity settings
+    - Algorithm automatically adjusts Y-tip removal (2-8px) based on DPI
+    - Use debug mode to verify Y-tip junction conversion is working
 
 ??? problem "Processing takes too long"
     **Causes:**
@@ -56,19 +60,21 @@
 ### Image Preparation Tips
 
 1. **Scanning**
-   - Use 300+ DPI
+   - Use 300+ DPI (optimal for algorithm performance)
    - Black and white mode
    - Clean scanner glass
+   - **DPI Impact**: Higher DPI enables more precise Y-tip removal and cortex filtering
 
 2. **Editing**
    - Remove text and scales
    - Fill gaps in lines
    - Increase contrast
+   - Preserve DPI metadata for automatic algorithm adaptation
 
 3. **Format**
-   - Save as PNG
+   - Save as PNG with DPI metadata
    - Use lossless compression
-   - Preserve metadata
+   - Preserve metadata for DPI-aware processing
 
 
 ## Performance Optimization

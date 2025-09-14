@@ -35,15 +35,35 @@ print("Starting Lithic Editor GUI")
 
 def improve_line_quality_antialias(binary_image, line_boost=1.0, preserve_thickness=True):
     """
-    Improve line quality using advanced anti-aliasing while preserving original thickness
+    Apply anti-aliasing enhancement to binary lithic drawing images.
 
-    Args:
-        binary_image: Input binary image (black lines on white background)
-        line_boost: Factor to slightly adjust line presence (1.0 = no change)
-        preserve_thickness: Whether to preserve original line thickness
+    Implements advanced anti-aliasing algorithms to improve visual quality of processed
+    lithic drawings while maintaining structural integrity and original line characteristics.
+    The function employs Gaussian smoothing and edge-preserving filters to reduce pixelation
+    artifacts introduced during digital processing.
 
-    Returns:
-        improved_image: Enhanced image with better line quality
+    Parameters
+    ----------
+    binary_image : numpy.ndarray
+        Input binary image with black lines (0) on white background (255).
+        Expected format: 2D array with dtype uint8.
+    line_boost : float, optional
+        Multiplicative factor for line presence enhancement (default: 1.0).
+        Values > 1.0 strengthen lines, < 1.0 weaken them.
+    preserve_thickness : bool, optional
+        Enable original line thickness preservation during enhancement (default: True).
+
+    Returns
+    -------
+    numpy.ndarray
+        Enhanced binary image with improved line quality and reduced aliasing artifacts.
+        Output maintains same dimensions and format as input.
+
+    Notes
+    -----
+    The anti-aliasing process applies Gaussian blur followed by adaptive thresholding
+    to create smooth line edges while preserving structural details essential for
+    archaeological analysis.
     """
     # Ensure correct format
     if binary_image.max() <= 1:
@@ -104,16 +124,35 @@ def improve_line_quality_antialias(binary_image, line_boost=1.0, preserve_thickn
 
 def create_thickness_aware_mask(original_binary, structural_mask, min_thickness=1, max_thickness=10):
     """
-    Create a thickness-aware reconstruction mask that preserves original line widths
+    Generate DPI-adaptive thickness reconstruction mask for structural line preservation.
 
-    Args:
-        original_binary: Original binary image (boolean array, True=foreground)
-        structural_mask: Skeleton-based mask of structural elements (boolean array)
-        min_thickness: Minimum line thickness to preserve
-        max_thickness: Maximum line thickness to preserve
+    Creates a morphologically-aware reconstruction mask that preserves original line
+    thickness characteristics while restricting reconstruction to verified structural
+    elements. Implements distance transform analysis to determine optimal dilation
+    parameters for each skeletal component.
 
-    Returns:
-        final_mask: Boolean mask preserving original line thickness for structural elements
+    Parameters
+    ----------
+    original_binary : numpy.ndarray
+        Original binary image as boolean array where True represents foreground pixels.
+    structural_mask : numpy.ndarray
+        Skeleton-based binary mask identifying verified structural elements as boolean array.
+    min_thickness : int, optional
+        Minimum line thickness preservation threshold in pixels (default: 1).
+    max_thickness : int, optional
+        Maximum line thickness preservation threshold in pixels (default: 10).
+
+    Returns
+    -------
+    numpy.ndarray
+        Boolean reconstruction mask preserving original line thickness characteristics
+        exclusively for structural elements identified in the input mask.
+
+    Notes
+    -----
+    The function employs distance transform analysis to determine local line thickness
+    and creates adaptive dilation zones that respect original drawing characteristics
+    while preventing over-thickening artifacts.
     """
     # Convert structural mask to distance transform to get reconstruction zones
     from scipy.ndimage import distance_transform_edt
@@ -169,7 +208,34 @@ def create_thickness_aware_mask(original_binary, structural_mask, min_thickness=
     return final_mask
 
 def crop_to_content(image, padding=10):
-    """Crop image to content plus padding"""
+    """
+    Crop image to content boundaries with configurable padding.
+
+    Analyzes the input image to determine the minimal bounding rectangle containing
+    all non-background content, then crops to this region with additional padding.
+    Useful for removing excessive whitespace from processed lithic drawings.
+
+    Parameters
+    ----------
+    image : numpy.ndarray
+        Input image as numpy array. Handles both grayscale and binary images.
+    padding : int, optional
+        Additional padding pixels around detected content boundaries (default: 10).
+
+    Returns
+    -------
+    tuple
+        cropped_image : numpy.ndarray
+            Image cropped to content boundaries with specified padding.
+        bbox : tuple
+            Bounding box coordinates as (x, y, width, height) describing the crop region.
+
+    Notes
+    -----
+    Content detection assumes that background pixels have higher intensity values
+    than foreground content, which is standard for lithic drawing processing where
+    drawings are dark lines on light backgrounds.
+    """
     # If image is grayscale, convert to 3 channels for consistent handling
     if len(image.shape) == 2:
         img_for_crop = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
@@ -254,19 +320,46 @@ def debug_image_info(name, img):
 
 def separate_cortex_and_structure(binary_image, preserve_cortex=True, cortex_size_threshold=60, cortex_min_threshold=5):
     """
-    Separate cortex stippling from structural lines before skeletonization.
+    Separate cortex stippling from structural elements using DPI-adaptive thresholding.
 
-    Args:
-        binary_image: Binary image (0=background, 255=foreground)
-        preserve_cortex: If True, separates cortex; if False, processes everything together
-        cortex_size_threshold: Maximum pixel area for cortex components. This is dynamically
-                                calculated based on DPI (base 60 pixels at 150 DPI, scaling
-                                quadratically with resolution)
-        cortex_min_threshold: Minimum pixel area for cortex components. Smaller components
-                             are filtered out as noise. This also scales with DPI.
+    Implements connected component analysis to distinguish between cortex stippling
+    (small, isolated features) and structural elements (continuous line networks) in
+    lithic drawings. Uses DPI-scaled size thresholds to maintain consistent separation
+    performance across different image resolutions.
 
-    Returns:
-        Tuple of (structural_image, cortex_mask)
+    The separation process prevents cortex destruction during skeletonization while
+    enabling targeted morphological operations on structural elements only.
+
+    Parameters
+    ----------
+    binary_image : numpy.ndarray
+        Input binary image with 0=background, 255=foreground pixels.
+    preserve_cortex : bool, optional
+        Enable cortex separation. If False, processes all elements together (default: True).
+    cortex_size_threshold : int, optional
+        Maximum pixel area for cortex component classification (default: 60).
+        Dynamically scales quadratically with DPI (base value at 150 DPI).
+    cortex_min_threshold : int, optional
+        Minimum pixel area for cortex component preservation (default: 5).
+        Components below this threshold are filtered as noise. Scales with DPI.
+
+    Returns
+    -------
+    tuple
+        structural_image : numpy.ndarray
+            Binary image containing only structural line elements.
+        cortex_mask : numpy.ndarray
+            Boolean mask identifying cortex stippling regions for later restoration.
+
+    Notes
+    -----
+    **DPI Scaling Formula:**
+
+    Both thresholds scale quadratically with image resolution to maintain consistent
+    performance: ``threshold_scaled = threshold_base * (dpi/150)²``
+
+    This ensures that cortex separation remains effective regardless of scanning
+    resolution while preventing misclassification of structural elements as cortex.
     """
     if not preserve_cortex:
         # Process everything together - no cortex separation
@@ -307,36 +400,142 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
                           upscale_low_dpi=False, default_dpi=None, upscale_model='espcn', target_dpi=300,
                           scale_image_path=None, return_scale_factor=False, debug_filename=None, preserve_cortex=True):
     """
-    Process a lithic drawing to remove ripple lines while preserving original line quality and metadata.
+    Process lithic drawings to remove ripple artifacts while preserving structural elements.
 
-    Processing steps:
-    1. Load image and extract DPI metadata
-    2. Optional: Upscale low-DPI images using neural networks
-    3. Threshold to binary
-    4. Separate cortex from structural elements (DPI-adaptive threshold)
-    5. Apply morphological operations to structural elements only
-    6. Skeletonize and build graph representation
-    7. Identify and remove ripple lines
-    8. Reconstruct lines and add cortex back
+    This function implements a comprehensive digital image processing pipeline specifically
+    designed for archaeological lithic illustration analysis. The algorithm employs
+    DPI-adaptive parameter scaling to optimize processing for images of varying resolutions,
+    ensuring consistent results across different scanning conditions.
 
-    Args:
-        image_path: Path to the input image
-        output_folder: Folder to save all output images
-        dpi_info: DPI information to preserve (tuple of x,y dpi or single value)
-        format_info: Original image format to preserve
-        output_dpi: DPI for output images
-        save_debug: Whether to save debug images
-        upscale_low_dpi: Whether to upscale images below target_dpi
-        default_dpi: DPI to assume if metadata missing (for upscaling decisions)
-        upscale_model: Model to use for upscaling ('espcn' or 'fsrcnn')
-        target_dpi: Target DPI for upscaling (default: 300)
-        scale_image_path: Optional path to scale image (processed with same factor)
-        return_scale_factor: Whether to return upscaling factor in results
-        preserve_cortex: Whether to preserve cortex stippling (default: True)
+    The processing pipeline consists of three main phases:
+    1. **Preprocessing & Upscaling**: Image loading, DPI detection, optional neural network
+       upscaling for low-resolution images, and binary thresholding
+    2. **Structural Analysis**: DPI-adaptive cortex separation, morphological operations,
+       skeletonization, Y-tip junction conversion, and ripple identification
+    3. **Reconstruction**: DPI-aware thickness reconstruction, cortex restoration, and
+       quality enhancement with anti-aliasing
 
-    Returns:
-        cleaned_image: Image with ripple lines removed but original line quality preserved
-        If return_scale_factor=True, returns dict with image and scale factor
+    Key algorithmic innovations:
+    - **Y-tip Elimination**: Converts junctions within DPI-scaled threshold (2-8 pixels)
+      to endpoints, eliminating common artifacts without removing structural elements
+    - **DPI-Adaptive Processing**: All parameters scale automatically based on image
+      resolution to maintain consistent performance across scanning conditions
+    - **Cortex Preservation**: Separates stippling from structural lines using
+      connected component analysis with quadratically-scaled minimum thresholds
+
+    Parameters
+    ----------
+    image_path : str
+        Path to the input lithic drawing image file. Supports PNG, JPEG, TIFF, and BMP formats.
+    output_folder : str, optional
+        Directory path for saving debug images and intermediate processing steps (default: "image_debug").
+    dpi_info : tuple of int or int, optional
+        Override DPI metadata as (x_dpi, y_dpi) tuple or single value. If None, extracts from image metadata.
+    format_info : str, optional
+        Override output format specification. If None, preserves original image format.
+    output_dpi : int, optional
+        Target DPI for output images. If None, preserves original DPI.
+    save_debug : bool, optional
+        Enable saving intermediate processing steps for analysis (default: False).
+    upscale_low_dpi : bool, optional
+        Enable neural network upscaling for images below target_dpi threshold (default: False).
+    default_dpi : int, optional
+        DPI value to assume when metadata is missing and upscaling is enabled.
+    upscale_model : {'espcn', 'fsrcnn'}, optional
+        Neural network model for upscaling: 'espcn' (faster) or 'fsrcnn' (higher quality) (default: 'espcn').
+    target_dpi : int, optional
+        Minimum DPI threshold for triggering upscaling operations (default: 300).
+    scale_image_path : str, optional
+        Path to scale bar image to be processed with the same upscaling factor as main image.
+    return_scale_factor : bool, optional
+        Include upscaling metadata in return value (default: False).
+    debug_filename : str, optional
+        Custom base filename for debug output files. If None, derives from input filename.
+    preserve_cortex : bool, optional
+        Enable cortex stippling preservation during processing (default: True).
+
+    Returns
+    -------
+    numpy.ndarray or dict
+        **Standard mode**: Returns processed image as numpy.ndarray with ripple artifacts removed.
+
+        **Extended mode** (when return_scale_factor=True or scale_image_path provided): Returns dict containing:
+
+        - 'processed_image' : numpy.ndarray
+            The processed lithic drawing with ripple artifacts removed
+        - 'scale_factor' : float
+            Upscaling factor applied (1.0 indicates no scaling performed)
+        - 'original_dpi' : int
+            Original image DPI before processing
+        - 'final_dpi' : int
+            Final image DPI after processing and upscaling
+        - 'processed_scale' : numpy.ndarray, optional
+            Processed scale bar image (included when scale_image_path provided)
+
+    Raises
+    ------
+    FileNotFoundError
+        If the input image file cannot be located at the specified path.
+    ValueError
+        If image format is unsupported or DPI parameters are invalid.
+    MemoryError
+        If insufficient memory is available for processing large images.
+
+    Notes
+    -----
+    **DPI-Adaptive Algorithm Parameters:**
+
+    - **Y-tip Removal Thresholds:**
+        - ≥600 DPI: 8-pixel threshold
+        - 300-599 DPI: 5-pixel threshold
+        - 150-299 DPI: 3-pixel threshold
+        - <150 DPI: 2-pixel threshold (conservative)
+
+    - **Thickness Reconstruction:**
+        - ≥300 DPI: 4-6 pixel thickness range
+        - 150-299 DPI: 3-4 pixel thickness range
+        - <150 DPI: 1-2 pixel thickness range
+
+    - **Cortex Filtering:**
+        - Minimum threshold scales quadratically with DPI to filter noise
+        - Maximum threshold prevents over-filtering of legitimate stippling
+
+    **Performance Considerations:**
+
+    For optimal processing performance, images should be scanned at 300+ DPI with good
+    contrast. Very large images (>4000×4000 pixels) may require significant memory
+    and processing time. Enable debug mode for detailed algorithm analysis on complex images.
+
+    Examples
+    --------
+    >>> # Basic processing
+    >>> result = process_lithic_drawing("artifact.png")
+    >>>
+    >>> # Full processing with upscaling and debug output
+    >>> result = process_lithic_drawing(
+    ...     image_path="drawing.png",
+    ...     output_folder="results",
+    ...     save_debug=True,
+    ...     upscale_low_dpi=True,
+    ...     target_dpi=300,
+    ...     preserve_cortex=True
+    ... )
+    >>>
+    >>> # Extended return format with metadata
+    >>> result = process_lithic_drawing(
+    ...     "low_res_image.png",
+    ...     return_scale_factor=True,
+    ...     upscale_low_dpi=True
+    ... )
+    >>> print(f"Upscaled by factor: {result['scale_factor']}")
+    >>> print(f"Final DPI: {result['final_dpi']}")
+
+    References
+    ----------
+    .. [1] Zhang, T.Y. and Suen, C.Y., 1984. A fast parallel algorithm for thinning
+           digital patterns. Communications of the ACM, 27(3), pp.236-239.
+    .. [2] Otsu, N., 1979. A threshold selection method from gray-level histograms.
+           IEEE transactions on systems, man, and cybernetics, 9(1), pp.62-66.
     """
     # Only create output folder if saving debug images
     if save_debug and output_folder:
@@ -648,7 +847,22 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
     # Convert junctions that are very close to endpoints into endpoints themselves
     # This handles Y-tips by making the junction part of the ripple line
     print("Converting Y-tip junctions to endpoints...")
-    y_tip_threshold = 5  # pixels
+
+    # Calculate DPI-aware Y-tip threshold
+    if current_dpi_value and current_dpi_value >= 600:
+        # Very high DPI (600+): highest threshold for maximum Y-tip detection
+        y_tip_threshold = 8
+    elif current_dpi_value and current_dpi_value >= 300:
+        # High DPI (300-599): larger threshold for clear Y-tip detection
+        y_tip_threshold = 5
+    elif current_dpi_value and current_dpi_value >= 150:
+        # Medium DPI (150-299): moderate threshold
+        y_tip_threshold = 3
+    else:
+        # Low DPI (<150): very conservative threshold to avoid removing structural details
+        y_tip_threshold = 2
+
+    print(f"Using Y-tip threshold: {y_tip_threshold} pixels (DPI: {current_dpi_value})")
     junctions_to_convert = []
 
     for jx, jy in junctions:

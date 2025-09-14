@@ -22,8 +22,9 @@ process_lithic_drawing(
     target_dpi: int = 300,
     scale_image_path: Optional[str] = None,
     return_scale_factor: bool = False,
-    debug_filename: Optional[str] = None
-) -> Union[np.ndarray, Dict[str, Any]]
+    debug_filename: Optional[str] = None,
+    preserve_cortex: bool = True
+) -> np.ndarray
 ```
 
 #### Parameters
@@ -47,12 +48,33 @@ process_lithic_drawing(
 
 #### Returns
 
-Dictionary containing:
-- `success` (bool): Whether processing completed successfully
-- `output_path` (str): Path to the processed image
-- `debug_folder` (str): Path to debug images directory
-- `processing_time` (float): Processing duration in seconds
-- `image_info` (dict): Image metadata
+**Basic mode:** Returns `numpy.ndarray` containing the processed image.
+
+**Extended mode** (when `return_scale_factor=True` or `scale_image_path` provided): Returns dictionary containing:
+- `processed_image` (np.ndarray): The processed image array
+- `scale_factor` (float): Upscaling factor applied (1.0 if no scaling)
+- `original_dpi` (int): Original image DPI
+- `final_dpi` (int): Final image DPI after processing
+- `processed_scale` (np.ndarray): Processed scale image (if provided)
+
+#### Algorithm Features
+
+The function automatically adapts processing parameters based on image DPI:
+
+**DPI-Aware Y-tip Removal:**
+- **600+ DPI:** 8-pixel threshold for Y-tip junction detection
+- **300-599 DPI:** 5-pixel threshold
+- **150-299 DPI:** 3-pixel threshold
+- **<150 DPI:** 2-pixel threshold (conservative to preserve structural details)
+
+**DPI-Aware Thickness Reconstruction:**
+- **300+ DPI:** 4-6 pixel thickness preservation
+- **150-299 DPI:** 3-4 pixel thickness preservation
+- **<150 DPI:** 1-2 pixel thickness preservation
+
+**DPI-Adaptive Cortex Filtering:**
+- Minimum/maximum thresholds scale quadratically with DPI
+- Filters noise while preserving legitimate cortex stippling
 
 #### Example Usage
 

@@ -34,6 +34,10 @@ For image requirements and preparation guidelines, see [Lithic Illustrations](im
     - System automatically detects DPI from image metadata (**Options and DPI Settings** panel & **Processing Log**)
     - If missing, dialog prompts for DPI selection (72, 96, 150, 200 or custom)
     - If below 300 DPI, upscaling dialog offers ESPCN/FSRCNN options
+    - **DPI-Aware Processing**: Algorithm automatically adapts parameters based on detected DPI:
+      - **Y-tip removal**: 2-8 pixel thresholds scale with resolution
+      - **Cortex filtering**: Minimum/maximum thresholds prevent noise at all DPIs
+      - **Thickness reconstruction**: 1-6 pixel parameters preserve line quality
 
 3. **Review Input**
     - Check image quality in the **Input Image** window
@@ -45,6 +49,7 @@ For image requirements and preparation guidelines, see [Lithic Illustrations](im
 5. **Review Results**
     - Compare before/after images in **Input Image** and **Processed Image/Arrow Annotations** windows
     - Verify structural preservation (scars and borders) and ripple removal
+    - Check that Y-tip artifacts have been eliminated while maintaining structural integrity
 
 6. **Evaluate Processing Quality**
     - If results are satisfactory, proceed to the [arrow annotation phase](arrows.md)
