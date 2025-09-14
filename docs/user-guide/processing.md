@@ -1,6 +1,6 @@
 # Processing Images
 
-The image processing engine in Lithic Editor uses advanced algorithms to automatically identify and remove ripple lines while preserving the structural elements of lithic drawings.
+This documentation provides comprehensive guidance for utilizing the graphical user interface (GUI) to remove ripples from individual images. For batch processing workflows and programmatic integration, refer to the [Command Line Interface](../api-reference/cli-reference.md) and [Python API](../api-reference/python-api.md) documentation.
 
 ## Workflow Overview
 
@@ -19,81 +19,44 @@ graph LR
     F -->|Yes| H[Add Annotations]
     H --> I[Save Result]
 ```
+## Step-by-Step Processing
 
-## Loading Images
+### Loading Images
 
-### Supported Formats
-- **PNG** (recommended): Lossless compression, transparency support
-- **JPEG/JPG**: Widely compatible, smaller file sizes
-- **TIFF/TIF**: Professional quality, uncompressed
-- **BMP**: Simple format, uncompressed
-
-### Image Requirements
-For best results, your images should have:
-- High contrast (black lines on white background)
-- Resolution of at least 300 DPI (automatic upscaling available for lower DPI)
-- Clean, continuous lines
-- Minimal noise or artifacts
-
-### Neural Network Upscaling
-Lithic Editor includes ESPCN and FSRCNN neural network models to automatically upscale low-DPI images:
-- **ESPCN**: Efficient Sub-Pixel CNN, faster processing
-- **FSRCNN**: Fast Super-Resolution CNN, higher quality
-- **Automatic DPI detection** from image metadata
-- **User dialogs** for DPI selection when metadata is missing
-- **300 DPI target** for optimal processing results
-
-For technical details about these super-resolution models, see [OpenCV Super Resolution Tutorial](https://learnopencv.com/super-resolution-in-opencv/#sec3).
-
-### Cortex Preservation
-Automatically preserves natural cortex stippling on lithic artifacts:
-- **Intelligent separation**: Distinguishes cortex stippling from structural lines
-- **Pre-processing preservation**: Cortex bypasses destructive skeletonization
-- **Archaeological accuracy**: Maintains cortex vs. worked surface distinction
-- **User control**: Toggle preservation on/off via GUI checkbox or CLI flag
-
-## Using the GUI
-
-### Step-by-Step Processing
+For image requirements and preparation guidelines, see [Lithic Illustrations](images.md).
 
 1. **Load Your Image**
-   ```
-   Click "Load Image" → Select file → Open
-   ```
-
-2. **DPI Detection and Upscaling**
-   - System automatically detects DPI from image metadata
-   - If missing, dialog prompts for DPI selection (72, 96, 150, 200 or custom)
-   - If below 300 DPI, upscaling dialog offers ESPCN/FSRCNN options
-
-3. **Review Input**
-   - Check image quality in Input panel
-   - Verify correct orientation
-   - Note any problem areas
-
-4. **Process Image**
    ```
    Click "Process Image" → Wait for completion
    ```
 
-5. **Review Results**
-   - Compare before/after
-   - Check debug steps if enabled
-   - Verify structural preservation
+2. **DPI Detection and Upscaling**
+    - System automatically detects DPI from image metadata (**Options and DPI Settings** panel & **Processing Log**)
+    - If missing, dialog prompts for DPI selection (72, 96, 150, 200 or custom)
+    - If below 300 DPI, upscaling dialog offers ESPCN/FSRCNN options
 
-### Processing Options
+3. **Review Input**
+    - Check image quality in the **Input Image** window
+    - Note any problem areas
+
+4. **Process Image**
+    - Click "Process Image" → Wait for completion
+
+5. **Review Results**
+    - Compare before/after images in **Input Image** and **Processed Image/Arrow Annotations** windows
+    - Verify structural preservation (scars and borders) and ripple removal
+
+6. **Evaluate Processing Quality**
+    - If results are satisfactory, proceed to the [arrow annotation phase](arrows.md)
+    - If refinement is needed, utilize debug mode for detailed analysis
+
+### Processing Debug Options
 
 #### Debug Mode
 Enable to view and save intermediate processing steps:
 - Checkbox: "View and Save Debug Images"
 - Shows processing steps in the Processing Steps panel
 - Creates `image_debug/` folder with all algorithm stages
-
-#### Quality Settings
-Adjust processing parameters:
-- Line thickness tolerance
-- Ripple pattern sensitivity
-- Structural preservation level
 
 ### Quality Control
 
@@ -121,18 +84,6 @@ Adjust processing parameters:
    - Align with archaeological standards
 
 
-### Parallel Processing (using the API)
-```python
-from multiprocessing import Pool
-from lithic_editor.processing import process_lithic_drawing
-
-def process_file(filename):
-    return process_lithic_drawing(filename)
-
-with Pool(processes=4) as pool:
-    results = pool.map(process_file, file_list)
-```
-
 ## Next Steps
 
-- Continue to [Output Guide](output.md) for information about output files and formats
+- Continue to [Arrow Annotations](arrows.md) for information about output files and formats

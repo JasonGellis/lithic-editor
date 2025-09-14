@@ -8,7 +8,7 @@ tags:
   - lithic analysis
   - stone tools
   - archaeological illustrations
-  - graph analysis
+
 authors:
   - name: Jason Jacob Gellis
     orcid: 0000-0002-9929-789X

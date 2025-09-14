@@ -13,6 +13,8 @@ lithic-editor --gui
 
 ## Main Interface
 
+![Lithic Editor GUI Interface](../assets/images/gui_blank.png)
+
 The Lithic Editor interface contains eight main sections:
 
 ### 1. File Controls (Top Left)
@@ -42,7 +44,10 @@ After ripples are remove arrows can be added to indicate striking direction.
 - **Rresize** - Option+drag to resize
 
 ### 4. Options and DPI Settings (Top Right)
-- **Debug Images** - View and save debug images (checkbox). Images load in **Processing Steps** window. Images automatically saved to image_debug directory. Unchecked by default
+- **Debug Images** - View and save debug images (checkbox).
+    - Images load in **Processing Steps** window.
+    - Images automatically saved to image_debug directory.
+    - Unchecked by default
 - **Preserve Cortex Stippling** - Keep cortex texture (checkbox). Checked by default
 - **DPI Settings** - Leave unset or set custom DPI
 
@@ -63,87 +68,6 @@ After ripples are remove arrows can be added to indicate striking direction.
 
 ### 9. Processing Status (Bottom)
 - Shows current application state ("Ready", processing status)
-
-
-## Navigation
-
-Use the sidebar to explore specific topics:
-
-- [Processing Images](../user-guide/processing.md) - Detailed processing guide
-- [Adding Annotations](../user-guide/arrows.md) - Arrow annotation techniques
-- [Saving Results](../user-guide/output.md) - Export options and formats
-
-
-## Workflow Overview
-
-The typical workflow for processing lithic drawings follows these steps:
-
-```mermaid
-graph LR
-    A[Load Image] --> B[Check DPI]
-    B --> C[Process Image]
-    C --> D{Success?}
-    D -->|No| E[Image Debug & Adjust]
-    E --> C
-    D -->|Yes| F[Add Annotations]
-    F --> G[Save Result]
-```
-
-#### Research Documentation
-1. Process with debug enabled
-2. Save all intermediate steps
-3. Document parameters used
-4. Archive original and processed versions
-
-## Understanding the Algorithm
-
-The ripple removal algorithm works through several stages:
-
-### Stage 1: Skeletonization
-Reduces lines to single-pixel width while preserving connectivity.
-
-### Stage 2: Graph Construction
-Builds a network representation of line segments.
-
-### Stage 3: Pattern Analysis
-Identifies ripple patterns based on:
-- Line orientation
-- Spacing consistency
-- Length distribution
-
-### Stage 4: Selective Removal
-Removes identified ripple lines while preserving:
-- Structural boundaries
-- Tool edges
-- Important features
-
-### Stage 5: Enhancement
-Cleans up the result and restores line quality.
-
-## Tips and Tricks
-
-!!! tip "Quick Processing"
-    For faster processing of large images, resize to 2000-3000px maximum dimension first.
-
-!!! tip "Arrow Visibility"
-    Use contrasting colors for arrows - black on light backgrounds, white on dark.
-
-!!! tip "Batch Operations"
-    Use the CLI for processing multiple images with consistent settings.
-
-!!! tip "Quality Control"
-    Enable "View and Save Debug Images" and review the processing steps to ensure important features aren't removed.
-
-
-
-## Getting Support
-
-If you need help:
-
-1. **Check Documentation**: Review relevant guide sections
-2. **GitHub Issues**: Search existing issues or create new one
-3. **Community Forum**: Ask in GitHub Discussions
-4. **Direct Contact**: Email jg760@cam.ac.uk for research inquiries
 
 ## Next Steps
 

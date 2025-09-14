@@ -41,37 +41,31 @@ illustration preparation and enhancement:
 
 ## Visual Example
 
-<div class="comparison-container">
-  <div class="before-after">
-    <div class="image-box">
+<div style="display: flex; flex-direction: row; gap: 30px; align-items: flex-start; margin: 20px 0;">
+    <div style="flex: 1; text-align: center;">
       <h3>Before Processing</h3>
-      <p>Original drawing with ripple lines</p>
-      <!-- Add your before image here -->
+      <p>Original drawing with ripple lines and cortex stippling</p>
+      <img src="assets/images/lithic_300dpi.png" alt="Before processing - lithic drawing with ripple lines and cortex stippling" style="max-width: 100%; height: auto;">
     </div>
-    <div class="image-box">
-      <h3>After Processing</h3>
-      <p>Clean structural elements preserved</p>
-      <!-- Add your after image here -->
+    <div style="flex: 1; text-align: center;">
+      <h3>Ripple Removal</h3>
+      <p>Clean structural elements with cortex preserved</p>
+      <img src="assets/images/lithic_300dpi_processed.png" alt="After processing - clean structural elements with cortex preserved" style="max-width: 100%; height: auto;">
     </div>
-  </div>
+    <div style="flex: 1; text-align: center;">
+      <h3>Arrow Annotations</h3>
+      <p>Directional arrows indicate striking patterns</p>
+      <img src="assets/images/lithic_300dpi_annotation.png" alt="After annotating - directional arrows replace ripples" style="max-width: 100%; height: auto;">
+    </div>
 </div>
 
 ## Who is this for?
 
 - **Archaeologists** working with lithic illustrations
-- **Researchers** creating publication ready images
+- **Researchers** creating publication-ready images
 - **Museum Curators** preparing artifact documentation
 - **Students** studying archaeological illustration techniques
-
-## Support
-
-- **Issues**: [GitHub Issues](https://github.com/JasonGellis/lithic-editor/issues)
 
 ## Next Steps
 
 Follow the [installation guide](getting-started/installation.md) to set up Lithic Editor on your computer.
-
----
-
-!!! info "Acknowledgements"
-    Thank you to The British Academy for funding this project. Thank you to Professor Robert A. Foley for support and advice.

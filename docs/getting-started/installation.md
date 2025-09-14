@@ -143,7 +143,7 @@ pip install numpy opencv-python Pillow PyQt5 scikit-image networkx scipy
 pip install mkdocs mkdocs-material pymdown-extensions
 ```
 
-## Troubleshooting
+## Troubleshooting Installation
 
 ### Common Issues
 

@@ -15,7 +15,7 @@ This section covers image types, formats, and quality requirements for optimal p
 ## Image Quality Requirements
 
 <div style="float: right; margin-left: 20px; margin-bottom: 20px; max-width: 350px;">
-  <img src="/assets/images/lithic_300dpi.png" alt="Example lithic flake at 300 DPI" style="width: 100%; border: 1px solid #ddd; padding: 10px; background: white;">
+  <img src="../assets/images/lithic_300dpi.png" alt="Example lithic flake at 300 DPI" style="width: 100%; border: 1px solid #ddd; padding: 10px; background: white;">
   <p style="font-size: 0.9em; font-style: italic; text-align: center; margin-top: 8px; color: #666;">
     Example of a high-quality lithic flake illustration at 300 DPI showing ripple lines, cortex stippling, and clear structural boundaries suitable for processing
   </p>
@@ -40,7 +40,7 @@ Lithic Editor automatically:
 
 ### DPI Requirements
 - **Optimal**: 300 DPI or higher
-- **Minimum**: 150 DPI (will trigger automatic upscaling)
+- **Minimum tested**: 75 DPI
 - **Maximum tested**: 600 DPI
 
 ## Low-Resolution Image Enhancement
@@ -83,12 +83,14 @@ However, for the best and quickest experience try to avoid images with:
 
 ### Cortex Preservation
 Lithic Editor intelligently handles cortex stippling:
+
 - Automatically detects and preserves stippled areas
 - Maintains archaeological accuracy
 - Can be toggled on/off based on your needs
 
 ### Complex Illustrations
 For drawings with intricate details:
+
 - Enable debug mode to review processing steps
 - Use the brush tool for manual pre-processing
 - Consider processing in sections for very large images

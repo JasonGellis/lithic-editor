@@ -20,8 +20,8 @@ Ensure you have:
 
 This guide walks you through the complete workflow for processing, annotating, and saving lithic drawings:
 
-1. [Lithic Editor and Annotator GUI](interface.md) - Launch the application and understand the interface
-2. [Lithic Illustrations](images.md) - Image types, quality requirements, and preparation guidelines
+1. [Lithic Illustrations](images.md) - Image types, quality requirements, and preparation guidelines
+2. [Lithic Editor and Annotator GUI](interface.md) - Launch the application and understand the interface
 3. [Processing Images](processing.md) - Clean images, remove ripple lines, and preserve important features
       - Load images
       - Ripple remover

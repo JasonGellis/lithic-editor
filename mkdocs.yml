@@ -128,5 +128,7 @@ nav:
     - Contributing: developer/contributing.md
     - Testing Guide: developer/testing.md
 
+  - About: about.md
+
 copyright: |
   &copy; 2024 <a href="https://github.com/JasonGellis" target="_blank" rel="noopener">Jason Jacob Gellis</a>

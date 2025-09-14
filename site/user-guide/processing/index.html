@@ -338,6 +338,25 @@
   
 
       
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../about/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  About
+
+      </a>
+    </li>
+  
+
+      
     </ul>
   </div>
 </nav>
@@ -724,79 +743,28 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#loading-images" class="md-nav__link">
-    <span class="md-ellipsis">
-      Loading Images
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Loading Images">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#supported-formats" class="md-nav__link">
-    <span class="md-ellipsis">
-      Supported Formats
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#image-requirements" class="md-nav__link">
-    <span class="md-ellipsis">
-      Image Requirements
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#neural-network-upscaling" class="md-nav__link">
-    <span class="md-ellipsis">
-      Neural Network Upscaling
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#cortex-preservation" class="md-nav__link">
-    <span class="md-ellipsis">
-      Cortex Preservation
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#using-the-gui" class="md-nav__link">
-    <span class="md-ellipsis">
-      Using the GUI
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Using the GUI">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
   <a href="#step-by-step-processing" class="md-nav__link">
     <span class="md-ellipsis">
       Step-by-Step Processing
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Step-by-Step Processing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#loading-images" class="md-nav__link">
+    <span class="md-ellipsis">
+      Loading Images
+    </span>
+  </a>
+  
 </li>
         
           <li class="md-nav__item">
-  <a href="#processing-options" class="md-nav__link">
+  <a href="#processing-debug-options" class="md-nav__link">
     <span class="md-ellipsis">
-      Processing Options
+      Processing Debug Options
     </span>
   </a>
   
@@ -830,15 +798,6 @@
   <a href="#for-optimal-results" class="md-nav__link">
     <span class="md-ellipsis">
       For Optimal Results
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#parallel-processing-using-the-api" class="md-nav__link">
-    <span class="md-ellipsis">
-      Parallel Processing (using the API)
     </span>
   </a>
   
@@ -1116,6 +1075,28 @@
   
 
     
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../about/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    About
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
   </ul>
 </nav>
                   </div>
@@ -1149,7 +1130,7 @@
 
 
 <h1 id="processing-images">Processing Images<a class="headerlink" href="#processing-images" title="Permanent link">&para;</a></h1>
-<p>The image processing engine in Lithic Editor uses advanced algorithms to automatically identify and remove ripple lines while preserving the structural elements of lithic drawings.</p>
+<p>This documentation provides comprehensive guidance for utilizing the graphical user interface (GUI) to remove ripples from individual images. For batch processing workflows and programmatic integration, refer to the <a href="../../api-reference/cli-reference/">Command Line Interface</a> and <a href="../../api-reference/python-api/">Python API</a> documentation.</p>
 <h2 id="workflow-overview">Workflow Overview<a class="headerlink" href="#workflow-overview" title="Permanent link">&para;</a></h2>
 <p>The typical workflow for processing lithic drawings follows these steps:</p>
 <pre class="mermaid"><code>graph LR
@@ -1163,81 +1144,57 @@
     G --&gt; E
     F --&gt;|Yes| H[Add Annotations]
     H --&gt; I[Save Result]</code></pre>
-<h2 id="loading-images">Loading Images<a class="headerlink" href="#loading-images" title="Permanent link">&para;</a></h2>
-<h3 id="supported-formats">Supported Formats<a class="headerlink" href="#supported-formats" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>PNG</strong> (recommended): Lossless compression, transparency support</li>
-<li><strong>JPEG/JPG</strong>: Widely compatible, smaller file sizes</li>
-<li><strong>TIFF/TIF</strong>: Professional quality, uncompressed</li>
-<li><strong>BMP</strong>: Simple format, uncompressed</li>
-</ul>
-<h3 id="image-requirements">Image Requirements<a class="headerlink" href="#image-requirements" title="Permanent link">&para;</a></h3>
-<p>For best results, your images should have:
-- High contrast (black lines on white background)
-- Resolution of at least 300 DPI (automatic upscaling available for lower DPI)
-- Clean, continuous lines
-- Minimal noise or artifacts</p>
-<h3 id="neural-network-upscaling">Neural Network Upscaling<a class="headerlink" href="#neural-network-upscaling" title="Permanent link">&para;</a></h3>
-<p>Lithic Editor includes ESPCN and FSRCNN neural network models to automatically upscale low-DPI images:
-- <strong>ESPCN</strong>: Efficient Sub-Pixel CNN, faster processing
-- <strong>FSRCNN</strong>: Fast Super-Resolution CNN, higher quality
-- <strong>Automatic DPI detection</strong> from image metadata
-- <strong>User dialogs</strong> for DPI selection when metadata is missing
-- <strong>300 DPI target</strong> for optimal processing results</p>
-<p>For technical details about these super-resolution models, see <a href="https://learnopencv.com/super-resolution-in-opencv/#sec3">OpenCV Super Resolution Tutorial</a>.</p>
-<h3 id="cortex-preservation">Cortex Preservation<a class="headerlink" href="#cortex-preservation" title="Permanent link">&para;</a></h3>
-<p>Automatically preserves natural cortex stippling on lithic artifacts:
-- <strong>Intelligent separation</strong>: Distinguishes cortex stippling from structural lines
-- <strong>Pre-processing preservation</strong>: Cortex bypasses destructive skeletonization
-- <strong>Archaeological accuracy</strong>: Maintains cortex vs. worked surface distinction
-- <strong>User control</strong>: Toggle preservation on/off via GUI checkbox or CLI flag</p>
-<h2 id="using-the-gui">Using the GUI<a class="headerlink" href="#using-the-gui" title="Permanent link">&para;</a></h2>
-<h3 id="step-by-step-processing">Step-by-Step Processing<a class="headerlink" href="#step-by-step-processing" title="Permanent link">&para;</a></h3>
+<h2 id="step-by-step-processing">Step-by-Step Processing<a class="headerlink" href="#step-by-step-processing" title="Permanent link">&para;</a></h2>
+<h3 id="loading-images">Loading Images<a class="headerlink" href="#loading-images" title="Permanent link">&para;</a></h3>
+<p>For image requirements and preparation guidelines, see <a href="../images/">Lithic Illustrations</a>.</p>
 <ol>
 <li>
 <p><strong>Load Your Image</strong>
-   <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Click &quot;Load Image&quot; → Select file → Open
+   <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Click &quot;Process Image&quot; → Wait for completion
 </span></code></pre></div></p>
 </li>
 <li>
 <p><strong>DPI Detection and Upscaling</strong></p>
-</li>
-<li>System automatically detects DPI from image metadata</li>
+<ul>
+<li>System automatically detects DPI from image metadata (<strong>Options and DPI Settings</strong> panel &amp; <strong>Processing Log</strong>)</li>
 <li>If missing, dialog prompts for DPI selection (72, 96, 150, 200 or custom)</li>
-<li>
-<p>If below 300 DPI, upscaling dialog offers ESPCN/FSRCNN options</p>
+<li>If below 300 DPI, upscaling dialog offers ESPCN/FSRCNN options</li>
+</ul>
 </li>
 <li>
 <p><strong>Review Input</strong></p>
+<ul>
+<li>Check image quality in the <strong>Input Image</strong> window</li>
+<li>Note any problem areas</li>
+</ul>
 </li>
-<li>Check image quality in Input panel</li>
-<li>Verify correct orientation</li>
 <li>
-<p>Note any problem areas</p>
-</li>
-<li>
-<p><strong>Process Image</strong>
-   <div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Click &quot;Process Image&quot; → Wait for completion
-</span></code></pre></div></p>
+<p><strong>Process Image</strong></p>
+<ul>
+<li>Click "Process Image" → Wait for completion</li>
+</ul>
 </li>
 <li>
 <p><strong>Review Results</strong></p>
+<ul>
+<li>Compare before/after images in <strong>Input Image</strong> and <strong>Processed Image/Arrow Annotations</strong> windows</li>
+<li>Verify structural preservation (scars and borders) and ripple removal</li>
+</ul>
 </li>
-<li>Compare before/after</li>
-<li>Check debug steps if enabled</li>
-<li>Verify structural preservation</li>
+<li>
+<p><strong>Evaluate Processing Quality</strong></p>
+<ul>
+<li>If results are satisfactory, proceed to the <a href="../arrows/">arrow annotation phase</a></li>
+<li>If refinement is needed, utilize debug mode for detailed analysis</li>
+</ul>
+</li>
 </ol>
-<h3 id="processing-options">Processing Options<a class="headerlink" href="#processing-options" title="Permanent link">&para;</a></h3>
+<h3 id="processing-debug-options">Processing Debug Options<a class="headerlink" href="#processing-debug-options" title="Permanent link">&para;</a></h3>
 <h4 id="debug-mode">Debug Mode<a class="headerlink" href="#debug-mode" title="Permanent link">&para;</a></h4>
 <p>Enable to view and save intermediate processing steps:
 - Checkbox: "View and Save Debug Images"
 - Shows processing steps in the Processing Steps panel
 - Creates <code>image_debug/</code> folder with all algorithm stages</p>
-<h4 id="quality-settings">Quality Settings<a class="headerlink" href="#quality-settings" title="Permanent link">&para;</a></h4>
-<p>Adjust processing parameters:
-- Line thickness tolerance
-- Ripple pattern sensitivity
-- Structural preservation level</p>
 <h3 id="quality-control">Quality Control<a class="headerlink" href="#quality-control" title="Permanent link">&para;</a></h3>
 <div class="admonition tip">
 <p class="admonition-title">Always Review Debug Images</p>
@@ -1267,19 +1224,9 @@
 <li>Use appropriate colors</li>
 <li>Align with archaeological standards</li>
 </ol>
-<h3 id="parallel-processing-using-the-api">Parallel Processing (using the API)<a class="headerlink" href="#parallel-processing-using-the-api" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">multiprocessing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Pool</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">lithic_editor.processing</span><span class="w"> </span><span class="kn">import</span> <span class="n">process_lithic_drawing</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="k">def</span><span class="w"> </span><span class="nf">process_file</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="k">return</span> <span class="n">process_lithic_drawing</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="k">with</span> <span class="n">Pool</span><span class="p">(</span><span class="n">processes</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span> <span class="k">as</span> <span class="n">pool</span><span class="p">:</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="n">results</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">process_file</span><span class="p">,</span> <span class="n">file_list</span><span class="p">)</span>
-</span></code></pre></div>
 <h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Continue to <a href="../output/">Output Guide</a> for information about output files and formats</li>
+<li>Continue to <a href="../arrows/">Arrow Annotations</a> for information about output files and formats</li>
 </ul>
 
 

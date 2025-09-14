@@ -4,7 +4,7 @@ The Lithic Editor provides multiple interfaces for integrating with your workflo
 
 ## Available APIs
 
-### ![](../assets/images/python.svg){: style="width:24px; height:24px; vertical-align:text-bottom; margin-right:8px"} [Python API](python-api.md)
+### ![](../assets/images/api.svg){: style="width:24px; height:24px; vertical-align:text-bottom; margin-right:8px"} [Python API](python-api.md)
 Programmatic access to all processing functions for integration into your Python scripts and applications.
 
 ```python
@@ -12,7 +12,7 @@ from lithic_editor.processing import process_lithic_drawing
 result = process_lithic_drawing("artifact.png")
 ```
 
-### ![](../assets/images/terminal.svg){: style="width:24px; height:24px; vertical-align:text-bottom; margin-right:8px"} [Command Line Interface](cli-reference.md)  
+### ![](../assets/images/laptop_mac.svg){: style="width:24px; height:24px; vertical-align:text-bottom; margin-right:8px"} [Command Line Interface](cli-reference.md)
 Complete CLI for processing images, batch operations, and automation workflows.
 
 ```bash
@@ -59,11 +59,11 @@ def process_with_preprocessing(image_path):
     # Load and preprocess
     img = Image.open(image_path)
     img = img.convert('L')  # Convert to grayscale
-    
+
     # Save preprocessed image
     temp_path = "temp_preprocessed.png"
     img.save(temp_path)
-    
+
     # Process with lithic editor
     result = process_lithic_drawing(temp_path)
     return result
@@ -109,4 +109,4 @@ except Exception as e:
 
 - Explore the [Python API](python-api.md) for detailed function documentation
 - Review the [CLI Reference](cli-reference.md) for command-line usage
-- See [Integration Examples](../user-guide/processing.md#integration-examples) for workflow ideas
+- See the [User Guide](../user-guide/processing.md) for processing workflows
