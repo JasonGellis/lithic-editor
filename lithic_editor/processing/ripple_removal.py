@@ -252,7 +252,7 @@ def debug_image_info(name, img):
     cv2.imwrite(output_path, img)
     print(f"Debug image saved to {output_path}")
 
-def separate_cortex_and_structure(binary_image, preserve_cortex=True, cortex_size_threshold=60):
+def separate_cortex_and_structure(binary_image, preserve_cortex=True, cortex_size_threshold=50):
     """
     Separate cortex stippling from structural lines before skeletonization.
 
@@ -303,7 +303,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
                           scale_image_path=None, return_scale_factor=False, debug_filename=None, preserve_cortex=True):
     """
     Process a lithic drawing to remove ripple lines while preserving original line quality and metadata.
-    
+
     Processing steps:
     1. Load image and extract DPI metadata
     2. Optional: Upscale low-DPI images using neural networks
@@ -632,6 +632,35 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
                 junctions.append((x, y))
 
     print(f"Found {len(endpoints)} endpoints and {len(junctions)} junctions")
+
+    # Convert junctions that are very close to endpoints into endpoints themselves
+    # This handles Y-tips by making the junction part of the ripple line
+    print("Converting Y-tip junctions to endpoints...")
+    y_tip_threshold = 5  # pixels
+    junctions_to_convert = []
+
+    for jx, jy in junctions:
+        # Check distance to nearest endpoint
+        min_distance = float('inf')
+        for ex, ey in endpoints:
+            distance = ((jx - ex)**2 + (jy - ey)**2)**0.5
+            if distance < min_distance:
+                min_distance = distance
+                if distance <= y_tip_threshold:
+                    break  # Found a close endpoint, no need to check others
+
+        # If junction is very close to an endpoint, convert it to an endpoint
+        if min_distance <= y_tip_threshold:
+            junctions_to_convert.append((jx, jy))
+            print(f"  Converting junction at ({jx},{jy}) to endpoint (distance {min_distance:.1f} to nearest endpoint)")
+
+    # Remove converted junctions from junction list and add to endpoints
+    for junction in junctions_to_convert:
+        junctions.remove(junction)
+        endpoints.append(junction)
+
+    print(f"Converted {len(junctions_to_convert)} Y-tip junctions to endpoints")
+    print(f"Updated: {len(endpoints)} endpoints and {len(junctions)} junctions")
 
     # Create visualization of endpoints and junctions
     debug_img = np.zeros((height, width, 3), dtype=np.uint8)
