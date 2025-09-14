@@ -252,7 +252,7 @@ def debug_image_info(name, img):
     cv2.imwrite(output_path, img)
     print(f"Debug image saved to {output_path}")
 
-def separate_cortex_and_structure(binary_image, preserve_cortex=True, cortex_size_threshold=50):
+def separate_cortex_and_structure(binary_image, preserve_cortex=True, cortex_size_threshold=60, cortex_min_threshold=10):
     """
     Separate cortex stippling from structural lines before skeletonization.
 
@@ -262,6 +262,8 @@ def separate_cortex_and_structure(binary_image, preserve_cortex=True, cortex_siz
         cortex_size_threshold: Maximum pixel area for cortex components. This is dynamically
                                 calculated based on DPI (base 60 pixels at 150 DPI, scaling
                                 quadratically with resolution)
+        cortex_min_threshold: Minimum pixel area for cortex components. Smaller components
+                             are filtered out as noise. This also scales with DPI.
 
     Returns:
         Tuple of (structural_image, cortex_mask)
@@ -285,7 +287,10 @@ def separate_cortex_and_structure(binary_image, preserve_cortex=True, cortex_siz
         component_area = stats[label, cv2.CC_STAT_AREA]
         component_mask = labels == label
 
-        if component_area <= cortex_size_threshold:
+        if component_area < cortex_min_threshold:
+            # Too small - filter out as noise (don't add to either cortex or structural)
+            continue
+        elif component_area <= cortex_size_threshold:
             # Small component - classify as cortex stippling
             cortex_mask[component_mask] = True
             cortex_count += 1
@@ -504,17 +509,24 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
         cortex_threshold = int(60 * dpi_scale * dpi_scale)
         # Set minimum threshold to avoid being too restrictive at low DPI
         cortex_threshold = max(30, cortex_threshold)
+
+        # Calculate minimum threshold to filter out noise
+        # Base: 3 pixels at 150 DPI, scales quadratically
+        cortex_min_threshold = int(3 * dpi_scale * dpi_scale)
+        cortex_min_threshold = max(2, cortex_min_threshold)  # Minimum 2 pixels
     else:
         cortex_threshold = 60  # Default if no DPI info
+        cortex_min_threshold = 3
 
-    print(f"Using cortex threshold: {cortex_threshold} pixels (DPI: {current_dpi_value})")
+    print(f"Using cortex threshold: {cortex_min_threshold}-{cortex_threshold} pixels (DPI: {current_dpi_value})")
 
     # Separate cortex stippling from structural lines before morphological operations
     # Preserves cortex dots from being merged or modified during processing
     structural_image, cortex_mask = separate_cortex_and_structure(
         binary_image,
         preserve_cortex=preserve_cortex,
-        cortex_size_threshold=cortex_threshold
+        cortex_size_threshold=cortex_threshold,
+        cortex_min_threshold=cortex_min_threshold
     )
 
     # Apply morphological operations to structural elements only
