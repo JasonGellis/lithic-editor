@@ -181,11 +181,14 @@ The application consists of several key components:
 - **CLI Interface** (`lithic_editor.cli`): Command-line interface and help system
 
 The ripple removal algorithm uses a multi-step approach:
-1. Skeletonization of the input image
-2. Graph-based analysis to identify line segments
-3. Classification of segments as structural or ripple lines
-4. Selective removal of ripple lines while preserving structural elements
-5. Quality enhancement to produce clean, publication-ready output
+1. DPI-aware upscaling using neural networks (ESPCN/FSRCNN) for low-resolution images
+2. DPI-adaptive cortex separation with quadratically-scaled thresholds to preserve stippling
+3. Targeted morphological operations (dilation, closing, opening) on structural elements only
+4. Skeletonization of processed structural regions to single-pixel width
+5. Graph-based analysis with junction and endpoint detection to identify line segments
+6. Classification of segments as structural or ripple lines based on connectivity patterns
+7. Selective removal of ripple lines while preserving structural elements and cortex
+8. Quality enhancement and cortex restoration to produce clean, publication-ready output
 
 ## License
 

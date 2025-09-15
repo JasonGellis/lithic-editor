@@ -2,54 +2,78 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://jasongellis.github.io/lithic-editor/</loc>
-         <lastmod>2025-09-01</lastmod>
+         <lastmod>2025-09-14</lastmod>
+    </url>
+    <url>
+         <loc>https://jasongellis.github.io/lithic-editor/about/</loc>
+         <lastmod>2025-09-14</lastmod>
     </url>
     <url>
          <loc>https://jasongellis.github.io/lithic-editor/features/</loc>
-         <lastmod>2025-09-01</lastmod>
-    </url>
-    <url>
-         <loc>https://jasongellis.github.io/lithic-editor/screenshots/</loc>
-         <lastmod>2025-09-01</lastmod>
+         <lastmod>2025-09-14</lastmod>
     </url>
     <url>
          <loc>https://jasongellis.github.io/lithic-editor/api-reference/cli-reference/</loc>
-         <lastmod>2025-09-01</lastmod>
+         <lastmod>2025-09-14</lastmod>
+    </url>
+    <url>
+         <loc>https://jasongellis.github.io/lithic-editor/api-reference/introduction/</loc>
+         <lastmod>2025-09-14</lastmod>
     </url>
     <url>
          <loc>https://jasongellis.github.io/lithic-editor/api-reference/overview/</loc>
-         <lastmod>2025-09-01</lastmod>
+         <lastmod>2025-09-14</lastmod>
     </url>
     <url>
          <loc>https://jasongellis.github.io/lithic-editor/api-reference/python-api/</loc>
-         <lastmod>2025-09-01</lastmod>
+         <lastmod>2025-09-14</lastmod>
     </url>
     <url>
          <loc>https://jasongellis.github.io/lithic-editor/developer/contributing/</loc>
-         <lastmod>2025-09-01</lastmod>
+         <lastmod>2025-09-14</lastmod>
     </url>
     <url>
          <loc>https://jasongellis.github.io/lithic-editor/developer/testing/</loc>
-         <lastmod>2025-09-01</lastmod>
+         <lastmod>2025-09-14</lastmod>
     </url>
     <url>
          <loc>https://jasongellis.github.io/lithic-editor/getting-started/installation/</loc>
-         <lastmod>2025-09-01</lastmod>
-    </url>
-    <url>
-         <loc>https://jasongellis.github.io/lithic-editor/getting-started/quickstart/</loc>
-         <lastmod>2025-09-01</lastmod>
+         <lastmod>2025-09-14</lastmod>
     </url>
     <url>
          <loc>https://jasongellis.github.io/lithic-editor/getting-started/requirements/</loc>
-         <lastmod>2025-09-01</lastmod>
+         <lastmod>2025-09-14</lastmod>
+    </url>
+    <url>
+         <loc>https://jasongellis.github.io/lithic-editor/user-guide/CLI/</loc>
+         <lastmod>2025-09-14</lastmod>
+    </url>
+    <url>
+         <loc>https://jasongellis.github.io/lithic-editor/user-guide/arrows/</loc>
+         <lastmod>2025-09-14</lastmod>
+    </url>
+    <url>
+         <loc>https://jasongellis.github.io/lithic-editor/user-guide/images/</loc>
+         <lastmod>2025-09-14</lastmod>
+    </url>
+    <url>
+         <loc>https://jasongellis.github.io/lithic-editor/user-guide/interface/</loc>
+         <lastmod>2025-09-14</lastmod>
+    </url>
+    <url>
+         <loc>https://jasongellis.github.io/lithic-editor/user-guide/output/</loc>
+         <lastmod>2025-09-14</lastmod>
     </url>
     <url>
          <loc>https://jasongellis.github.io/lithic-editor/user-guide/overview/</loc>
-         <lastmod>2025-09-01</lastmod>
+         <lastmod>2025-09-14</lastmod>
     </url>
     <url>
          <loc>https://jasongellis.github.io/lithic-editor/user-guide/processing/</loc>
-         <lastmod>2025-09-01</lastmod>
+         <lastmod>2025-09-14</lastmod>
+    </url>
+    <url>
+         <loc>https://jasongellis.github.io/lithic-editor/user-guide/troubleshooting/</loc>
+         <lastmod>2025-09-14</lastmod>
     </url>
 </urlset>

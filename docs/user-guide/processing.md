@@ -1,113 +1,61 @@
 # Processing Images
 
-## Overview
+This documentation provides comprehensive guidance for utilizing the graphical user interface (GUI) to remove ripples from individual images. For batch processing workflows and programmatic integration, refer to the [Command Line Interface](../api-reference/cli-reference.md) and [Python API](../api-reference/python-api.md) documentation.
 
-The image processing engine in Lithic Editor uses advanced algorithms to automatically identify and remove ripple lines while preserving the structural elements of lithic drawings.
+## Workflow Overview
 
-## Loading Images
+The typical workflow for processing lithic drawings follows these steps:
 
-### Supported Formats
-- **PNG** (recommended): Lossless compression, transparency support
-- **JPEG/JPG**: Widely compatible, smaller file sizes
-- **TIFF/TIF**: Professional quality, uncompressed
-- **BMP**: Simple format, uncompressed
+```mermaid
+graph LR
+    A[Load Image] --> B[Check DPI]
+    B --> C{DPI < 300?}
+    C -->|Yes| D[Neural Network Upscaling]
+    C -->|No| E[Process Image]
+    D --> E
+    E --> F{Success?}
+    F -->|No| G[Image Debug & Adjust]
+    G --> E
+    F -->|Yes| H[Add Annotations]
+    H --> I[Save Result]
+```
+## Step-by-Step Processing
 
-### Image Requirements
-For best results, your images should have:
-- High contrast (black lines on white background)
-- Resolution of at least 300 DPI (automatic upscaling available for lower DPI)
-- Clean, continuous lines
-- Minimal noise or artifacts
+### Loading Images
 
-### Neural Network Upscaling
-Lithic Editor includes ESPCN and FSRCNN neural network models to automatically upscale low-DPI images:
-- **ESPCN**: Efficient Sub-Pixel CNN, faster processing
-- **FSRCNN**: Fast Super-Resolution CNN, higher quality
-- **Automatic DPI detection** from image metadata
-- **User dialogs** for DPI selection when metadata is missing
-- **300 DPI target** for optimal processing results
-
-For technical details about these super-resolution models, see [OpenCV Super Resolution Tutorial](https://learnopencv.com/super-resolution-in-opencv/#sec3).
-
-### Cortex Preservation
-Automatically preserves natural cortex stippling on lithic artifacts:
-- **Intelligent separation**: Distinguishes cortex stippling from structural lines
-- **Pre-processing preservation**: Cortex bypasses destructive skeletonization
-- **Archaeological accuracy**: Maintains cortex vs. worked surface distinction
-- **User control**: Toggle preservation on/off via GUI checkbox or CLI flag
-
-## Processing Algorithm
-
-### How It Works
-
-The ripple removal algorithm follows these steps:
-
-1. **Neural Network Upscaling** (if needed)
-   - Detect DPI from image metadata or prompt user
-   - Upscale low-DPI images using ESPCN/FSRCNN models
-   - Maintain aspect ratio and line quality
-
-2. **Image Preprocessing & Cortex Separation**
-   - Convert to grayscale if needed
-   - Apply threshold to create binary image
-   - Separate cortex stippling from structural lines
-   - Preserve cortex areas before skeletonization
-
-3. **Skeletonization**
-   - Reduce lines to single-pixel width
-   - Preserve connectivity and topology
-   - Create network representation
-
-4. **Line Analysis**
-   - Detect individual line segments
-   - Calculate orientation and length
-   - Build connectivity graph
-
-5. **Ripple Detection**
-   - Identify parallel line patterns
-   - Analyze spacing consistency
-   - Classify as ripple or structural
-
-6. **Selective Removal**
-   - Remove identified ripple lines
-   - Preserve structural boundaries
-   - Maintain artifact integrity
-
-7. **Final Assembly**
-   - Combine cleaned structural lines with preserved cortex
-   - Refine endpoint decisions after cleaning
-   - Create final archaeologically accurate result
-
-## Using the GUI
-
-### Step-by-Step Processing
+For image requirements and preparation guidelines, see [Lithic Illustrations](images.md).
 
 1. **Load Your Image**
-   ```
-   Click "Load Image" → Select file → Open
-   ```
-
-2. **DPI Detection and Upscaling**
-   - System automatically detects DPI from image metadata
-   - If missing, dialog prompts for DPI selection (72, 96, 150, 200 or custom)
-   - If below 300 DPI, upscaling dialog offers ESPCN/FSRCNN options
-
-3. **Review Input**
-   - Check image quality in Input panel
-   - Verify correct orientation
-   - Note any problem areas
-
-4. **Process Image**
    ```
    Click "Process Image" → Wait for completion
    ```
 
-5. **Review Results**
-   - Compare before/after
-   - Check debug steps if enabled
-   - Verify structural preservation
+2. **DPI Detection and Upscaling**
+    - System automatically detects DPI from image metadata (**Options and DPI Settings** panel & **Processing Log**)
+    - If missing, dialog prompts for DPI selection (72, 96, 150, 200 or custom)
+    - If below 300 DPI, upscaling dialog offers ESPCN/FSRCNN options
+    - **DPI-Aware Processing**: Algorithm automatically adapts parameters based on detected DPI:
+      - **Y-tip removal**: 2-8 pixel thresholds scale with resolution
+      - **Cortex filtering**: Minimum/maximum thresholds prevent noise at all DPIs
+      - **Thickness reconstruction**: 1-6 pixel parameters preserve line quality
 
-### Processing Options
+3. **Review Input**
+    - Check image quality in the **Input Image** window
+    - Note any problem areas
+
+4. **Process Image**
+    - Click "Process Image" → Wait for completion
+
+5. **Review Results**
+    - Compare before/after images in **Input Image** and **Processed Image/Arrow Annotations** windows
+    - Verify structural preservation (scars and borders) and ripple removal
+    - Check that Y-tip artifacts have been eliminated while maintaining structural integrity
+
+6. **Evaluate Processing Quality**
+    - If results are satisfactory, proceed to the [arrow annotation phase](arrows.md)
+    - If refinement is needed, utilize debug mode for detailed analysis
+
+### Processing Debug Options
 
 #### Debug Mode
 Enable to view and save intermediate processing steps:
@@ -115,190 +63,32 @@ Enable to view and save intermediate processing steps:
 - Shows processing steps in the Processing Steps panel
 - Creates `image_debug/` folder with all algorithm stages
 
-#### Quality Settings
-Adjust processing parameters:
-- Line thickness tolerance
-- Ripple pattern sensitivity
-- Structural preservation level
-
-## Command Line Processing
-
-### Basic Usage
-
-```bash
-# Process single image
-lithic-editor process input.png
-
-# Specify output directory
-lithic-editor process input.png --output results/
-
-# Enable debug mode
-lithic-editor process input.png --debug
-```
-
-### Batch Processing
-
-```bash
-# Process all PNG files
-for file in *.png; do
-    lithic-editor process "$file" --output processed/
-done
-
-# Process with parallel jobs
-find . -name "*.png" | parallel lithic-editor process {} --quiet
-```
-
-### Advanced Options
-
-```bash
-# Neural network upscaling with debug output
-lithic-editor process low_res.png \
-    --auto-upscale \
-    --default-dpi 150 \
-    --upscale-model fsrcnn \
-    --upscale-threshold 300 \
-    --debug
-
-# Batch processing with upscaling
-for file in *.png; do
-    lithic-editor process "$file" \
-        --auto-upscale \
-        --default-dpi 200 \
-        --output "processed/${file%.png}/"
-done
-```
-
-## Python API
-
-### Using the Python API
-
-For detailed API documentation and examples, see the [API Reference](../api-reference/overview.md).
-
-```python
-from lithic_editor.processing import process_lithic_drawing
-
-# Basic example
-result = process_lithic_drawing("drawing.png", save_debug=True)
-
-# With neural network upscaling
-result = process_lithic_drawing(
-    "low_dpi.png",
-    save_debug=True,
-    upscale_low_dpi=True,
-    default_dpi=150,
-    upscale_model='espcn',
-    target_dpi=300,
-    preserve_cortex=True
-)
-```
-
-For advanced usage, batch processing, and integration examples, refer to:
-- [Python API Documentation](../api-reference/python-api.md)
-- [CLI Reference](../api-reference/cli-reference.md)
-
-## Troubleshooting
-
-### Common Issues
-
-??? problem "Structural lines are removed"
-    **Causes:**
-    - Lines too similar to ripple pattern
-    - Incorrect threshold settings
-    
-    **Solutions:**
-    - Increase structural preservation setting
-    - Manually edit before processing
-    - Use debug mode to identify issue
-
-??? problem "Ripples not fully removed"
-    **Causes:**
-    - Inconsistent ripple pattern
-    - Poor image quality
-    - Ripples too thick
-    
-    **Solutions:**
-    - Improve scan quality
-    - Pre-process to enhance contrast
-    - Adjust sensitivity settings
-
-??? problem "Processing takes too long"
-    **Causes:**
-    - Image too large
-    - Insufficient memory
-    - Complex line patterns
-    
-    **Solutions:**
-    - Resize image to 3000px max
-    - Close other applications
-    - Use batch processing overnight
-
-### Image Preparation Tips
-
-1. **Scanning**
-   - Use 300+ DPI
-   - Black and white mode
-   - Clean scanner glass
-
-2. **Editing**
-   - Remove text and scales
-   - Fill gaps in lines
-   - Increase contrast
-
-3. **Format**
-   - Save as PNG
-   - Use lossless compression
-   - Preserve metadata
-
-## Best Practices
-
 ### Quality Control
 
 !!! tip "Always Review Debug Images"
     Enable debug mode for important images to verify the algorithm isn't removing structural elements.
 
-### Workflow Optimization
 
-1. **Test on Sample**
-   - Process small section first
-   - Adjust settings as needed
-   - Apply to full image
+## Best Practices
 
-2. **Batch Similar Images**
-   - Group by drawing style
-   - Use consistent settings
-   - Review results together
+### For Optimal Results
 
-3. **Archive Originals**
-   - Keep unprocessed versions
-   - Document processing parameters
-   - Note any manual edits
+1. **Image Preparation**
+   - Use high-resolution scans (300+ DPI)
+   - Ensure good contrast
+   - Remove unnecessary elements
 
-## Performance Optimization
+2. **Processing Settings**
+   - Enable "View and Save Debug Images" for complex images
+   - Review intermediate steps in Processing Steps panel
+   - Set custom DPI if needed (default preserves original)
 
-### Memory Management
-- Process images under 4000×4000 pixels
-- Close unnecessary applications
-- Use 64-bit Python
+3. **Annotation Guidelines**
+   - Maintain consistent arrow sizes
+   - Use appropriate colors
+   - Align with archaeological standards
 
-### Speed Improvements
-- Resize large images first
-- Process in batches overnight
-- Use SSD for temp files
-
-### Parallel Processing
-```python
-from multiprocessing import Pool
-from lithic_editor.processing import process_lithic_drawing
-
-def process_file(filename):
-    return process_lithic_drawing(filename)
-
-with Pool(processes=4) as pool:
-    results = pool.map(process_file, file_list)
-```
 
 ## Next Steps
 
-- Learn about [Adding Annotations](annotations.md)
-- Explore [Saving Options](saving.md)
-- Read [API Reference](../developer/api.md)
+- Continue to [Arrow Annotations](arrows.md) for information about output files and formats

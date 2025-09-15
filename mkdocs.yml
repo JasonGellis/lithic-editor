@@ -109,16 +109,15 @@ nav:
   - Home:
     - index.md
     - Features: features.md
-    - Screenshots: screenshots.md
 
-  - Getting Started:
+  - Installation:
     - Installation: getting-started/installation.md
-    - Quick Start: getting-started/quickstart.md
-    - Requirements: getting-started/requirements.md
 
   - User Guide:
     - Overview: user-guide/overview.md
-    - Processing Images: user-guide/processing.md
+    - Interface: user-guide/interface.md
+    - Processing: user-guide/processing.md
+    - Output: user-guide/output.md
 
   - API Reference:
     - Overview: api-reference/overview.md
@@ -128,6 +127,8 @@ nav:
   - Developer Guide:
     - Contributing: developer/contributing.md
     - Testing Guide: developer/testing.md
+
+  - About: about.md
 
 copyright: |
   &copy; 2024 <a href="https://github.com/JasonGellis" target="_blank" rel="noopener">Jason Jacob Gellis</a>
