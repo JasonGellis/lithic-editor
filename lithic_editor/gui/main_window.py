@@ -90,6 +90,43 @@ class DPISelectionDialog(QDialog):
             QMessageBox.warning(self, "Invalid Input", "Please enter a valid number")
 
 
+class DownscalingDialog(QDialog):
+    """Dialog for confirming downscaling for high DPI processing"""
+
+    def __init__(self, current_dpi, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("High DPI Processing Option")
+        self.setModal(True)
+        self.current_dpi = current_dpi
+        self.downscale_confirmed = False
+
+        layout = QVBoxLayout()
+
+        # Warning message
+        warning_text = (f"Your image is {current_dpi} DPI. Images greater than 300 DPI may cause\n"
+                       f"issues with processing but the image will retain original scale.\n\n"
+                       f"Do you want to downscale to 300 DPI for analysis?\n"
+                       f"(Uses Lanczos downscaling for optimal edge preservation)")
+        warning_label = QLabel(warning_text)
+        layout.addWidget(warning_label)
+
+        # Buttons
+        button_layout = QHBoxLayout()
+        yes_btn = QPushButton("Yes, Downscale for Processing")
+        yes_btn.clicked.connect(self.confirm_downscale)
+        no_btn = QPushButton("No, Continue at Original DPI")
+        no_btn.clicked.connect(self.reject)
+        button_layout.addWidget(yes_btn)
+        button_layout.addWidget(no_btn)
+        layout.addLayout(button_layout)
+
+        self.setLayout(layout)
+
+    def confirm_downscale(self):
+        self.downscale_confirmed = True
+        self.accept()
+
+
 class UpscalingDialog(QDialog):
     """Dialog for confirming upscaling with model selection"""
 
@@ -144,7 +181,8 @@ class ProcessingThread(QThread):
     finished_signal = pyqtSignal(object, object, object)  # image_data, dpi_info, format_info
 
     def __init__(self, input_path, output_folder, dpi_info=None, format_info=None, output_dpi=None, save_debug=False,
-                 upscale_low_dpi=False, default_dpi=None, upscale_model='espcn', target_dpi=300, debug_filename=None, preserve_cortex=True):
+                 upscale_low_dpi=False, default_dpi=None, upscale_model='espcn', target_dpi=300, debug_filename=None, preserve_cortex=True,
+                 downscale_high_dpi=False, high_dpi_threshold=300):
         super().__init__()
         self.input_path = input_path
         self.output_folder = output_folder
@@ -158,6 +196,8 @@ class ProcessingThread(QThread):
         self.target_dpi = target_dpi
         self.debug_filename = debug_filename
         self.preserve_cortex = preserve_cortex
+        self.downscale_high_dpi = downscale_high_dpi
+        self.high_dpi_threshold = high_dpi_threshold
 
     def run(self):
         try:
@@ -184,7 +224,9 @@ class ProcessingThread(QThread):
                 upscale_model=self.upscale_model,
                 target_dpi=self.target_dpi,
                 debug_filename=self.debug_filename,
-                preserve_cortex=self.preserve_cortex
+                preserve_cortex=self.preserve_cortex,
+                downscale_high_dpi=self.downscale_high_dpi,
+                high_dpi_threshold=self.high_dpi_threshold
             )
 
             # Restore the original print function
@@ -1008,14 +1050,17 @@ class LithicProcessorGUI(QMainWindow):
         # Handle upscaling logic
         upscale_params = self.check_and_prompt_upscaling(dpi_info)
 
+        # Handle downscaling logic for high DPI
+        downscale_params = self.check_and_prompt_downscaling(dpi_info)
+
         # Pass output folder for debug images if enabled
         output_folder = self.output_folder if debug_enabled else None
 
         # Use the filename extracted earlier
 
         self.processing_thread = ProcessingThread(self.input_image_path, output_folder,
-                dpi_info, format_info, output_dpi, debug_enabled, debug_filename=original_filename, 
-                preserve_cortex=self.preserve_cortex_checkbox.isChecked(), **upscale_params)
+                dpi_info, format_info, output_dpi, debug_enabled, debug_filename=original_filename,
+                preserve_cortex=self.preserve_cortex_checkbox.isChecked(), **upscale_params, **downscale_params)
         self.processing_thread.progress_signal.connect(self.update_progress)
         self.processing_thread.finished_signal.connect(self.processing_finished)
         self.processing_thread.start()
@@ -1060,6 +1105,33 @@ class LithicProcessorGUI(QMainWindow):
             self.log(f"Image DPI ({current_dpi}) already meets target (300). No upscaling needed.")
 
         return upscale_params
+
+    def check_and_prompt_downscaling(self, dpi_info):
+        """Check if downscaling is needed for high DPI and prompt user"""
+        downscale_params = {
+            'downscale_high_dpi': False,
+            'high_dpi_threshold': 300
+        }
+
+        # Determine current DPI
+        current_dpi = None
+        if dpi_info:
+            if isinstance(dpi_info, tuple):
+                current_dpi = max(dpi_info[0], dpi_info[1])
+            else:
+                current_dpi = int(dpi_info)
+
+        # Check if downscaling might be helpful (high DPI)
+        if current_dpi and current_dpi > 300:
+            # Show downscaling confirmation dialog
+            downscale_dialog = DownscalingDialog(current_dpi, self)
+            if downscale_dialog.exec_() == QDialog.Accepted and downscale_dialog.downscale_confirmed:
+                downscale_params['downscale_high_dpi'] = True
+                self.log(f"User confirmed downscaling from {current_dpi} DPI to 300 DPI for processing")
+            else:
+                self.log(f"User declined downscaling. Proceeding with {current_dpi} DPI")
+
+        return downscale_params
 
     def update_progress(self, message):
             self.status_label.setText(message)

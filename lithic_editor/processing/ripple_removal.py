@@ -398,7 +398,8 @@ def separate_cortex_and_structure(binary_image, preserve_cortex=True, cortex_siz
 
 def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=None, format_info=None, output_dpi=None, save_debug=False,
                           upscale_low_dpi=False, default_dpi=None, upscale_model='espcn', target_dpi=300,
-                          scale_image_path=None, return_scale_factor=False, debug_filename=None, preserve_cortex=True):
+                          scale_image_path=None, return_scale_factor=False, debug_filename=None, preserve_cortex=True,
+                          downscale_high_dpi=False, high_dpi_threshold=300):
     """
     Process lithic drawings to remove ripple artifacts while preserving structural elements.
 
@@ -453,6 +454,10 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
         Custom base filename for debug output files. If None, derives from input filename.
     preserve_cortex : bool, optional
         Enable cortex stippling preservation during processing (default: True).
+    downscale_high_dpi : bool, optional
+        Enable downscaling of high DPI images for processing (default: False).
+    high_dpi_threshold : int, optional
+        DPI threshold above which downscaling is offered (default: 500).
 
     Returns
     -------
@@ -585,22 +590,55 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
         original_image = image_path
         print(f"Using provided numpy array. Shape: {original_image.shape}")
 
-    # Handle upscaling if requested
+    # Handle scaling (upscaling or downscaling) if requested
     scale_factor = 1.0
     processed_scale = None
+    downscale_applied = False
+    original_dpi_for_restoration = None
 
-    if upscale_low_dpi:
-        # Determine current DPI
-        current_dpi = None
-        if dpi_info:
-            if isinstance(dpi_info, tuple):
-                current_dpi = max(dpi_info[0], dpi_info[1])
-            else:
-                current_dpi = int(dpi_info)
-        elif default_dpi:
-            current_dpi = default_dpi
-            print(f"Using default DPI: {current_dpi} (no metadata found)")
+    # Determine current DPI first
+    current_dpi = None
+    if dpi_info:
+        if isinstance(dpi_info, tuple):
+            current_dpi = max(dpi_info[0], dpi_info[1])
         else:
+            current_dpi = int(dpi_info)
+    elif default_dpi:
+        current_dpi = default_dpi
+        print(f"Using default DPI: {current_dpi} (no metadata found)")
+
+    # Check for high DPI downscaling first
+    if downscale_high_dpi and current_dpi and current_dpi > high_dpi_threshold:
+        print(f"High DPI detected ({current_dpi}). Downscaling for processing...")
+
+        # Store original DPI for later restoration
+        original_dpi_for_restoration = current_dpi
+        target_processing_dpi = 300
+
+        # Calculate downscale factor
+        downscale_factor = target_processing_dpi / current_dpi
+
+        # Downscale the image using Lanczos interpolation (excellent for preserving edges)
+        new_height = int(original_image.shape[0] * downscale_factor)
+        new_width = int(original_image.shape[1] * downscale_factor)
+        downscaled_image = cv2.resize(original_image, (new_width, new_height), interpolation=cv2.INTER_LANCZOS4)
+
+        # Update working variables
+        original_image = downscaled_image
+        current_dpi = target_processing_dpi
+        dpi_info = target_processing_dpi
+        downscale_applied = True
+        scale_factor = 1.0 / downscale_factor  # Store inverse for later upscaling
+
+        print(f"Downscaled from {original_dpi_for_restoration} DPI to {target_processing_dpi} DPI for processing")
+        print(f"Image size: {downscaled_image.shape[1]}x{downscaled_image.shape[0]} (downscale factor: {downscale_factor:.3f})")
+
+        if save_debug:
+            save_debug_image(original_image, os.path.join(output_folder, f'0a_{base_filename}_downscaled_for_processing.png'),
+                           f'Downscaled for Processing ({target_processing_dpi} DPI)', (target_processing_dpi, target_processing_dpi), format_info, (target_processing_dpi, target_processing_dpi))
+
+    if upscale_low_dpi and not downscale_applied:
+        if not current_dpi:
             # Non-interactive mode requires DPI information to proceed
             print("Warning: No DPI information found and no default_dpi provided. Skipping upscaling.")
             upscale_low_dpi = False
@@ -699,25 +737,11 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
     elif default_dpi:
         current_dpi_value = default_dpi
 
-    # Calculate DPI-scaled cortex threshold
-    # Base threshold is 60 pixels at 150 DPI
-    # Area scales quadratically with resolution
-    # Results: 75 DPI=30, 150 DPI=60, 300 DPI=240, 600 DPI=960 pixels
-    if current_dpi_value:
-        dpi_scale = current_dpi_value / 150.0
-        cortex_threshold = int(60 * dpi_scale * dpi_scale)
-        # Set minimum threshold to avoid being too restrictive at low DPI
-        cortex_threshold = max(30, cortex_threshold)
+    # Use fixed cortex threshold for consistent behavior across all DPIs
+    cortex_threshold = 60
+    cortex_min_threshold = 3
 
-        # Calculate minimum threshold to filter out noise
-        # Base: 3 pixels at 150 DPI, scales quadratically
-        cortex_min_threshold = int(3 * dpi_scale * dpi_scale)
-        cortex_min_threshold = max(2, cortex_min_threshold)  # Minimum 2 pixels
-    else:
-        cortex_threshold = 60  # Default if no DPI info
-        cortex_min_threshold = 3
-
-    print(f"Using cortex threshold: {cortex_min_threshold}-{cortex_threshold} pixels (DPI: {current_dpi_value})")
+    print(f"Using fixed cortex threshold: {cortex_min_threshold}-{cortex_threshold} pixels")
 
     # Separate cortex stippling from structural lines before morphological operations
     # Preserves cortex dots from being merged or modified during processing
@@ -728,55 +752,8 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
         cortex_min_threshold=cortex_min_threshold
     )
 
-    # Apply morphological operations to structural elements only
-    # Determine kernel sizes based on DPI
-    if current_dpi_value:
-        # Scale kernel sizes based on DPI ranges
-        if current_dpi_value >= 600:
-            # Very high resolution - aggressive processing
-            dilate_size = 5
-            close_size = 9
-            open_size = 5
-        elif current_dpi_value >= 300:
-            # High resolution - moderate processing
-            dilate_size = 3
-            close_size = 5
-            open_size = 3
-        elif current_dpi_value >= 150:
-            # Medium resolution - minimal processing
-            dilate_size = 3
-            close_size = 3
-            open_size = 3
-        else:
-            # Low resolution - very minimal processing
-            dilate_size = 0  # Skip dilation
-            close_size = 3
-            open_size = 0  # Skip opening
-    else:
-        # Default sizes if no DPI info (assume medium resolution)
-        dilate_size = 3
-        close_size = 3
-        open_size = 3
-
-    print(f"Using kernel sizes - dilate: {dilate_size}, close: {close_size}, open: {open_size}")
-
-    # Apply morphological operations to structural image only
-    # Dilate to thicken thin areas (skipped if size is 0)
-    if dilate_size > 0:
-        kernel_dilate = cv2.getStructuringElement(cv2.MORPH_CROSS, (dilate_size, dilate_size))
-        structural_image = cv2.dilate(structural_image, kernel_dilate, iterations=1)
-        print("Applied dilation to thicken lines (structural only)")
-
-    # Close to bridge gaps (always applied)
-    kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (close_size, close_size))
-    structural_image = cv2.morphologyEx(structural_image, cv2.MORPH_CLOSE, kernel_close)
-    print("Applied closing to bridge gaps (structural only)")
-
-    # Smooth rough edges (skipped if size is 0)
-    if open_size > 0:
-        kernel_open = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (open_size, open_size))
-        structural_image = cv2.morphologyEx(structural_image, cv2.MORPH_OPEN, kernel_open)
-        print("Applied opening to smooth edges (structural only)")
+    # Skip morphological operations - test without them
+    print("Skipping morphological operations for simplified processing")
 
     # Save debug images for cortex separation
     if save_debug and preserve_cortex:
@@ -849,18 +826,35 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
     print("Converting Y-tip junctions to endpoints...")
 
     # Calculate DPI-aware Y-tip threshold
-    if current_dpi_value and current_dpi_value >= 600:
-        # Very high DPI (600+): highest threshold for maximum Y-tip detection
-        y_tip_threshold = 8
-    elif current_dpi_value and current_dpi_value >= 300:
-        # High DPI (300-599): larger threshold for clear Y-tip detection
-        y_tip_threshold = 5
-    elif current_dpi_value and current_dpi_value >= 150:
-        # Medium DPI (150-299): moderate threshold
-        y_tip_threshold = 3
+    if current_dpi_value:
+        # Get base threshold from DPI (original proven values)
+        if current_dpi_value >= 600:
+            # Very high DPI (600+): highest threshold for maximum Y-tip detection
+            y_tip_threshold = 8
+        elif current_dpi_value >= 300:
+            # High DPI (300-599): larger threshold for clear Y-tip detection
+            y_tip_threshold = 5
+        elif current_dpi_value >= 150:
+            # Medium DPI (150-299): moderate threshold
+            y_tip_threshold = 3
+        else:
+            # Low DPI (<150): very conservative threshold to avoid removing structural details
+            y_tip_threshold = 2
+
+        # ONLY apply dimension scaling for downscaled images
+        if downscale_applied:
+            # For downscaled images, apply dimension scaling
+            min_dimension = min(skeleton.shape[0], skeleton.shape[1])
+            expected_min_dimension = current_dpi_value * 2
+            dimension_scale = min_dimension / expected_min_dimension
+            dimension_scale = max(0.5, min(2.0, dimension_scale))
+
+            # Apply scaling and make more conservative
+            scaled_threshold = max(2, int(y_tip_threshold * dimension_scale))
+            y_tip_threshold = max(1, int(scaled_threshold * 0.5))  # Further reduce by 50%
+            print(f"Y-tip threshold scaled for downscaled image: {y_tip_threshold} pixels (dimension scale: {dimension_scale:.2f})")
     else:
-        # Low DPI (<150): very conservative threshold to avoid removing structural details
-        y_tip_threshold = 2
+        y_tip_threshold = 3  # Default threshold
 
     print(f"Using Y-tip threshold: {y_tip_threshold} pixels (DPI: {current_dpi_value})")
     junctions_to_convert = []
@@ -1114,21 +1108,11 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
     # Convert binary_image to boolean for processing
     binary_bool = binary_image > 0
 
-    # Calculate DPI-aware thickness parameters
-    if current_dpi_value and current_dpi_value >= 300:
-        # High DPI (300+): use thickest preservation
-        min_thickness = 4
-        max_thickness = 6
-    elif current_dpi_value and current_dpi_value >= 150:
-        # Medium DPI (150-299): moderate thickness preservation
-        min_thickness = 3
-        max_thickness = 4
-    else:
-        # Low DPI (<150): use thinner preservation to avoid over-thickening
-        min_thickness = 1
-        max_thickness = 2
+    # Use fixed thickness parameters for consistent behavior across all DPIs
+    min_thickness = 3
+    max_thickness = 4
 
-    print(f"Using thickness range: {min_thickness}-{max_thickness} pixels (DPI: {current_dpi_value})")
+    print(f"Using fixed thickness range: {min_thickness}-{max_thickness} pixels")
 
     # Use the new thickness-aware reconstruction
     thickness_preserved_mask = create_thickness_aware_mask(
@@ -1157,8 +1141,16 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
 
     # Save the final cleaned image (inverted)
     if save_debug:
+        # If downscaled, use the downscaled DPI (300) instead of original output_dpi
+        final_dpi = dpi_info if downscale_applied else output_dpi
         save_debug_image(final_cleaned_inverted, os.path.join(output_folder, f'7_{base_filename}_final_cleaned.png'),
-                        'Final Cleaned', dpi_info, format_info, output_dpi)
+                        'Final Cleaned', dpi_info, format_info, final_dpi)
+
+    # Skip upscaling back to original resolution - keep at 300 DPI
+    if downscale_applied and original_dpi_for_restoration:
+        print(f"Keeping result at 300 DPI (not upscaling back to {original_dpi_for_restoration} DPI)")
+        # Keep DPI at 300 instead of restoring to original
+        # This avoids pixelation artifacts from upscaling
 
     print("Processing complete!")
 
