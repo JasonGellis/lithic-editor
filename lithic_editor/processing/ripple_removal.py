@@ -2,11 +2,11 @@ import cv2
 import numpy as np
 import networkx as nxgraph
 from skimage import morphology
+from skimage.filters import threshold_sauvola  # Wolf is a variant of Sauvola
 from scipy.ndimage import label
 import os
 import traceback
 from PIL import Image
-import numpy as np
 from .upscaling import (
     detect_image_dpi, needs_upscaling, upscale_image_to_target_dpi,
     validate_upscaling_inputs
@@ -590,11 +590,13 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
         original_image = image_path
         print(f"Using provided numpy array. Shape: {original_image.shape}")
 
-    # Handle scaling (upscaling or downscaling) if requested
+    # Initialize scaling variables
     scale_factor = 1.0
     processed_scale = None
     downscale_applied = False
     original_dpi_for_restoration = None
+    downscale_factor = 1.0
+    target_processing_dpi = 300
 
     # Determine current DPI first
     current_dpi = None
@@ -607,37 +609,17 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
         current_dpi = default_dpi
         print(f"Using default DPI: {current_dpi} (no metadata found)")
 
-    # Check for high DPI downscaling first
+    # Check if we WILL downscale (but don't do it yet)
+    will_downscale = False
     if downscale_high_dpi and current_dpi and current_dpi > high_dpi_threshold:
-        print(f"High DPI detected ({current_dpi}). Downscaling for processing...")
-
-        # Store original DPI for later restoration
+        will_downscale = True
         original_dpi_for_restoration = current_dpi
-        target_processing_dpi = 300
-
-        # Calculate downscale factor
         downscale_factor = target_processing_dpi / current_dpi
+        print(f"High DPI detected ({current_dpi}). Will downscale AFTER thresholding to preserve detail.")
 
-        # Downscale the image using Lanczos interpolation (excellent for preserving edges)
-        new_height = int(original_image.shape[0] * downscale_factor)
-        new_width = int(original_image.shape[1] * downscale_factor)
-        downscaled_image = cv2.resize(original_image, (new_width, new_height), interpolation=cv2.INTER_LANCZOS4)
-
-        # Update working variables
-        original_image = downscaled_image
-        current_dpi = target_processing_dpi
-        dpi_info = target_processing_dpi
-        downscale_applied = True
-        scale_factor = 1.0 / downscale_factor  # Store inverse for later upscaling
-
-        print(f"Downscaled from {original_dpi_for_restoration} DPI to {target_processing_dpi} DPI for processing")
-        print(f"Image size: {downscaled_image.shape[1]}x{downscaled_image.shape[0]} (downscale factor: {downscale_factor:.3f})")
-
-        if save_debug:
-            save_debug_image(original_image, os.path.join(output_folder, f'0a_{base_filename}_downscaled_for_processing.png'),
-                           f'Downscaled for Processing ({target_processing_dpi} DPI)', (target_processing_dpi, target_processing_dpi), format_info, (target_processing_dpi, target_processing_dpi))
-
-    if upscale_low_dpi and not downscale_applied:
+    # Note: Upscaling is still done BEFORE thresholding since we want to add detail
+    # before binarization. This is different from downscaling which removes detail.
+    if upscale_low_dpi and not will_downscale:
         if not current_dpi:
             # Non-interactive mode requires DPI information to proceed
             print("Warning: No DPI information found and no default_dpi provided. Skipping upscaling.")
@@ -707,35 +689,89 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
     if format_info:
         print(f"Preserving original format: {format_info}")
 
-    # Save the original image
+    # Save the original image (before thresholding)
     if save_debug:
         save_debug_image(original_image, os.path.join(output_folder, f'1_{base_filename}_original_image.png'),
-                        'Original Image', dpi_info, format_info, output_dpi)
+                        'Original Image (Pre-threshold)', dpi_info, format_info, output_dpi)
 
-    # Step 2: Preprocess the image
-    print("Preprocessing image...")
+    # Step 2: Preprocess the image AT ORIGINAL RESOLUTION
+    print("Preprocessing image at original resolution...")
 
-    # Threshold to binary (if necessary)
-    if original_image.max() > 1:  # Check if image is not already binary
-        _, binary = cv2.threshold(original_image, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-        binary = binary > 0  # Convert to boolean
-        print("Image thresholded to binary")
-    else:
-        binary = original_image > 0
-        print("Image already binary")
-
-    # Save a copy of the binary image for later reconstruction
-    binary_image = binary.astype(np.uint8) * 255
-
-    # Extract DPI value first for cortex threshold scaling
+    # Extract DPI value (use original DPI for thresholding, not downscaled)
     current_dpi_value = None
-    if dpi_info:
+    if original_dpi_for_restoration:  # If we're planning to downscale, use original DPI
+        current_dpi_value = original_dpi_for_restoration
+    elif dpi_info:
         if isinstance(dpi_info, tuple):
             current_dpi_value = max(dpi_info[0], dpi_info[1])
         else:
             current_dpi_value = int(dpi_info)
     elif default_dpi:
         current_dpi_value = default_dpi
+
+    # Threshold to binary at ORIGINAL resolution (if necessary)
+    if original_image.max() > 1:  # Check if image is not already binary
+        # Use Sauvola thresholding for better handling of varying contrast
+        # Window size should be odd and adapt to ORIGINAL image size/DPI
+        if current_dpi_value and current_dpi_value >= 600:
+            window_size = 51  # Extra large for very high DPI
+        elif current_dpi_value and current_dpi_value >= 300:
+            window_size = 25  # Larger window for high DPI
+        else:
+            window_size = 15  # Smaller window for lower DPI
+
+        # Ensure window size is odd
+        if window_size % 2 == 0:
+            window_size += 1
+
+        # Apply Sauvola thresholding at FULL resolution
+        print(f"Applying Sauvola thresholding at {current_dpi_value} DPI (window={window_size})")
+        # Sauvola with k=0.2 (standard for document images)
+        sauvola_thresh = threshold_sauvola(original_image, window_size=window_size, k=0.2, r=None)
+        # For lithic drawings (dark lines on light background), we need inverted comparison
+        binary = original_image < sauvola_thresh  # Dark pixels (lines) become True
+
+        print(f"Image thresholded using Sauvola at original resolution")
+    else:
+        binary = original_image > 0
+        print("Image already binary")
+
+    # Convert to uint8 binary image
+    binary_image = binary.astype(np.uint8) * 255
+
+    # NOW apply downscaling to the binary image if needed
+    if will_downscale:
+        print(f"Downscaling binary image from {current_dpi} DPI to {target_processing_dpi} DPI...")
+
+        new_height = int(binary_image.shape[0] * downscale_factor)
+        new_width = int(binary_image.shape[1] * downscale_factor)
+
+        # Use INTER_AREA for downscaling binary images (better than Lanczos for binary)
+        binary_image = cv2.resize(binary_image, (new_width, new_height), interpolation=cv2.INTER_AREA)
+
+        # Re-threshold to ensure binary after resize
+        _, binary_image = cv2.threshold(binary_image, 127, 255, cv2.THRESH_BINARY)
+        binary = binary_image > 0
+
+        # Update DPI info
+        current_dpi = target_processing_dpi
+        dpi_info = target_processing_dpi
+        downscale_applied = True
+
+        # Override output_dpi to 300 when downscaling
+        if output_dpi and output_dpi != target_processing_dpi:
+            print(f"Overriding output DPI from {output_dpi} to {target_processing_dpi} due to downscaling")
+            output_dpi = target_processing_dpi
+
+        print(f"Downscaled binary image to {new_width}x{new_height} (factor: {downscale_factor:.3f})")
+
+        if save_debug:
+            save_debug_image(binary_image, os.path.join(output_folder, f'1a_{base_filename}_binary_downscaled.png'),
+                           f'Binary Downscaled ({target_processing_dpi} DPI)', (target_processing_dpi, target_processing_dpi), format_info, (target_processing_dpi, target_processing_dpi))
+
+    # Update current_dpi_value for subsequent processing
+    if downscale_applied:
+        current_dpi_value = target_processing_dpi
 
     # Use fixed cortex threshold for consistent behavior across all DPIs
     cortex_threshold = 60
@@ -1141,8 +1177,12 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
 
     # Save the final cleaned image (inverted)
     if save_debug:
-        # If downscaled, use the downscaled DPI (300) instead of original output_dpi
-        final_dpi = dpi_info if downscale_applied else output_dpi
+        # Use appropriate DPI for the final image
+        # If downscaled, we're at 300 DPI now. Otherwise use original output_dpi
+        if downscale_applied:
+            final_dpi = 300  # We downscaled to 300 DPI
+        else:
+            final_dpi = output_dpi if output_dpi else dpi_info
         save_debug_image(final_cleaned_inverted, os.path.join(output_folder, f'7_{base_filename}_final_cleaned.png'),
                         'Final Cleaned', dpi_info, format_info, final_dpi)
 
