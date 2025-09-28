@@ -1,0 +1,1448 @@
+import sys
+import os
+import cv2
+import numpy as np
+from PIL import Image
+
+from PyQt5.QtWidgets import (
+    QApplication, QMainWindow, QLabel, QPushButton,
+    QVBoxLayout, QHBoxLayout, QWidget, QFileDialog,
+    QProgressBar, QMessageBox, QCheckBox, QSplitter,
+    QTextEdit, QComboBox, QGroupBox, QScrollArea,
+    QRadioButton, QButtonGroup, QSpinBox, QSlider,
+    QColorDialog, QDialog, QLineEdit
+)
+from PyQt5.QtGui import (
+    QPixmap, QImage, QPainter, QPen, QColor,
+    QPainterPath
+)
+from PyQt5.QtCore import (
+    Qt, QThread, pyqtSignal, QPoint, QPointF, QLineF
+)
+
+# Import arrow annotation functionality
+from lithic_editor.annotations.arrows import ArrowCanvasWidget
+from lithic_editor.annotations import integration as arrow_integration
+
+# Available style options
+# GUI_STYLES = ['Fusion', 'Windows', 'WindowsVista', 'Macintosh']
+
+# Import your processing function
+# Import processing function - handle potential circular import
+from lithic_editor.processing import process_lithic_drawing
+from lithic_editor.processing.upscaling import detect_image_dpi, needs_upscaling
+
+
+class DPISelectionDialog(QDialog):
+    """Dialog for selecting DPI when metadata is missing"""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Specify Image DPI")
+        self.setModal(True)
+        self.selected_dpi = None
+
+        layout = QVBoxLayout()
+
+        # Info label
+        info_label = QLabel("No DPI information found in image.\nPlease specify the approximate DPI:")
+        layout.addWidget(info_label)
+
+        # DPI buttons
+        button_layout = QHBoxLayout()
+        for dpi in [72, 96, 150, 200]:
+            btn = QPushButton(str(dpi))
+            btn.clicked.connect(lambda checked, d=dpi: self.select_dpi(d))
+            button_layout.addWidget(btn)
+        layout.addLayout(button_layout)
+
+        # Custom DPI input
+        custom_layout = QHBoxLayout()
+        custom_layout.addWidget(QLabel("Custom:"))
+        self.custom_input = QLineEdit()
+        self.custom_input.setPlaceholderText("Enter DPI")
+        custom_layout.addWidget(self.custom_input)
+        custom_btn = QPushButton("Use Custom")
+        custom_btn.clicked.connect(self.use_custom_dpi)
+        custom_layout.addWidget(custom_btn)
+        layout.addLayout(custom_layout)
+
+        # Cancel button
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+        layout.addWidget(cancel_btn)
+
+        self.setLayout(layout)
+
+    def select_dpi(self, dpi):
+        self.selected_dpi = dpi
+        self.accept()
+
+    def use_custom_dpi(self):
+        try:
+            custom_dpi = int(self.custom_input.text())
+            if 50 <= custom_dpi <= 2400:  # Reasonable range
+                self.selected_dpi = custom_dpi
+                self.accept()
+            else:
+                QMessageBox.warning(self, "Invalid DPI", "DPI must be between 50 and 2400")
+        except ValueError:
+            QMessageBox.warning(self, "Invalid Input", "Please enter a valid number")
+
+
+class UpscalingDialog(QDialog):
+    """Dialog for confirming upscaling with model selection"""
+
+    def __init__(self, current_dpi, target_dpi=300, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Upscale Image")
+        self.setModal(True)
+        self.current_dpi = current_dpi
+        self.target_dpi = target_dpi
+        self.upscale_confirmed = False
+        self.selected_model = 'espcn'
+
+        layout = QVBoxLayout()
+
+        # Warning message
+        warning_text = (f"Image is {current_dpi} DPI, below recommended {target_dpi} DPI.\n"
+                       f"This may impact final output quality.\n\n"
+                       f"Upscale to {target_dpi} DPI?")
+        warning_label = QLabel(warning_text)
+        layout.addWidget(warning_label)
+
+        # Model selection
+        model_layout = QHBoxLayout()
+        model_layout.addWidget(QLabel("Model:"))
+        self.model_combo = QComboBox()
+        self.model_combo.addItem("ESPCN (Recommended)", "espcn")
+        self.model_combo.addItem("FSRCNN (Alternative)", "fsrcnn")
+        model_layout.addWidget(self.model_combo)
+        layout.addLayout(model_layout)
+
+        # Buttons
+        button_layout = QHBoxLayout()
+        yes_btn = QPushButton("Yes, Upscale")
+        yes_btn.clicked.connect(self.confirm_upscale)
+        no_btn = QPushButton("No, Continue")
+        no_btn.clicked.connect(self.reject)
+        button_layout.addWidget(yes_btn)
+        button_layout.addWidget(no_btn)
+        layout.addLayout(button_layout)
+
+        self.setLayout(layout)
+
+    def confirm_upscale(self):
+        self.upscale_confirmed = True
+        self.selected_model = self.model_combo.currentData()
+        self.accept()
+
+
+class ProcessingThread(QThread):
+    """Thread for processing images without freezing the UI"""
+    progress_signal = pyqtSignal(str)
+    finished_signal = pyqtSignal(object, object, object)  # image_data, dpi_info, format_info
+
+    def __init__(self, input_path, output_folder, dpi_info=None, format_info=None, output_dpi=None, save_debug=False,
+                 upscale_low_dpi=False, default_dpi=None, upscale_model='espcn', target_dpi=300, debug_filename=None, preserve_cortex=True):
+        super().__init__()
+        self.input_path = input_path
+        self.output_folder = output_folder
+        self.dpi_info = dpi_info  # Original DPI
+        self.format_info = format_info
+        self.output_dpi = output_dpi  # User-selected output DPI
+        self.save_debug = save_debug
+        self.upscale_low_dpi = upscale_low_dpi
+        self.default_dpi = default_dpi
+        self.upscale_model = upscale_model
+        self.target_dpi = target_dpi
+        self.debug_filename = debug_filename
+        self.preserve_cortex = preserve_cortex
+
+    def run(self):
+        try:
+            # Store the original print function first
+            original_print = print
+
+            # Override print to capture progress updates
+            def progress_print(msg):
+                self.progress_signal.emit(msg)
+                original_print(msg)
+
+            import builtins
+            builtins.print = progress_print
+
+            # Run the processing function
+            result_image = process_lithic_drawing(
+                self.input_path, self.output_folder,
+                dpi_info=self.dpi_info,
+                format_info=self.format_info,
+                output_dpi=self.output_dpi,
+                save_debug=self.save_debug,
+                upscale_low_dpi=self.upscale_low_dpi,
+                default_dpi=self.default_dpi,
+                upscale_model=self.upscale_model,
+                target_dpi=self.target_dpi,
+                debug_filename=self.debug_filename,
+                preserve_cortex=self.preserve_cortex
+            )
+
+            # Restore the original print function
+            builtins.print = original_print
+
+            # The processing function now returns the image data
+            # Pass it back to the main thread along with metadata
+            self.finished_signal.emit(result_image, self.output_dpi or self.dpi_info, self.format_info)
+        except Exception as e:
+            self.progress_signal.emit(f"Error: {str(e)}")
+            self.finished_signal.emit(None, None, None)
+
+class CanvasWidget(QLabel):
+    """Custom canvas widget for drawing annotations"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setMouseTracking(True)
+        self.last_point = QPoint()
+        self.drawing = False
+        self.brush_active = False
+        self.current_mouse_pos = QPoint(0, 0)
+        self.input_image_path = None
+        self.processed_image_data = None  # Store processed image in memory
+        self.processed_dpi_info = None
+        self.processed_format_info = None
+
+        # Drawing properties
+        self.brush_size = 5
+        self.brush_color = Qt.black
+
+        # Initialize empty pixmap
+        self.setAlignment(Qt.AlignCenter)
+        self.clear_canvas()
+
+    def paintEvent(self, event):
+        """Override paintEvent to draw brush cursor preview"""
+        super().paintEvent(event)
+
+        # Only draw cursor if brush is active and we have a base image
+        if self.brush_active and hasattr(self, 'base_pixmap'):
+            painter = QPainter(self)
+            pen = QPen(self.brush_color)
+            pen.setWidth(1)
+            painter.setPen(pen)
+
+            # Draw circle at current mouse position to show brush size
+            painter.setBrush(Qt.transparent)
+            painter.drawEllipse(self.current_mouse_pos,
+                              self.brush_size // 2,
+                              self.brush_size // 2)
+
+    def clear_canvas(self):
+        """Clear the canvas"""
+        # Create a transparent pixmap
+        self.annotation_pixmap = QPixmap(self.width(), self.height())
+        self.annotation_pixmap.fill(Qt.transparent)
+        self.setPixmap(self.annotation_pixmap)
+
+    def set_base_image(self, pixmap):
+        """Set the base image for annotation"""
+        # Create a copy of the input pixmap
+        self.base_pixmap = pixmap.copy()
+
+        # Initialize annotation layer to match base image size
+        self.annotation_pixmap = QPixmap(self.base_pixmap.size())
+        self.annotation_pixmap.fill(Qt.transparent)
+
+        # Combine base with empty annotations
+        self.update_display()
+
+    def update_display(self):
+        """Update the display with base image + annotations"""
+        if hasattr(self, 'base_pixmap'):
+            # Create a copy of the base image
+            result = self.base_pixmap.copy()
+
+            # Draw annotations on top
+            painter = QPainter(result)
+            painter.drawPixmap(0, 0, self.annotation_pixmap)
+            painter.end()
+
+            # Scale for display within the widget bounds, maintaining aspect ratio
+            if self.width() > 0 and self.height() > 0:  # Prevent division by zero
+                display_width = self.width() - 10
+                display_height = self.height() - 10
+
+                w, h = result.width(), result.height()
+                if w > 0 and h > 0:  # Prevent division by zero
+                    scale = min(display_width / w, display_height / h)
+
+                    if scale < 1:  # Only scale down, not up
+                        result = result.scaled(int(w * scale), int(h * scale),
+                                             Qt.KeepAspectRatio, Qt.SmoothTransformation)
+
+            # Update the display
+            self.setPixmap(result)
+
+    def resizeEvent(self, event):
+        """Handle resize events"""
+        super().resizeEvent(event)
+        if hasattr(self, 'base_pixmap'):
+            self.update_display()
+
+    def set_brush_properties(self, size, color):
+        """Set brush size and color"""
+        self.brush_size = size
+        self.brush_color = color
+
+    def set_brush_active(self, active):
+        """Set whether the brush is active"""
+        self.brush_active = active
+        # Update cursor
+        if active:
+            self.setCursor(Qt.CrossCursor)
+        else:
+            self.setCursor(Qt.ArrowCursor)
+
+    def adjustSize(self):
+        """Adjust the widget size to fit the parent widget"""
+        if self.parent():
+            self.setMinimumWidth(self.parent().width() - 20)
+            self.setMinimumHeight(self.parent().height() - 20)
+
+    def mousePressEvent(self, event):
+        """Handle mouse press events"""
+        if event.button() == Qt.LeftButton and hasattr(self, 'base_pixmap') and self.brush_active:
+            self.drawing = True
+            self.last_point = self.map_to_pixmap(event.pos())
+
+    def mouseMoveEvent(self, event):
+        """Handle mouse move events"""
+        # Track current mouse position for cursor display
+        self.current_mouse_pos = event.pos()
+
+        # Trigger repaint to update cursor
+        self.update()
+
+        # Handle drawing if active
+        if self.drawing and hasattr(self, 'base_pixmap') and self.brush_active:
+            current_point = self.map_to_pixmap(event.pos())
+
+            # Draw on the annotation layer
+            painter = QPainter(self.annotation_pixmap)
+            pen = QPen()
+            pen.setWidth(self.brush_size)
+            pen.setColor(self.brush_color)
+            pen.setCapStyle(Qt.RoundCap)
+            pen.setJoinStyle(Qt.RoundJoin)
+            painter.setPen(pen)
+            painter.drawLine(self.last_point, current_point)
+            painter.end()
+
+            self.last_point = current_point
+
+            # Update the display
+            self.update_display()
+
+    def mouseReleaseEvent(self, event):
+        """Handle mouse release events"""
+        if event.button() == Qt.LeftButton:
+            self.drawing = False
+
+    def map_to_pixmap(self, pos):
+        """Map screen coordinates to pixmap coordinates"""
+        if not hasattr(self, 'base_pixmap'):
+            return pos
+
+        # Get the current displayed pixmap from the widget
+        displayed_pixmap = self.pixmap()
+        if not displayed_pixmap or displayed_pixmap.isNull():
+            return pos
+
+        # Get widget and pixmap sizes
+        widget_size = self.size()
+        base_pixmap_size = self.base_pixmap.size()
+        displayed_size = displayed_pixmap.size()
+
+        # Calculate the scale factor used for display
+        scale_x = displayed_size.width() / base_pixmap_size.width()
+        scale_y = displayed_size.height() / base_pixmap_size.height()
+
+        # Calculate the offset to center the image in the widget
+        x_offset = (widget_size.width() - displayed_size.width()) / 2
+        y_offset = (widget_size.height() - displayed_size.height()) / 2
+
+        # Map the position from widget coordinates to displayed pixmap coordinates
+        display_x = pos.x() - x_offset
+        display_y = pos.y() - y_offset
+
+        # Scale from displayed coordinates to original pixmap coordinates
+        pixmap_x = display_x / scale_x
+        pixmap_y = display_y / scale_y
+
+        return QPoint(int(pixmap_x), int(pixmap_y))
+
+    def get_annotated_image(self):
+        """Get the base image with annotations as QImage"""
+        if hasattr(self, 'base_pixmap'):
+            # Create a copy of the base image
+            result = self.base_pixmap.copy()
+
+            # Draw annotations on top
+            painter = QPainter(result)
+            painter.drawPixmap(0, 0, self.annotation_pixmap)
+            painter.end()
+
+            return result.toImage()
+        return None
+
+class LithicProcessorGUI(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        QApplication.setStyle("Fusion")
+        self.input_image_path = None
+        self.output_folder = None
+        self.processed_image_path = None
+        self.debug_images = []  # To store paths to debug images
+        self.debug_image_widgets = []  # To store debug image labels
+        self.initUI()
+
+    def get_output_dpi(self):
+        """Get the DPI settings based on user selection"""
+        if hasattr(self, 'image_dpi') and self.image_dpi:
+            # If image has DPI, use it
+            return self.image_dpi
+
+        # No DPI in image, use selected option
+        if self.keep_unset_dpi.isChecked():
+            return None  # Leave unset
+        elif self.use_custom_dpi.isChecked():
+            dpi_value = self.custom_dpi_spinner.value()
+            return (dpi_value, dpi_value)  # Custom value
+
+        # No option selected, leave unset as safest default
+        return None
+
+    def initUI(self):
+        # Main window setup
+        self.setWindowTitle('Lithic Editor and Annotator')
+        self.setGeometry(100, 100, 1600, 900)
+        self.resize(1400, 800)
+        self.setMinimumSize(1000, 700)
+
+        # Main layout
+        central_widget = QWidget()
+        main_layout = QVBoxLayout(central_widget)
+        main_layout.setSpacing(5)
+        main_layout.setContentsMargins(5, 5, 5, 5)
+
+        # Top section: Two columns - Left column (stacked controls) + Right column (options)
+        top_controls = QHBoxLayout()
+        top_controls.setSpacing(10)
+
+        # LEFT COLUMN: Stacked control panels
+        left_controls_widget = QWidget()
+        left_controls_layout = QVBoxLayout(left_controls_widget)
+        left_controls_layout.setSpacing(5)
+        left_controls_layout.setContentsMargins(0, 0, 0, 0)
+
+        # File controls group
+        file_controls = QGroupBox("File Controls")
+        file_layout = QHBoxLayout(file_controls)
+        file_layout.setSpacing(5)
+        file_layout.setContentsMargins(5, 5, 5, 5)
+
+        self.load_button = QPushButton('Load Image')
+        self.process_button = QPushButton('Process Image')
+        self.process_button.setEnabled(False)
+        self.save_button = QPushButton('Save Result')
+        self.save_button.setEnabled(False)
+        self.exit_button = QPushButton('Exit')
+
+        # Connect signals
+        self.load_button.clicked.connect(self.load_image)
+        self.process_button.clicked.connect(self.process_image)
+        self.save_button.clicked.connect(self.save_result)
+        self.exit_button.clicked.connect(self.close)
+
+        file_layout.addWidget(self.load_button)
+        file_layout.addWidget(self.process_button)
+        file_layout.addWidget(self.save_button)
+        file_layout.addWidget(self.exit_button)
+
+        # Drawing tools section
+        drawing_tools = QGroupBox("Drawing Tools")
+        drawing_layout = QHBoxLayout(drawing_tools)
+        drawing_layout.setSpacing(5)
+        drawing_layout.setContentsMargins(5, 5, 5, 5)
+
+        self.brush_button = QPushButton("Activate Brush")
+        self.brush_button.setCheckable(True)
+        self.brush_button.setChecked(False)
+        self.brush_button.clicked.connect(self.toggle_brush)
+
+        # Brush color selection
+        color_group = QButtonGroup(self)
+        self.white_brush = QRadioButton("White")
+        self.white_brush.setChecked(True)
+        self.black_brush = QRadioButton("Black")
+        color_group.addButton(self.white_brush)
+        color_group.addButton(self.black_brush)
+        color_group.buttonClicked.connect(self.update_brush)
+
+        # Brush size
+        size_label = QLabel("Size:")
+        self.brush_size_spin = QSpinBox()
+        self.brush_size_spin.setMinimum(1)
+        self.brush_size_spin.setMaximum(20)
+        self.brush_size_spin.setValue(5)
+        self.brush_size_spin.valueChanged.connect(self.update_brush)
+
+        self.clear_annotations_button = QPushButton("Clear Brush")
+        self.clear_annotations_button.clicked.connect(self.clear_annotations)
+        self.clear_annotations_button.setEnabled(False)
+
+        drawing_layout.addWidget(self.brush_button)
+        drawing_layout.addWidget(QLabel("Color:"))
+        drawing_layout.addWidget(self.white_brush)
+        drawing_layout.addWidget(self.black_brush)
+        drawing_layout.addWidget(size_label)
+        drawing_layout.addWidget(self.brush_size_spin)
+        drawing_layout.addWidget(self.clear_annotations_button)
+
+        # Arrow annotation controls
+        arrow_tools = QGroupBox("Arrow Annotation")
+        arrow_layout = QHBoxLayout(arrow_tools)
+        arrow_layout.setSpacing(5)
+        arrow_layout.setContentsMargins(5, 5, 5, 5)
+
+        self.add_arrow_button = QPushButton("Add Arrow")
+        self.add_arrow_button.clicked.connect(lambda: arrow_integration.add_arrow(self))
+        self.add_arrow_button.setEnabled(False)
+
+        self.arrow_color_button = QPushButton("Arrow Color")
+        self.arrow_color_button.setStyleSheet("background-color: black;")
+        self.arrow_color_button.clicked.connect(lambda: arrow_integration.select_arrow_color(self))
+        self.arrow_color = QColor(Qt.black)
+
+        self.delete_arrow_button = QPushButton("Delete Arrow")
+        self.delete_arrow_button.clicked.connect(lambda: arrow_integration.delete_selected_arrow(self))
+        self.delete_arrow_button.setEnabled(False)
+
+        self.clear_arrows_button = QPushButton("Clear Arrows")
+        self.clear_arrows_button.clicked.connect(lambda: arrow_integration.clear_arrows(self))
+        self.clear_arrows_button.setEnabled(False)
+
+        # Add interaction hint
+        import sys
+        if sys.platform == 'darwin':  # macOS
+            interaction_hint = QLabel("Shift+drag to rotate, Option+drag to resize")
+        else:  # Windows, Linux, etc.
+            interaction_hint = QLabel("Shift+drag to rotate, Alt+drag to resize")
+        interaction_hint.setStyleSheet("font-style: italic; color: gray; font-size: 10px;")
+
+        arrow_layout.addWidget(self.add_arrow_button)
+        arrow_layout.addWidget(self.arrow_color_button)
+        arrow_layout.addWidget(self.delete_arrow_button)
+        arrow_layout.addWidget(self.clear_arrows_button)
+        arrow_layout.addWidget(interaction_hint)
+
+        # Add the three control groups to left column (stacked)
+        left_controls_layout.addWidget(file_controls)
+        left_controls_layout.addWidget(drawing_tools)
+        left_controls_layout.addWidget(arrow_tools)
+
+        # RIGHT COLUMN: Options & DPI settings (single tall panel)
+        options_group = QGroupBox("Options and DPI Settings")
+        options_layout = QVBoxLayout(options_group)
+        options_layout.setSpacing(10)
+        options_layout.setContentsMargins(10, 10, 10, 10)
+
+        # Debug images option (combined view and save)
+        debug_images_label = QLabel("Debug Images:")
+        debug_images_label.setStyleSheet("font-weight: bold; font-size: 11px;")
+
+        self.debug_images_checkbox = QCheckBox('View and Save Debug Images')
+        self.debug_images_checkbox.setChecked(False)
+        self.debug_images_checkbox.stateChanged.connect(self.toggle_debug_images)
+
+        # Cortex preservation checkbox
+        self.preserve_cortex_checkbox = QCheckBox('Preserve Cortex Stippling')
+        self.preserve_cortex_checkbox.setChecked(True)  # Default ON
+        self.preserve_cortex_checkbox.setToolTip('Preserve small cortex dots while processing structural lines')
+
+        # Keep the old attributes for backward compatibility
+        self.show_debug_images = self.debug_images_checkbox
+        self.save_debug_images = self.debug_images_checkbox
+
+        # DPI settings section
+        dpi_title = QLabel("DPI Settings")
+        dpi_title.setStyleSheet("font-weight: bold; font-size: 12px;")
+
+        self.current_dpi_label = QLabel("Detected DPI in loaded image: None")
+        self.current_dpi_label.setStyleSheet("font-size: 11px;")
+
+        self.dpi_explanation_label = QLabel("Original DPI is preserved when available")
+        self.dpi_explanation_label.setStyleSheet("font-style: italic; font-size: 10px;")
+
+        # DPI radio buttons
+        self.dpi_group = QButtonGroup(self)
+        self.keep_unset_dpi = QRadioButton("Leave unset (application defaults)")
+        self.use_custom_dpi = QRadioButton("Set custom DPI:")
+
+        self.dpi_group.addButton(self.keep_unset_dpi)
+        self.dpi_group.addButton(self.use_custom_dpi)
+
+        # Custom DPI spinner with helpful hint
+        custom_dpi_layout = QHBoxLayout()
+        custom_dpi_layout.addWidget(self.use_custom_dpi)
+        self.custom_dpi_spinner = QSpinBox()
+        self.custom_dpi_spinner.setRange(72, 1200)
+        self.custom_dpi_spinner.setValue(300)
+        self.custom_dpi_spinner.setSuffix(" DPI")
+        self.custom_dpi_spinner.setMaximumWidth(100)
+        self.custom_dpi_spinner.setToolTip("Common values: 96 (screen), 300 (print), 600 (high quality)")
+        custom_dpi_layout.addWidget(self.custom_dpi_spinner)
+        custom_dpi_layout.addStretch()
+
+
+        # Add all options to the right panel
+        options_layout.addWidget(debug_images_label)
+        options_layout.addWidget(self.debug_images_checkbox)
+        options_layout.addWidget(self.preserve_cortex_checkbox)
+        options_layout.addWidget(dpi_title)
+        options_layout.addWidget(self.current_dpi_label)
+        options_layout.addWidget(self.dpi_explanation_label)
+        options_layout.addWidget(self.keep_unset_dpi)
+        options_layout.addLayout(custom_dpi_layout)
+        options_layout.addStretch()  # Push everything to top
+
+        # Add left column and right column to top layout
+        top_controls.addWidget(left_controls_widget, 2)  # Left column gets 2/3 of space
+        top_controls.addWidget(options_group, 1)         # Right column gets 1/3 of space
+
+        # Add top controls to main layout (compact, don't expand)
+        main_layout.addLayout(top_controls, 0)
+
+        # Main content area: Images and debug panel
+        content_splitter = QSplitter(Qt.Horizontal)
+
+        # Left side: Image panels (side by side)
+        images_splitter = QSplitter(Qt.Horizontal)
+
+        # Input image panel
+        input_panel = QWidget()
+        input_layout = QVBoxLayout(input_panel)
+        input_layout.setContentsMargins(2, 2, 2, 2)
+        input_layout.setSpacing(2)
+
+        input_title = QLabel('Input Image')
+        input_title.setAlignment(Qt.AlignCenter)
+        input_title.setStyleSheet("font-weight: bold; font-size: 12px; padding: 2px;")
+
+        self.input_image_display = CanvasWidget()
+        self.input_image_display.setObjectName("input_image_display")
+        self.input_image_display.setText("No image loaded")
+        self.input_image_display.setStyleSheet("border: 1px solid #cccccc; background-color: #f5f5f5;")
+        self.input_image_display.setMinimumSize(400, 400)
+
+        input_layout.addWidget(input_title, 0)
+        input_scroll = QScrollArea()
+        input_scroll.setWidgetResizable(True)
+        input_scroll.setWidget(self.input_image_display)
+        input_layout.addWidget(input_scroll, 1)
+
+        # Output image panel
+        output_panel = QWidget()
+        output_layout = QVBoxLayout(output_panel)
+        output_layout.setContentsMargins(2, 2, 2, 2)
+        output_layout.setSpacing(2)
+
+        output_title = QLabel('Processed Image / Arrow Annotations')
+        output_title.setAlignment(Qt.AlignCenter)
+        output_title.setStyleSheet("font-weight: bold; font-size: 12px; padding: 2px;")
+
+        self.canvas = arrow_integration.create_arrow_canvas()
+        self.canvas.setObjectName("output_canvas")
+        self.canvas.setText("No processed image")
+        self.canvas.setMinimumSize(400, 400)
+
+        output_layout.addWidget(output_title, 0)
+        output_scroll = QScrollArea()
+        output_scroll.setWidgetResizable(True)
+        output_scroll.setWidget(self.canvas)
+        output_layout.addWidget(output_scroll, 1)
+
+        # Add panels to images splitter
+        images_splitter.addWidget(input_panel)
+        images_splitter.addWidget(output_panel)
+        images_splitter.setSizes([500, 500])
+        images_splitter.setStretchFactor(0, 1)
+        images_splitter.setStretchFactor(1, 1)
+
+        # Right side: Debug images
+        self.debug_panel = QWidget()
+        debug_outer_layout = QVBoxLayout(self.debug_panel)
+        debug_outer_layout.setContentsMargins(2, 2, 2, 2)
+        debug_outer_layout.setSpacing(2)
+
+        debug_title = QLabel('Processing Steps')
+        debug_title.setAlignment(Qt.AlignCenter)
+        debug_title.setStyleSheet("font-weight: bold; font-size: 12px; padding: 2px;")
+        debug_outer_layout.addWidget(debug_title, 0)
+
+        debug_scroll = QScrollArea()
+        debug_scroll.setWidgetResizable(True)
+        debug_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        debug_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        debug_scroll.setMaximumWidth(400)
+
+        self.debug_content = QWidget()
+        self.debug_layout = QVBoxLayout(self.debug_content)
+
+        debug_scroll.setWidget(self.debug_content)
+        debug_outer_layout.addWidget(debug_scroll, 1)
+
+        # Add to main content splitter
+        content_splitter.addWidget(images_splitter)
+        content_splitter.addWidget(self.debug_panel)
+        content_splitter.setSizes([1000, 400])
+        content_splitter.setStretchFactor(0, 3)
+        content_splitter.setStretchFactor(1, 1)
+
+        # Add content splitter to main layout (gets most space)
+        main_layout.addWidget(content_splitter, 1)
+
+        # Bottom section: Compact log and status
+        bottom_section = QSplitter(Qt.Vertical)
+
+        # Processing log
+        log_group = QGroupBox("Processing Log")
+        log_layout = QVBoxLayout(log_group)
+        log_layout.setContentsMargins(5, 2, 5, 2)
+
+        self.log_display = QTextEdit()
+        self.log_display.setReadOnly(True)
+        self.log_display.setMaximumHeight(80)
+        self.log_display.setStyleSheet("font-family: 'Monaco', 'Courier New', monospace; font-size: 10px;")
+        log_layout.addWidget(self.log_display)
+
+        # Progress area
+        progress_group = QGroupBox("Processing Status")
+        progress_layout = QVBoxLayout(progress_group)
+        progress_layout.setContentsMargins(5, 2, 5, 2)
+
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setTextVisible(False)
+        self.progress_bar.setRange(0, 0)
+        self.progress_bar.hide()
+        self.progress_bar.setMaximumHeight(15)
+
+        self.status_label = QLabel('Ready')
+        self.status_label.setStyleSheet("font-weight: bold; font-size: 11px;")
+
+        progress_layout.addWidget(self.status_label)
+        progress_layout.addWidget(self.progress_bar)
+
+        bottom_section.addWidget(log_group)
+        bottom_section.addWidget(progress_group)
+        bottom_section.setSizes([60, 30])
+        bottom_section.setMaximumHeight(120)
+
+        # Add bottom section to main layout
+        main_layout.addWidget(bottom_section, 0)
+
+        # Set central widget
+        self.setCentralWidget(central_widget)
+
+        # Hide debug panel initially if not checked
+        self.debug_panel.setVisible(self.show_debug_images.isChecked())
+
+        # Initialize brush
+        self.update_brush()
+
+        # Initial log message
+        self.log("Lithic Editor and Annotator started. Ready to load images.")
+
+    def update_brush(self):
+        """Update brush properties based on UI settings"""
+        # Get brush size
+        size = self.brush_size_spin.value()
+
+        # Get brush color
+        color = Qt.black if self.black_brush.isChecked() else Qt.white
+
+        # Update input canvas brush
+        self.input_image_display.set_brush_properties(size, color)
+
+        # Log the change
+        color_name = "Black" if color == Qt.black else "White"
+        self.log(f"Brush settings: Color = {color_name}, Size = {size}")
+
+    def clear_annotations(self):
+        """Clear all annotations from the input canvas"""
+        if hasattr(self, 'input_image_display'):
+            # Reset the canvas but keep the base image
+            if hasattr(self.input_image_display, 'base_pixmap'):
+                # Create a new empty annotation layer
+                self.input_image_display.annotation_pixmap = QPixmap(
+                    self.input_image_display.base_pixmap.size())
+                self.input_image_display.annotation_pixmap.fill(Qt.transparent)
+
+                # Update the display
+                self.input_image_display.update_display()
+                self.log("Annotations cleared")
+
+    def toggle_brush(self):
+        """Toggle brush tool activation"""
+        is_active = self.brush_button.isChecked()
+
+        if is_active:
+            self.brush_button.setText("Brush Active")
+            self.brush_button.setStyleSheet("background-color: #aaffaa;")
+            self.input_image_display.set_brush_active(True)
+            self.log("Brush tool activated")
+        else:
+            self.brush_button.setText("Activate Brush")
+            self.brush_button.setStyleSheet("")
+            self.input_image_display.set_brush_active(False)
+            self.log("Brush tool deactivated")
+
+    # Dropdown to change GUI style
+    # def change_style(self, index):
+    #     """Change the application style"""
+    #     style_name = GUI_STYLES[index]
+    #     QApplication.setStyle(style_name)
+    #     self.log(f"Changed GUI style to {style_name}")
+
+    def toggle_debug_images(self, state):
+        """Show or hide debug images panel"""
+        self.debug_panel.setVisible(state == Qt.Checked)
+
+    def log(self, message):
+        """Add a message to the log display"""
+        self.log_display.append(message)
+        # Auto-scroll to bottom
+        scroll_bar = self.log_display.verticalScrollBar()
+        scroll_bar.setValue(scroll_bar.maximum())
+
+    def load_image(self):
+        """Load an image using native file dialog"""
+        # Create a synchronous file dialog with explicit options
+        file_path, _ = QFileDialog.getOpenFileName(
+            parent=self,
+            caption="Open Image",
+            directory="",
+            filter="Image Files (*.png *.jpg *.jpeg *.bmp *.tif *.tiff)",
+            options=QFileDialog.DontUseNativeDialog  # Use Qt's dialog instead of the OS native one
+        )
+
+        if file_path:
+            # Store original filename for debug naming (before any processing changes it)
+            self.original_filename = os.path.splitext(os.path.basename(file_path))[0]
+
+            # Process the selected file
+            self.input_image_path = file_path
+
+            # Read metadata with PIL first
+            try:
+                pil_img = Image.open(file_path)
+                if hasattr(pil_img, 'info') and 'dpi' in pil_img.info:
+                    dpi_info = pil_img.info['dpi']
+                    self.log(f"Image DPI: {dpi_info}")
+                    # Store DPI info with the class for later use (properly rounded)
+                    self.image_dpi = (round(dpi_info[0]), round(dpi_info[1]))
+                    # Update the UI with rounded values
+                    self.current_dpi_label.setText(f"Detected DPI: {self.image_dpi[0]}×{self.image_dpi[1]}")
+                else:
+                    self.log("No DPI information found in image")
+                    self.image_dpi = None
+                    self.current_dpi_label.setText("Detected DPI: None")
+
+                # Also log the image format
+                self.log(f"Image format: {pil_img.format}")
+                self.image_format = pil_img.format
+
+                # Get image dimensions
+                self.log(f"Original dimensions: {pil_img.width}x{pil_img.height} pixels")
+            except Exception as e:
+                self.log(f"Warning: Could not read image metadata: {str(e)}")
+                self.image_dpi = None
+                self.image_format = None
+
+            # Set appropriate UI state based on loaded image
+            if self.image_dpi:
+                self.dpi_group.setExclusive(False)  # Allow deselecting all buttons
+                self.keep_unset_dpi.setChecked(False)
+                self.use_custom_dpi.setChecked(False)
+                self.dpi_group.setExclusive(True)  # Restore exclusive behavior
+                dpi_options_explanation = f"Original DPI ({round(self.image_dpi[0])}x{round(self.image_dpi[1])}) will be preserved"
+                self.dpi_explanation_label.setText(dpi_options_explanation)
+            else:
+                self.dpi_explanation_label.setText("No DPI found in image. Select what DPI to use for output:")
+                # Default to leave unset when no DPI in image
+                self.keep_unset_dpi.setChecked(True)
+
+            # Load and crop the image to content
+            img = cv2.imread(file_path)
+            if img is not None:
+                # Crop image to content with padding
+                from lithic_editor.processing.ripple_removal import crop_to_content
+                cropped_img = crop_to_content(img, padding=10)
+
+                # Define output folder path but don't create it yet
+                base_name = os.path.splitext(os.path.basename(file_path))[0]
+                self.output_folder = os.path.join('image_debug', base_name)
+
+                # Use a temp location for the cropped input to avoid creating folders prematurely
+                import tempfile
+                temp_dir = tempfile.mkdtemp()
+                cropped_path = os.path.join(temp_dir, "cropped_input.png")
+
+                # Save with PIL to preserve metadata
+                try:
+                    # Convert OpenCV BGR to RGB for PIL
+                    cropped_rgb = cv2.cvtColor(cropped_img, cv2.COLOR_BGR2RGB)
+                    cropped_pil = Image.fromarray(cropped_rgb)
+
+                    # Set DPI if we have it
+                    if self.image_dpi:
+                        cropped_pil.save(cropped_path, dpi=self.image_dpi)
+                    else:
+                        cropped_pil.save(cropped_path)
+                except Exception as e:
+                    self.log(f"Warning: Could not save with metadata: {str(e)}")
+                    # Fallback to OpenCV
+                    cv2.imwrite(cropped_path, cropped_img)
+
+                # Use cropped version for display and processing
+                self.display_image(cropped_path, self.input_image_display)
+                self.input_image_path = cropped_path  # Update path to cropped version
+
+                self.process_button.setEnabled(True)
+                self.status_label.setText(f'Loaded and cropped: {os.path.basename(file_path)}')
+                self.log(f"Loaded image: {file_path}")
+                self.log(f"Cropped to content size: {cropped_img.shape[1]}x{cropped_img.shape[0]}")
+                self.clear_annotations_button.setEnabled(True)
+
+                # Clear previous debug images
+                self.clear_debug_images()
+
+                # Reset output image/canvas
+                self.canvas.clear_canvas()
+                self.canvas.setText("No processed image")
+                self.save_button.setEnabled(False)
+                # self.clear_annotations_button.setEnabled(False)
+
+    def clear_debug_images(self):
+        """Clear all debug images from the panel"""
+        # Clear the list of debug image paths
+        self.debug_images = []
+
+        # Remove all widgets from the debug layout
+        for i in reversed(range(self.debug_layout.count())):
+            widget = self.debug_layout.itemAt(i).widget()
+            if widget is not None:
+                widget.deleteLater()
+
+        # Clear the list of debug image widgets
+        self.debug_image_widgets = []
+
+    def process_image(self):
+        if not self.input_image_path:
+            return
+
+        # Use the original filename stored during load_image (before cropping/annotation changes it)
+        original_filename = getattr(self, 'original_filename', 'image')
+
+        # Get the annotated input image
+        if hasattr(self.input_image_display, 'get_annotated_image'):
+            annotated_image = self.input_image_display.get_annotated_image()
+            if annotated_image:
+                # Convert QImage to numpy array
+                width = annotated_image.width()
+                height = annotated_image.height()
+                ptr = annotated_image.bits()
+                ptr.setsize(height * width * 4)  # RGBA
+                arr = np.frombuffer(ptr, np.uint8).reshape((height, width, 4))
+
+                # Convert RGBA to BGR (OpenCV format)
+                bgr = cv2.cvtColor(arr, cv2.COLOR_RGBA2BGR)
+
+                # Convert to grayscale
+                grayscale = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+
+                # Save the annotated image to a temp location to avoid creating folders prematurely
+                import tempfile
+                temp_dir = tempfile.mkdtemp()
+                annotated_path = os.path.join(temp_dir, "annotated_input.png")
+                cv2.imwrite(annotated_path, grayscale)
+
+                # Use this as the new input path
+                self.input_image_path = annotated_path
+
+                self.log(f"Using annotated image for processing: {annotated_path}")
+
+        # Disable controls during processing
+        self.process_button.setEnabled(False)
+        self.load_button.setEnabled(False)
+        self.save_button.setEnabled(False)
+        self.clear_annotations_button.setEnabled(False)
+
+        # Show progress indicators
+        self.progress_bar.show()
+        self.status_label.setText('Processing...')
+
+        # Clear previous debug images
+        self.clear_debug_images()
+
+        # Clear the log
+        self.log_display.clear()
+        self.log(f"Processing image: {self.input_image_path}")
+
+        # Pass metadata to the processing function
+        dpi_info = self.image_dpi if hasattr(self, 'image_dpi') else None
+        format_info = self.image_format if hasattr(self, 'image_format') else None
+        output_dpi = self.get_output_dpi()  # Get user's DPI preference
+        # Debug images are both viewed and saved when checkbox is checked
+        debug_enabled = self.debug_images_checkbox.isChecked()
+
+        # Handle upscaling logic
+        upscale_params = self.check_and_prompt_upscaling(dpi_info)
+
+        # Pass output folder for debug images if enabled
+        output_folder = self.output_folder if debug_enabled else None
+
+        # Use the filename extracted earlier
+
+        self.processing_thread = ProcessingThread(self.input_image_path, output_folder,
+                dpi_info, format_info, output_dpi, debug_enabled, debug_filename=original_filename, 
+                preserve_cortex=self.preserve_cortex_checkbox.isChecked(), **upscale_params)
+        self.processing_thread.progress_signal.connect(self.update_progress)
+        self.processing_thread.finished_signal.connect(self.processing_finished)
+        self.processing_thread.start()
+
+    def check_and_prompt_upscaling(self, dpi_info):
+        """Check if upscaling is needed and prompt user for decisions"""
+        upscale_params = {
+            'upscale_low_dpi': False,
+            'default_dpi': None,
+            'upscale_model': 'espcn',
+            'target_dpi': 300
+        }
+
+        # Determine current DPI
+        current_dpi = None
+        if dpi_info:
+            if isinstance(dpi_info, tuple):
+                current_dpi = max(dpi_info[0], dpi_info[1])
+            else:
+                current_dpi = int(dpi_info)
+        else:
+            # No DPI metadata - prompt user to specify
+            dialog = DPISelectionDialog(self)
+            if dialog.exec_() == QDialog.Accepted and dialog.selected_dpi:
+                current_dpi = dialog.selected_dpi
+                upscale_params['default_dpi'] = current_dpi
+            else:
+                # User cancelled - proceed without upscaling
+                return upscale_params
+
+        # Check if upscaling is needed
+        if current_dpi and needs_upscaling(current_dpi, 300):
+            # Show upscaling confirmation dialog
+            upscale_dialog = UpscalingDialog(current_dpi, 300, self)
+            if upscale_dialog.exec_() == QDialog.Accepted and upscale_dialog.upscale_confirmed:
+                upscale_params['upscale_low_dpi'] = True
+                upscale_params['upscale_model'] = upscale_dialog.selected_model
+                self.log(f"User confirmed upscaling from {current_dpi} DPI to 300 DPI using {upscale_dialog.selected_model.upper()}")
+            else:
+                self.log(f"User declined upscaling. Proceeding with {current_dpi} DPI")
+        elif current_dpi:
+            self.log(f"Image DPI ({current_dpi}) already meets target (300). No upscaling needed.")
+
+        return upscale_params
+
+    def update_progress(self, message):
+            self.status_label.setText(message)
+            self.log(message)
+
+    def processing_finished(self, image_data, dpi_info, format_info):
+        # Hide progress indicators
+        self.progress_bar.hide()
+
+        # Re-enable controls
+        self.load_button.setEnabled(True)
+        self.process_button.setEnabled(True)
+
+        if image_data is not None:
+            # Store the processed image data
+            self.processed_image_data = image_data
+            self.processed_dpi_info = dpi_info
+            self.processed_format_info = format_info
+
+            self.log(f"Processing complete. Image ready for annotation.")
+
+            # Debug dimensions for processed image
+            if len(image_data.shape) == 2:
+                proc_h, proc_w = image_data.shape
+            else:
+                proc_h, proc_w = image_data.shape[:2]
+            self.log(f"DIMENSIONS: Processed image: {proc_w}x{proc_h}")
+
+            # Display the processed image from memory
+            self.display_image_from_array(image_data, self.canvas)
+
+            # Enable arrow tools
+            arrow_integration.enable_arrow_controls(self)
+            self.log("You can now add arrows to the processed image (Alt+drag to resize, Shift+drag to rotate)")
+
+            # Update DPI display if we have DPI info
+            if dpi_info:
+                self.image_dpi = dpi_info
+                self.current_dpi_label.setText(f"Detected DPI: {round(dpi_info[0])}x{round(dpi_info[1])}")
+                self.log(f"DPI information: {round(dpi_info[0])}x{round(dpi_info[1])}")
+
+            self.save_button.setEnabled(True)
+            self.clear_annotations_button.setEnabled(True)
+            self.status_label.setText('Processing complete!')
+            self.log("You can draw on the input image with the brush tools")
+
+            # Load and handle debug images if checkbox is enabled
+            if self.debug_images_checkbox.isChecked():
+                self.load_debug_images()
+        else:
+            # Processing failed
+            self.status_label.setText('Processing failed!')
+            self.log("ERROR: Processing failed!")
+            QMessageBox.critical(self, 'Error', 'Image processing failed!')
+
+    def load_debug_images(self):
+        """Load all debug images from the output folder into the debug panel"""
+        # Get original filename for pattern matching
+        original_filename = getattr(self, 'original_filename', '*')
+
+        debug_patterns = [
+            f'0_{original_filename}_original_low_dpi.png',
+            f'0a_{original_filename}_upscaled_300dpi.png',
+            f'1_{original_filename}_original_image.png',
+            f'1a_{original_filename}_structural_only.png',
+            f'1b_{original_filename}_cortex_mask.png',
+            f'2_{original_filename}_skeleton.png',
+            f'3_{original_filename}_endpoints_junctions.png',
+            f'4_{original_filename}_labeled_segments.png',
+            f'5_{original_filename}_ripple_identification.png',
+            f'6_{original_filename}_skeleton_cleaned.png',
+            f'6a_{original_filename}_endpoint_filtering.png',
+            f'7_{original_filename}_final_cleaned.png'
+        ]
+
+        for debug_file in debug_patterns:
+            file_path = os.path.join(self.output_folder, debug_file)
+            if os.path.exists(file_path):
+                self.debug_images.append(file_path)
+
+                # Create a container for each debug image
+                container = QWidget()
+                container_layout = QVBoxLayout(container)
+                container_layout.setContentsMargins(5, 10, 5, 10)
+
+                # Create shorter, cleaner titles
+                base_name = debug_file.replace('.png', '').replace(f'_{original_filename}_', '_')
+
+                # Shorten common long titles
+                title_map = {
+                    '_original_low_dpi': 'Input (Low DPI)',
+                    '_upscaled_300dpi': 'Upscaled (300 DPI)',
+                    '_original_image': 'Original',
+                    '_structural_only': 'Structural Only',
+                    '_cortex_mask': 'Cortex Mask',
+                    '_skeleton': 'Skeleton',
+                    '_endpoints_junctions': 'Endpoints',
+                    '_labeled_segments': 'Segments',
+                    '_ripple_identification': 'Ripple ID',
+                    '_skeleton_cleaned': 'Cleaned',
+                    '_endpoint_filtering': 'Filtered',
+                    '_final_cleaned': 'Final'
+                }
+
+                # Apply title mapping
+                short_title = base_name
+                for pattern, replacement in title_map.items():
+                    if pattern in base_name:
+                        # Keep step number and apply short name
+                        step_num = base_name.split('_')[0]
+                        short_title = f"{step_num}. {replacement}"
+                        break
+                else:
+                    # Fallback to cleaned version
+                    short_title = base_name.replace('_', ' ').title()
+
+                image_title = QLabel(short_title)
+                image_title.setAlignment(Qt.AlignCenter)
+                image_title.setStyleSheet("font-weight: bold; padding: 2px;")
+                image_title.setWordWrap(True)  # Allow text wrapping
+                image_title.setMinimumHeight(30)  # Minimum height
+                image_title.setSizePolicy(image_title.sizePolicy().horizontalPolicy(),
+                                        image_title.sizePolicy().Expanding)  # Allow vertical expansion
+
+                # Image display
+                image_label = QLabel()
+                image_label.setAlignment(Qt.AlignCenter)
+                image_label.setStyleSheet("border: 1px solid #dddddd; background-color: white;")
+
+                # Load and display the image
+                self.display_debug_image(file_path, image_label)
+
+                container_layout.addWidget(image_title)
+                container_layout.addWidget(image_label)
+
+                # Add to debug panel
+                self.debug_layout.addWidget(container)
+                self.debug_image_widgets.append(container)
+
+        # Add a spacer at the end
+        self.debug_layout.addStretch()
+
+
+
+    def resizeEvent(self, event):
+        """Handle window resize event to adjust image displays"""
+        super().resizeEvent(event)
+
+        # Refresh displayed images if they exist
+        if hasattr(self, 'input_image_path') and self.input_image_path and hasattr(self, 'input_image_display'):
+            if self.input_image_display.pixmap() and not self.input_image_display.pixmap().isNull():
+                self.display_image(self.input_image_path, self.input_image_display)
+
+        # Refresh processed image if it exists
+        if hasattr(self, 'processed_image_data') and self.processed_image_data is not None and hasattr(self, 'canvas'):
+            if hasattr(self.canvas, 'base_pixmap') and not self.canvas.base_pixmap.isNull():
+                # Update the canvas display when window is resized
+                self.canvas.update_display()
+
+    def display_debug_image(self, image_path, label_widget):
+        """Display a debug image in the given label widget"""
+        img = cv2.imread(image_path)
+        if img is None:
+            label_widget.setText("Failed to load image")
+            return
+
+        # Convert to RGB for display
+        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+        # Resize for display in the debug panel
+        h, w = img_rgb.shape[:2]
+        max_width = 350
+        if w > max_width:
+            scale = max_width / w
+            new_width, new_height = int(w * scale), int(h * scale)
+            img_rgb = cv2.resize(img_rgb, (new_width, new_height), interpolation=cv2.INTER_AREA)
+            h, w = new_height, new_width
+
+        # Create QImage and QPixmap for display
+        q_img = QImage(img_rgb.data, w, h, img_rgb.strides[0], QImage.Format_RGB888)
+        pixmap = QPixmap.fromImage(q_img)
+
+        # Set pixmap to label
+        label_widget.setPixmap(pixmap)
+
+    def save_result(self):
+        """Save the processed image with arrows"""
+        if not hasattr(self, 'processed_image_data') or self.processed_image_data is None:
+            QMessageBox.warning(self, 'Warning', 'No processed image to save. Please process an image first.')
+            return
+
+        # Ensure all arrows are detectable before saving
+        if hasattr(self, 'canvas') and hasattr(self.canvas, 'make_all_arrows_detectable'):
+            adjusted_count = self.canvas.make_all_arrows_detectable()
+            if adjusted_count > 0:
+                self.log(f"Adjusted {adjusted_count} arrows to ensure detection in saved image")
+                # Update the display to show adjusted arrows
+                self.canvas.update_display()
+
+        # Use native file dialog
+        options = QFileDialog.Options()
+        file_path, filter_used = QFileDialog.getSaveFileName(
+            self, "Save Processed Image", "",
+            "PNG Files (*.png);;JPEG Files (*.jpg);;TIFF Files (*.tif)",
+            options=QFileDialog.DontUseNativeDialog
+        )
+
+        if file_path:
+            # Check and enforce file extension based on filter selected
+            if filter_used == "PNG Files (*.png)" and not file_path.lower().endswith('.png'):
+                file_path += '.png'
+                save_format = 'PNG'
+            elif filter_used == "JPEG Files (*.jpg)" and not file_path.lower().endswith(('.jpg', '.jpeg')):
+                file_path += '.jpg'
+                save_format = 'JPEG'
+            elif filter_used == "TIFF Files (*.tif)" and not file_path.lower().endswith(('.tif', '.tiff')):
+                file_path += '.tif'
+                save_format = 'TIFF'
+            # Default to PNG if extension is missing and filter doesn't indicate format
+            elif not any(file_path.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.tif', '.tiff']):
+                file_path += '.png'
+                save_format = 'PNG'
+            else:
+                # Determine format from extension
+                ext = os.path.splitext(file_path)[1].lower()
+                if ext in ['.jpg', '.jpeg']:
+                    save_format = 'JPEG'
+                elif ext in ['.tif', '.tiff']:
+                    save_format = 'TIFF'
+                else:
+                    save_format = 'PNG'
+
+            # Get the annotated image from the canvas
+            final_image = arrow_integration.get_image_with_arrows(self.canvas)
+
+            if final_image:
+                try:
+                    # Convert QImage to numpy array
+                    width = final_image.width()
+                    height = final_image.height()
+                    ptr = final_image.bits()
+                    ptr.setsize(height * width * 4)  # RGBA
+                    arr = np.frombuffer(ptr, np.uint8).reshape((height, width, 4))
+
+                    # Convert RGBA to RGB (PIL format)
+                    rgb = cv2.cvtColor(arr, cv2.COLOR_RGBA2RGB)
+
+                    # Create PIL Image
+                    pil_img = Image.fromarray(rgb)
+
+                    # Try to get DPI from original image
+                    # Get DPI setting based on user selection
+                    dpi_info = self.get_output_dpi()
+
+                    # Log the DPI setting
+                    if dpi_info:
+                        self.log(f"Using DPI: {dpi_info}")
+                    else:
+                        self.log("Leaving DPI unset (application defaults will apply)")
+
+                    # Set default DPI if none found (300 DPI is standard for publications)
+                    if not dpi_info:
+                        dpi_info = (300, 300)
+                        self.log(f"Setting default DPI: {dpi_info}")
+
+                    # Save the image with metadata
+                    pil_img.save(file_path, format=save_format, dpi=dpi_info)
+
+                    self.status_label.setText(f'Saved to: {os.path.basename(file_path)}')
+                    self.log(f"Processed image saved to: {file_path} with DPI: {dpi_info}")
+                except Exception as e:
+                    self.log(f"ERROR saving file: {str(e)}")
+                    QMessageBox.critical(self, 'Error', f'Error saving file: {str(e)}')
+
+    def display_image(self, image_path, display_widget):
+        """Load and display an image in the given widget, ensuring it fits within bounds"""
+        # Load the image
+        img = cv2.imread(image_path)
+        if img is None:
+            return
+
+        # Convert to RGB for display
+        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+        # Create QImage and QPixmap
+        h, w = img_rgb.shape[:2]
+        q_img = QImage(img_rgb.data, w, h, img_rgb.strides[0], QImage.Format_RGB888)
+        pixmap = QPixmap.fromImage(q_img)
+
+        # If displaying in the arrow canvas, update the DPI information
+        if display_widget == self.canvas and hasattr(self, 'image_dpi'):
+            # Set the DPI information in the canvas
+            self.canvas.set_image_dpi(self.image_dpi)
+
+        # If the widget is a CanvasWidget or ArrowCanvasWidget, use set_base_image
+        if isinstance(display_widget, CanvasWidget) or isinstance(display_widget, ArrowCanvasWidget):
+            display_widget.set_base_image(pixmap)
+        else:
+            # For regular QLabel, do scaling and use setPixmap
+            display_width = display_widget.width() - 10
+            display_height = display_widget.height() - 10
+
+            # Calculate scaling factor to fit within display
+            scale = min(display_width / w, display_height / h)
+
+            # Calculate new dimensions
+            new_width = int(w * scale)
+            new_height = int(h * scale)
+
+            # Scale pixmap
+            scaled_pixmap = pixmap.scaled(new_width, new_height, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+
+            # Update display
+            display_widget.setPixmap(scaled_pixmap)
+
+        # Log DPI information if available
+        if hasattr(self, 'image_dpi') and self.image_dpi:
+            self.log(f"Image displayed with DPI: {self.image_dpi}")
+
+    def display_image_from_array(self, image_array, display_widget):
+        """Display an image from a numpy array in the given widget"""
+        if image_array is None:
+            return
+
+        # Ensure image is in the right format for display
+        if len(image_array.shape) == 2:
+            # Grayscale image
+            img_rgb = cv2.cvtColor(image_array, cv2.COLOR_GRAY2RGB)
+        elif len(image_array.shape) == 3 and image_array.shape[2] == 3:
+            # Already RGB
+            img_rgb = image_array
+        elif len(image_array.shape) == 3 and image_array.shape[2] == 4:
+            # RGBA
+            img_rgb = cv2.cvtColor(image_array, cv2.COLOR_RGBA2RGB)
+        else:
+            # BGR
+            img_rgb = cv2.cvtColor(image_array, cv2.COLOR_BGR2RGB)
+
+        # Create QImage and QPixmap
+        h, w = img_rgb.shape[:2]
+        bytes_per_line = 3 * w
+        q_img = QImage(img_rgb.data, w, h, bytes_per_line, QImage.Format_RGB888)
+        pixmap = QPixmap.fromImage(q_img)
+
+        # If displaying in the arrow canvas, update the DPI information
+        if display_widget == self.canvas and hasattr(self, 'image_dpi'):
+            self.canvas.set_image_dpi(self.image_dpi)
+
+        # If the widget is a CanvasWidget or ArrowCanvasWidget, use set_base_image
+        if isinstance(display_widget, CanvasWidget) or isinstance(display_widget, ArrowCanvasWidget):
+            display_widget.set_base_image(pixmap)
+        else:
+            # For regular QLabel, do scaling and use setPixmap
+            display_width = display_widget.width() - 10
+            display_height = display_widget.height() - 10
+
+            # Calculate scaling factor to fit within display
+            scale = min(display_width / w, display_height / h, 1.0)
+            new_width = int(w * scale)
+            new_height = int(h * scale)
+
+            # Scale pixmap
+            scaled_pixmap = pixmap.scaled(new_width, new_height, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+
+            # Update display
+            display_widget.setPixmap(scaled_pixmap)
+
+        # Clear arrows when a new image is loaded in the output canvas
+        if display_widget == self.canvas:
+            arrow_integration.clear_arrows_on_new_image(self)
+
+    def resizeEvent(self, event):
+        """Handle window resize event to adjust image displays"""
+        super().resizeEvent(event)
+
+        # Refresh displayed images if they exist
+        if hasattr(self, 'input_image_path') and self.input_image_path and hasattr(self, 'input_image_display'):
+            if self.input_image_display.pixmap() and not self.input_image_display.pixmap().isNull():
+                self.display_image(self.input_image_path, self.input_image_display)
+
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    window = LithicProcessorGUI()
+    window.show()
+    sys.exit(app.exec_())

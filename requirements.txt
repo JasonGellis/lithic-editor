@@ -1,9 +1,11 @@
-numpy==1.24.3
-opencv-python==4.7.0.72
-Pillow==9.5.0
-PyQt5==5.15.9
-PyQt5-Qt5==5.15.2
-PyQt5-sip==12.12.1
-scikit-image==0.20.0
-networkx==3.0
-scipy==1.10.1
+# Core dependencies
+numpy>=1.20.0,<2.0.0
+opencv-contrib-python>=4.5.0,<5.0.0  # Must be contrib version for dnn_superres module
+Pillow>=8.0.0,<11.0.0
+PyQt5>=5.15.0,<6.0.0
+scikit-image>=0.18.0,<1.0.0
+networkx>=2.5,<4.0.0
+scipy>=1.7.0,<2.0.0
+
+# Note: opencv-contrib-python is required instead of opencv-python
+# because we use cv2.dnn_superres for neural network upscaling (ESPCN/FSRCNN)

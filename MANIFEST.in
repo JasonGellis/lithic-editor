@@ -1,0 +1,26 @@
+# Include documentation files
+include README.md
+include LICENSE
+include CHANGELOG.md
+include requirements.txt
+
+# Include neural network models
+recursive-include lithic_editor/models *.pb
+
+# Include test files
+recursive-include tests *.py
+
+# Include example images
+recursive-include example_images *.png *.jpg *.jpeg *.tiff *.tif *.bmp
+
+# Include documentation source
+recursive-include docs *.md *.yml
+
+# Include paper files
+recursive-include paper *.md *.bib
+
+# Exclude development files
+global-exclude __pycache__
+global-exclude *.py[co]
+global-exclude .DS_Store
+global-exclude .gitignore

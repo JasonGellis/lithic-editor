@@ -1,6 +1,32 @@
 # Lithic Editor and Annotator
 
+[![Tests](https://github.com/JasonGellis/lithic-editor/workflows/Tests/badge.svg)](https://github.com/JasonGellis/lithic-editor/actions)
+[![Documentation](https://img.shields.io/badge/docs-online-blue)](https://jasongellis.github.io/lithic-editor/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/)
+
 A specialized image processing tool for archaeological lithic drawings that automatically removes ripple lines while preserving structural elements, and provides annotation capabilities for technical analysis.
+
+📚 **[Full Documentation](https://jasongellis.github.io/lithic-editor/)** | 🐛 **[Report Issues](https://github.com/JasonGellis/lithic-editor/issues)** | 💬 **[Discussions](https://github.com/JasonGellis/lithic-editor/discussions)**
+
+## Table of Contents
+
+- [Overview](#overview)
+  - [Features](#features)
+    - [Image Processing](#image-processing)
+    - [Annotation Tools](#annotation-tools)
+    - [Technical Features](#technical-features)
+  - [Requirements](#requirements)
+  - [Installation](#installation)
+    - [Option 1: Install as Package (Recommended)](#option-1-install-as-package-recommended)
+    - [Option 2: Install from Git](#option-2-install-from-git)
+  - [Usage Guide](#usage-guide)
+    - [Processing Lithic Drawings](#processing-lithic-drawings)
+    - [Annotating with Arrows](#annotating-with-arrows)
+    - [Saving Results](#saving-results)
+  - [Architecture](#architecture)
+  - [License](#license)
+  - [Acknowledgements](#acknowledgements)
 
 ## Overview
 
@@ -16,6 +42,8 @@ Developed specifically for archaeological research, the application maintains th
 
 ### Image Processing
 
+- **Neural Network Upscaling**: ESPCN and FSRCNN models automatically enhance low-DPI images to 300 DPI ([Learn more](https://learnopencv.com/super-resolution-in-opencv/#sec3))
+- **Cortex Preservation**: Intelligently preserves natural cortex stippling while processing structural elements
 - **Intelligent Ripple Removal**: Uses graph-based analysis to identify and remove hatching lines while preserving structural features
 - **Processing Visualization**: View step-by-step processing stages to understand how the algorithm works
 - **Manual Editing**: Tools for touching up images before processing
@@ -39,31 +67,86 @@ Developed specifically for archaeological research, the application maintains th
 ## Requirements
 
 - Python 3.7+
-- PyQt5
-- OpenCV (cv2)
-- NumPy
-- Pillow (PIL)
-- scikit-image
-- NetworkX
-- SciPy
+- OpenCV with contrib modules (opencv-contrib-python) for neural network upscaling
+
+All other dependencies are automatically installed when you install the package.
 
 ## Installation
 
+### Option 1: Install as Package (Recommended)
+
 1. Clone the repository:
-   ```
-   git clone https://github.com/yourusername/lithic-editor-annotator.git
-   cd lithic-editor-annotator
-   ```
-
-2. Install dependencies:
-   ```
-   pip install -r requirements.txt
+   ```bash
+   git clone https://github.com/yourusername/lithic-editor.git
+   cd lithic-editor
    ```
 
-3. Run the application:
+2. Install the package:
+   ```bash
+   pip install -e .
    ```
-   python lithic_GUI.py
+
+3. Launch the application:
+   ```bash
+   lithic-editor --gui
    ```
+
+## Documentation
+
+After installation, you can access comprehensive documentation in several ways:
+
+### 📚 View Documentation Online
+The full documentation is always available at: **https://jasongellis.github.io/lithic-editor/**
+
+### 💻 View Documentation Locally
+```bash
+# Open documentation in your browser
+lithic-editor docs
+
+# Or serve documentation locally (requires mkdocs)
+lithic-editor docs --offline
+```
+
+### 📖 Quick Help
+```bash
+lithic-editor --help     # Show all commands and options
+lithic-editor help       # Show detailed help information  
+lithic-editor help api   # Show API usage examples
+```
+
+The documentation includes:
+- **Installation Guide** - Detailed setup instructions
+- **Quick Start Tutorial** - Get processing your first image in minutes
+- **User Guide** - Complete feature documentation with examples
+- **Developer Guide** - Contributing, testing, and extending the application
+- **API Reference** - Python API documentation for programmatic usage
+
+## For Developers
+
+To contribute to the project or run tests:
+
+```bash
+# Clone and install in development mode with test dependencies
+git clone https://github.com/JasonGellis/lithic-editor.git
+cd lithic-editor
+pip install -e ".[test]"
+
+# Run the test suite
+pytest
+
+# Run tests with coverage
+pytest --cov=lithic_editor --cov-report=html
+
+# View coverage report
+open htmlcov/index.html
+```
+
+### Option 2: Install from Git
+
+Install directly from GitHub repository:
+```bash
+pip install git+https://github.com/yourusername/lithic-editor.git
+```
 
 ## Usage Guide
 
@@ -76,7 +159,7 @@ Developed specifically for archaeological research, the application maintains th
 
 ### Annotating with Arrows
 
-1. **Add Arrow**: Click "Add Arrow" to place an arrow in the center of the processed image
+1. **Add Arrow**: Click "Add Arrow" to place an arrow in the processed image
 2. **Position Arrow**: Drag the arrow to position it over a flake scar or other feature
 3. **Orient Arrow**: Hold Shift and drag to rotate the arrow to indicate direction
 4. **Resize Arrow**: Hold Alt (Windows/Linux) or Option (Mac) and drag to resize the arrow
@@ -92,16 +175,20 @@ Developed specifically for archaeological research, the application maintains th
 
 The application consists of several key components:
 
-- **Main GUI** (`lithic_GUI.py`): Main application window and workflow control
-- **Ripple Removal Engine** (`ripple_remover.py`): Core image processing algorithms
-- **Arrow Annotation** (`arrow_annotations.py`, `arrow_integration.py`): Arrow drawing and manipulation system
+- **GUI Module** (`lithic_editor.gui`): Main application window and workflow control
+- **Processing Module** (`lithic_editor.processing`): Core image processing algorithms
+- **Annotations Module** (`lithic_editor.annotations`): Arrow drawing and manipulation system
+- **CLI Interface** (`lithic_editor.cli`): Command-line interface and help system
 
 The ripple removal algorithm uses a multi-step approach:
-1. Skeletonization of the input image
-2. Graph-based analysis to identify line segments
-3. Classification of segments as structural or ripple lines
-4. Selective removal of ripple lines while preserving structural elements
-5. Quality enhancement to produce clean, publication-ready output
+1. DPI-aware upscaling using neural networks (ESPCN/FSRCNN) for low-resolution images
+2. DPI-adaptive cortex separation with quadratically-scaled thresholds to preserve stippling
+3. Targeted morphological operations (dilation, closing, opening) on structural elements only
+4. Skeletonization of processed structural regions to single-pixel width
+5. Graph-based analysis with junction and endpoint detection to identify line segments
+6. Classification of segments as structural or ripple lines based on connectivity patterns
+7. Selective removal of ripple lines while preserving structural elements and cortex
+8. Quality enhancement and cortex restoration to produce clean, publication-ready output
 
 ## License
 
@@ -109,5 +196,4 @@ The ripple removal algorithm uses a multi-step approach:
 
 ## Acknowledgements
 
-- Developed for archaeological research applications
 - Special thanks to The British Academemy for funding
