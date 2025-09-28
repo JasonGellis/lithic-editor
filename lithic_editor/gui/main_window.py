@@ -1195,16 +1195,20 @@ class LithicProcessorGUI(QMainWindow):
         debug_patterns = [
             f'0_{original_filename}_original_low_dpi.png',
             f'0a_{original_filename}_upscaled_300dpi.png',
-            f'1_{original_filename}_original_image.png',
-            f'1a_{original_filename}_structural_only.png',
-            f'1b_{original_filename}_cortex_mask.png',
-            f'2_{original_filename}_skeleton.png',
-            f'3_{original_filename}_endpoints_junctions.png',
-            f'4_{original_filename}_labeled_segments.png',
-            f'5_{original_filename}_ripple_identification.png',
-            f'6_{original_filename}_skeleton_cleaned.png',
-            f'6a_{original_filename}_endpoint_filtering.png',
-            f'7_{original_filename}_final_cleaned.png'
+            f'0b_{original_filename}_upscaled_scale.png',
+            f'1a_{original_filename}_original_image.png',
+            f'1b_{original_filename}_bilateral_filtered.png',
+            f'1c_{original_filename}_binary_thresholded.png',
+            f'1d_{original_filename}_binary_downscaled.png',
+            f'2a_{original_filename}_structural_only.png',
+            f'2b_{original_filename}_cortex_mask.png',
+            f'3_{original_filename}_skeleton.png',
+            f'4_{original_filename}_endpoints_junctions.png',
+            f'5_{original_filename}_labeled_segments.png',
+            f'6_{original_filename}_ripple_identification.png',
+            f'7_{original_filename}_skeleton_cleaned.png',
+            f'7a_{original_filename}_endpoint_filtering.png',
+            f'8_{original_filename}_final_cleaned.png'
         ]
 
         for debug_file in debug_patterns:
@@ -1224,7 +1228,11 @@ class LithicProcessorGUI(QMainWindow):
                 title_map = {
                     '_original_low_dpi': 'Input (Low DPI)',
                     '_upscaled_300dpi': 'Upscaled (300 DPI)',
+                    '_upscaled_scale': 'Scale Bar',
                     '_original_image': 'Original',
+                    '_bilateral_filtered': 'Bilateral Filter',
+                    '_binary_thresholded': 'Binary Threshold',
+                    '_binary_downscaled': 'Downscaled',
                     '_structural_only': 'Structural Only',
                     '_cortex_mask': 'Cortex Mask',
                     '_skeleton': 'Skeleton',

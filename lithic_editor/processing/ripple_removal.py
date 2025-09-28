@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import networkx as nxgraph
 from skimage import morphology
+from skimage.morphology import thin
 from skimage.filters import threshold_sauvola  # Wolf is a variant of Sauvola
 from scipy.ndimage import label
 import os
@@ -711,7 +712,33 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
 
     # Threshold to binary at ORIGINAL resolution (if necessary)
     if original_image.max() > 1:  # Check if image is not already binary
-        # Use Sauvola thresholding for better handling of varying contrast
+        # Apply bilateral filter before thresholding to preserve edges while smoothing
+        print("Applying bilateral filter to preserve edges while smoothing...")
+
+        # Bilateral filter parameters (adaptive to DPI)
+        if current_dpi_value and current_dpi_value >= 600:
+            d = 9  # Diameter of pixel neighborhood
+            sigma_color = 75  # Filter sigma in color space
+            sigma_space = 75  # Filter sigma in coordinate space
+        elif current_dpi_value and current_dpi_value >= 300:
+            d = 7
+            sigma_color = 50
+            sigma_space = 50
+        else:
+            d = 5
+            sigma_color = 30
+            sigma_space = 30
+
+        # Apply bilateral filter
+        filtered_image = cv2.bilateralFilter(original_image, d, sigma_color, sigma_space)
+        print(f"Bilateral filter applied (d={d}, σ_color={sigma_color}, σ_space={sigma_space})")
+
+        # Save debug image of filtered result
+        if save_debug:
+            save_debug_image(filtered_image, os.path.join(output_folder, f'1b_{base_filename}_bilateral_filtered.png'),
+                            'Bilateral Filtered', dpi_info, format_info, output_dpi)
+
+        # Use Sauvola thresholding on the filtered image
         # Window size should be odd and adapt to ORIGINAL image size/DPI
         if current_dpi_value and current_dpi_value >= 600:
             window_size = 51  # Extra large for very high DPI
@@ -724,20 +751,25 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
         if window_size % 2 == 0:
             window_size += 1
 
-        # Apply Sauvola thresholding at FULL resolution
+        # Apply Sauvola thresholding at FULL resolution on filtered image
         print(f"Applying Sauvola thresholding at {current_dpi_value} DPI (window={window_size})")
         # Sauvola with k=0.2 (standard for document images)
-        sauvola_thresh = threshold_sauvola(original_image, window_size=window_size, k=0.2, r=None)
+        sauvola_thresh = threshold_sauvola(filtered_image, window_size=window_size, k=0.2, r=None)
         # For lithic drawings (dark lines on light background), we need inverted comparison
-        binary = original_image < sauvola_thresh  # Dark pixels (lines) become True
+        binary = filtered_image < sauvola_thresh  # Dark pixels (lines) become True
 
-        print(f"Image thresholded using Sauvola at original resolution")
+        print(f"Image thresholded using Sauvola on bilateral filtered image")
     else:
         binary = original_image > 0
         print("Image already binary")
 
     # Convert to uint8 binary image
     binary_image = binary.astype(np.uint8) * 255
+
+    # Save the binary thresholded image
+    if save_debug:
+        save_debug_image(binary_image, os.path.join(output_folder, f'1c_{base_filename}_binary_thresholded.png'),
+                        'Binary Thresholded', dpi_info, format_info, output_dpi)
 
     # NOW apply downscaling to the binary image if needed
     if will_downscale:
@@ -746,11 +778,8 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
         new_height = int(binary_image.shape[0] * downscale_factor)
         new_width = int(binary_image.shape[1] * downscale_factor)
 
-        # Use INTER_AREA for downscaling binary images (better than Lanczos for binary)
-        binary_image = cv2.resize(binary_image, (new_width, new_height), interpolation=cv2.INTER_AREA)
-
-        # Re-threshold to ensure binary after resize
-        _, binary_image = cv2.threshold(binary_image, 127, 255, cv2.THRESH_BINARY)
+        # Use INTER_NEAREST for downscaling binary images (preserves sharp edges)
+        binary_image = cv2.resize(binary_image, (new_width, new_height), interpolation=cv2.INTER_NEAREST)
         binary = binary_image > 0
 
         # Update DPI info
@@ -766,12 +795,15 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
         print(f"Downscaled binary image to {new_width}x{new_height} (factor: {downscale_factor:.3f})")
 
         if save_debug:
-            save_debug_image(binary_image, os.path.join(output_folder, f'1a_{base_filename}_binary_downscaled.png'),
+            save_debug_image(binary_image, os.path.join(output_folder, f'1d_{base_filename}_binary_downscaled.png'),
                            f'Binary Downscaled ({target_processing_dpi} DPI)', (target_processing_dpi, target_processing_dpi), format_info, (target_processing_dpi, target_processing_dpi))
 
     # Update current_dpi_value for subsequent processing
     if downscale_applied:
         current_dpi_value = target_processing_dpi
+
+    # Update binary boolean array
+    binary = binary_image > 0
 
     # Use fixed cortex threshold for consistent behavior across all DPIs
     cortex_threshold = 60
@@ -794,34 +826,150 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
     # Save debug images for cortex separation
     if save_debug and preserve_cortex:
         # Show separated structural elements
-        save_debug_image(structural_image, os.path.join(output_folder, f'1a_{base_filename}_structural_only.png'),
+        save_debug_image(structural_image, os.path.join(output_folder, f'2a_{base_filename}_structural_only.png'),
                         'Structural Lines Only', dpi_info, format_info, output_dpi)
 
         # Show cortex mask
         cortex_debug = cortex_mask.astype(np.uint8) * 255
-        save_debug_image(cortex_debug, os.path.join(output_folder, f'1b_{base_filename}_cortex_mask.png'),
+        save_debug_image(cortex_debug, os.path.join(output_folder, f'2b_{base_filename}_cortex_mask.png'),
                         'Cortex Stippling Mask', dpi_info, format_info, output_dpi)
 
-    # Skeletonize only the structural elements (cortex bypasses skeletonization)
-    print("Skeletonizing structural elements...")
+    # Thin the structural elements (cortex bypasses thinning)
+    print("Thinning structural elements using thin operation...")
     if preserve_cortex:
-        # Skeletonize only structural lines
+        # Thin only structural lines
         structural_binary = structural_image > 0
-        skeleton = morphology.skeletonize(structural_binary)
+        # Use thin operation instead of skeletonize
+        skeleton = thin(structural_binary, max_iter=None)
+        print("Using thin operation for thinning")
         # Update binary_image to reflect structural-only processing
         binary_image = structural_image
         binary = structural_binary
     else:
         # Process everything together (original behavior)
         binary = binary_image > 0
-        skeleton = morphology.skeletonize(binary)
+        # Use thin operation instead of skeletonize
+        skeleton = thin(binary, max_iter=None)
+        print("Using thin operation for thinning")
     skeleton_img = skeleton.astype(np.uint8) * 255
     print(f"Skeleton created. Non-zero pixels: {np.count_nonzero(skeleton)}")
 
+    # Apply morphological operations after skeletonization to smooth skeleton
+    print("Applying post-skeleton morphological operations...")
+
+    # Light dilation to slightly thicken skeleton (helps with connectivity)
+    dilate_kernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3))
+    skeleton_smoothed = cv2.dilate(skeleton_img, dilate_kernel, iterations=1)
+    print("Applied dilation to thicken skeleton slightly")
+
+    # Light closing to connect small skeleton gaps
+    close_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    skeleton_smoothed = cv2.morphologyEx(skeleton_smoothed, cv2.MORPH_CLOSE, close_kernel)
+    print("Applied closing to connect skeleton gaps")
+
+    # Re-thin to get back to 1-pixel width but smoother
+    skeleton_smoothed_binary = skeleton_smoothed > 0
+    # Use thin operation for re-thinning
+    skeleton = thin(skeleton_smoothed_binary, max_iter=None)
+    print("Using thin operation for re-thinning")
+    skeleton_img = skeleton.astype(np.uint8) * 255
+
+    print(f"Smoothed skeleton created. Non-zero pixels: {np.count_nonzero(skeleton)}")
+
+    # Branch length analysis to remove short spurs
+    print("Analyzing branch lengths to remove spurs...")
+
+    def remove_short_branches(skel, min_length=5):
+        """Remove branches shorter than min_length that connect to junctions"""
+        skel_copy = skel.copy()
+        h, w = skel.shape
+
+        # Find endpoints (pixels with exactly 1 neighbor)
+        endpoints = []
+        for y in range(1, h-1):
+            for x in range(1, w-1):
+                if skel[y, x]:
+                    neighbors = np.sum(skel[y-1:y+2, x-1:x+2]) - 1
+                    if neighbors == 1:
+                        endpoints.append((x, y))
+
+        print(f"Found {len(endpoints)} endpoints to analyze")
+
+        # For each endpoint, trace back to find branch length
+        branches_to_remove = []
+
+        for ex, ey in endpoints:
+            # Trace from endpoint until we hit a junction or another endpoint
+            path = [(ex, ey)]
+            current_x, current_y = ex, ey
+            visited = set()
+            visited.add((current_x, current_y))
+
+            while True:
+                # Find next pixel in the path
+                next_pixels = []
+                for dx in [-1, 0, 1]:
+                    for dy in [-1, 0, 1]:
+                        if dx == 0 and dy == 0:
+                            continue
+                        nx, ny = current_x + dx, current_y + dy
+                        if (0 <= nx < w and 0 <= ny < h and
+                            skel[ny, nx] and (nx, ny) not in visited):
+                            next_pixels.append((nx, ny))
+
+                if len(next_pixels) == 0:
+                    # Dead end (shouldn't happen in a connected skeleton)
+                    break
+                elif len(next_pixels) == 1:
+                    # Continue along the branch
+                    current_x, current_y = next_pixels[0]
+                    path.append((current_x, current_y))
+                    visited.add((current_x, current_y))
+                else:
+                    # We've reached a junction (multiple possible next pixels)
+                    break
+
+                # Safety check to prevent infinite loops
+                if len(path) > 100:
+                    break
+
+            # Check if this branch should be removed
+            branch_length = len(path)
+
+            # Only remove if:
+            # 1. Branch is shorter than min_length
+            # 2. Branch ends at a junction (not isolated)
+            if branch_length <= min_length and len(path) > 1:
+                # Check if the end of the path is a junction
+                end_x, end_y = path[-1]
+                if end_x != ex or end_y != ey:  # Make sure we actually traced somewhere
+                    end_neighbors = np.sum(skel[end_y-1:end_y+2, end_x-1:end_x+2]) - 1
+                    if end_neighbors >= 3:  # It's a junction
+                        # Mark this branch for removal (except the junction point)
+                        branches_to_remove.extend(path[:-1])
+                        print(f"Marking branch of length {branch_length} for removal")
+
+        # Remove the marked branches
+        for x, y in branches_to_remove:
+            skel_copy[y, x] = False
+
+        return skel_copy
+
+    # Apply branch length analysis
+    skeleton_pruned = remove_short_branches(skeleton, min_length=5)
+
+    # Count removed pixels
+    removed_pixels = np.count_nonzero(skeleton) - np.count_nonzero(skeleton_pruned)
+    print(f"Branch length analysis removed {removed_pixels} pixels")
+
+    skeleton = skeleton_pruned
+    skeleton_img = skeleton.astype(np.uint8) * 255
+    print(f"Final skeleton created. Non-zero pixels: {np.count_nonzero(skeleton)}")
+
     # Save the skeleton image
     if save_debug:
-        save_debug_image(skeleton_img, os.path.join(output_folder, f'2_{base_filename}_skeleton.png'),
-                        'Skeleton', dpi_info, format_info, output_dpi)
+        save_debug_image(skeleton_img, os.path.join(output_folder, f'3_{base_filename}_skeleton.png'),
+                        'Pruned Skeleton', dpi_info, format_info, output_dpi)
 
     # Step 3: Find endpoints and junctions
     print("Finding endpoints and junctions...")
@@ -930,7 +1078,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
         cv2.circle(debug_img, (x, y), 1, (0, 255, 0), -1)  # Green for junctions
 
     if save_debug:
-        save_debug_image(debug_img, os.path.join(output_folder, f'3_{base_filename}_endpoints_junctions.png'),
+        save_debug_image(debug_img, os.path.join(output_folder, f'4_{base_filename}_endpoints_junctions.png'),
                         'Endpoints & Junctions', dpi_info, format_info, output_dpi)
 
 
@@ -966,7 +1114,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
             segment_colors[y, x] = colors[segment_id]
 
     if save_debug:
-        save_debug_image(segment_colors, os.path.join(output_folder, f'4_{base_filename}_labeled_segments.png'),
+        save_debug_image(segment_colors, os.path.join(output_folder, f'5_{base_filename}_labeled_segments.png'),
                         f'Labeled Segments ({num_segments})', dpi_info, format_info, output_dpi)
 
     # Step 5: Build graph representation
@@ -1054,7 +1202,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
         cv2.circle(ripple_viz, (x, y), 1, (0, 255, 0), -1)  # Green for junctions
 
     if save_debug:
-        save_debug_image(ripple_viz, os.path.join(output_folder, f'5_{base_filename}_ripple_identification.png'),
+        save_debug_image(ripple_viz, os.path.join(output_folder, f'6_{base_filename}_ripple_identification.png'),
                         'Ripple vs Structural', dpi_info, format_info, output_dpi)
 
     # Step 7: Create mask of structural elements (excluding ripple endpoints)
@@ -1107,7 +1255,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
 
     # Save the skeleton-based cleaned image (inverted)
     if save_debug:
-        save_debug_image(skeleton_cleaned_inverted, os.path.join(output_folder, f'6_{base_filename}_skeleton_cleaned.png'),
+        save_debug_image(skeleton_cleaned_inverted, os.path.join(output_folder, f'7_{base_filename}_skeleton_cleaned.png'),
                         'Skeleton Cleaned', dpi_info, format_info, output_dpi)
 
     # NEW: Create debug image showing filtered endpoints
@@ -1135,7 +1283,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
 
     if save_debug:
         if save_debug:
-            save_debug_image(filtered_endpoints_viz, os.path.join(output_folder, f'6a_{base_filename}_endpoint_filtering.png'),
+            save_debug_image(filtered_endpoints_viz, os.path.join(output_folder, f'7a_{base_filename}_endpoint_filtering.png'),
                             'Endpoint Filtering', dpi_info, format_info, output_dpi)
 
     # Step 8: Create final image with hybrid thickness preservation
@@ -1183,7 +1331,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
             final_dpi = 300  # We downscaled to 300 DPI
         else:
             final_dpi = output_dpi if output_dpi else dpi_info
-        save_debug_image(final_cleaned_inverted, os.path.join(output_folder, f'7_{base_filename}_final_cleaned.png'),
+        save_debug_image(final_cleaned_inverted, os.path.join(output_folder, f'8_{base_filename}_final_cleaned.png'),
                         'Final Cleaned', dpi_info, format_info, final_dpi)
 
     # Skip upscaling back to original resolution - keep at 300 DPI
