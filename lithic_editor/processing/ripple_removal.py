@@ -712,33 +712,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
 
     # Threshold to binary at ORIGINAL resolution (if necessary)
     if original_image.max() > 1:  # Check if image is not already binary
-        # Apply bilateral filter before thresholding to preserve edges while smoothing
-        print("Applying bilateral filter to preserve edges while smoothing...")
-
-        # Bilateral filter parameters (adaptive to DPI)
-        if current_dpi_value and current_dpi_value >= 600:
-            d = 9  # Diameter of pixel neighborhood
-            sigma_color = 75  # Filter sigma in color space
-            sigma_space = 75  # Filter sigma in coordinate space
-        elif current_dpi_value and current_dpi_value >= 300:
-            d = 7
-            sigma_color = 50
-            sigma_space = 50
-        else:
-            d = 5
-            sigma_color = 30
-            sigma_space = 30
-
-        # Apply bilateral filter
-        filtered_image = cv2.bilateralFilter(original_image, d, sigma_color, sigma_space)
-        print(f"Bilateral filter applied (d={d}, σ_color={sigma_color}, σ_space={sigma_space})")
-
-        # Save debug image of filtered result
-        if save_debug:
-            save_debug_image(filtered_image, os.path.join(output_folder, f'1b_{base_filename}_bilateral_filtered.png'),
-                            'Bilateral Filtered', dpi_info, format_info, output_dpi)
-
-        # Use Sauvola thresholding on the filtered image
+        # Use Sauvola thresholding directly on original image
         # Window size should be odd and adapt to ORIGINAL image size/DPI
         if current_dpi_value and current_dpi_value >= 600:
             window_size = 51  # Extra large for very high DPI
@@ -751,14 +725,14 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
         if window_size % 2 == 0:
             window_size += 1
 
-        # Apply Sauvola thresholding at FULL resolution on filtered image
+        # Apply Sauvola thresholding at FULL resolution on original image
         print(f"Applying Sauvola thresholding at {current_dpi_value} DPI (window={window_size})")
         # Sauvola with k=0.2 (standard for document images)
-        sauvola_thresh = threshold_sauvola(filtered_image, window_size=window_size, k=0.2, r=None)
+        sauvola_thresh = threshold_sauvola(original_image, window_size=window_size, k=0.2, r=None)
         # For lithic drawings (dark lines on light background), we need inverted comparison
-        binary = filtered_image < sauvola_thresh  # Dark pixels (lines) become True
+        binary = original_image < sauvola_thresh  # Dark pixels (lines) become True
 
-        print(f"Image thresholded using Sauvola on bilateral filtered image")
+        print(f"Image thresholded using Sauvola on original image")
     else:
         binary = original_image > 0
         print("Image already binary")
@@ -805,11 +779,25 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
     # Update binary boolean array
     binary = binary_image > 0
 
-    # Use fixed cortex threshold for consistent behavior across all DPIs
-    cortex_threshold = 60
-    cortex_min_threshold = 3
+    # Calculate DPI-scaled cortex threshold (exact same as develop branch)
+    # Base threshold is 60 pixels at 150 DPI
+    # Area scales quadratically with resolution
+    # Results: 75 DPI=30, 150 DPI=60, 300 DPI=240, 600 DPI=960 pixels
+    if current_dpi_value:
+        dpi_scale = current_dpi_value / 150.0
+        cortex_threshold = int(60 * dpi_scale * dpi_scale)
+        # Set minimum threshold to avoid being too restrictive at low DPI
+        cortex_threshold = max(30, cortex_threshold)
 
-    print(f"Using fixed cortex threshold: {cortex_min_threshold}-{cortex_threshold} pixels")
+        # Calculate minimum threshold to filter out noise
+        # Base: 3 pixels at 150 DPI, scales quadratically
+        cortex_min_threshold = int(3 * dpi_scale * dpi_scale)
+        cortex_min_threshold = max(2, cortex_min_threshold)  # Minimum 2 pixels
+    else:
+        cortex_threshold = 60  # Default if no DPI info
+        cortex_min_threshold = 3
+
+    print(f"Using DPI-scaled cortex threshold: {cortex_min_threshold}-{cortex_threshold} pixels (DPI: {current_dpi_value})")
 
     # Separate cortex stippling from structural lines before morphological operations
     # Preserves cortex dots from being merged or modified during processing
@@ -1009,36 +997,22 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
     # This handles Y-tips by making the junction part of the ripple line
     print("Converting Y-tip junctions to endpoints...")
 
-    # Calculate DPI-aware Y-tip threshold
-    if current_dpi_value:
-        # Get base threshold from DPI (original proven values)
-        if current_dpi_value >= 600:
-            # Very high DPI (600+): highest threshold for maximum Y-tip detection
-            y_tip_threshold = 8
-        elif current_dpi_value >= 300:
-            # High DPI (300-599): larger threshold for clear Y-tip detection
-            y_tip_threshold = 5
-        elif current_dpi_value >= 150:
-            # Medium DPI (150-299): moderate threshold
-            y_tip_threshold = 3
-        else:
-            # Low DPI (<150): very conservative threshold to avoid removing structural details
-            y_tip_threshold = 2
-
-        # ONLY apply dimension scaling for downscaled images
-        if downscale_applied:
-            # For downscaled images, apply dimension scaling
-            min_dimension = min(skeleton.shape[0], skeleton.shape[1])
-            expected_min_dimension = current_dpi_value * 2
-            dimension_scale = min_dimension / expected_min_dimension
-            dimension_scale = max(0.5, min(2.0, dimension_scale))
-
-            # Apply scaling and make more conservative
-            scaled_threshold = max(2, int(y_tip_threshold * dimension_scale))
-            y_tip_threshold = max(1, int(scaled_threshold * 0.5))  # Further reduce by 50%
-            print(f"Y-tip threshold scaled for downscaled image: {y_tip_threshold} pixels (dimension scale: {dimension_scale:.2f})")
+    # Y-tip threshold optimized for 300 DPI processing
+    # Since we normalize all images to 300 DPI (upscale if <300, downscale if >300),
+    # we can use a single optimized threshold
+    if current_dpi_value and abs(current_dpi_value - 300) < 50:
+        # At or near 300 DPI (our target) - use optimized threshold
+        y_tip_threshold = 5
+        print("Using optimized 300 DPI Y-tip threshold")
+    elif current_dpi_value and current_dpi_value >= 150:
+        # Medium DPI that wasn't scaled - use moderate threshold
+        y_tip_threshold = 3
+    elif current_dpi_value and current_dpi_value < 150:
+        # Low DPI - conservative to avoid removing structural details
+        y_tip_threshold = 2
     else:
-        y_tip_threshold = 3  # Default threshold
+        # Default for 300 DPI target
+        y_tip_threshold = 5
 
     print(f"Using Y-tip threshold: {y_tip_threshold} pixels (DPI: {current_dpi_value})")
     junctions_to_convert = []
@@ -1292,11 +1266,27 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
     # Convert binary_image to boolean for processing
     binary_bool = binary_image > 0
 
-    # Use fixed thickness parameters for consistent behavior across all DPIs
-    min_thickness = 3
-    max_thickness = 4
+    # Calculate thickness parameters optimized for target DPI
+    # Since most processing happens at ~300 DPI, use DPI-aware thickness
+    if current_dpi_value:
+        if current_dpi_value >= 300:
+            # High DPI (300+): use thicker preservation
+            min_thickness = 4
+            max_thickness = 6
+        elif current_dpi_value >= 150:
+            # Medium DPI (150-299): moderate thickness preservation
+            min_thickness = 3
+            max_thickness = 4
+        else:
+            # Low DPI (<150): thinner preservation to avoid over-thickening
+            min_thickness = 2
+            max_thickness = 3
+    else:
+        # Default optimized for 300 DPI target
+        min_thickness = 4
+        max_thickness = 6
 
-    print(f"Using fixed thickness range: {min_thickness}-{max_thickness} pixels")
+    print(f"Using DPI-aware thickness range: {min_thickness}-{max_thickness} pixels (DPI: {current_dpi_value})")
 
     # Use the new thickness-aware reconstruction
     thickness_preserved_mask = create_thickness_aware_mask(
