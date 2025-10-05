@@ -610,13 +610,19 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
         current_dpi = default_dpi
         print(f"Using default DPI: {current_dpi} (no metadata found)")
 
-    # Check if we WILL downscale (but don't do it yet)
+    # Check if we WILL downscale and when
     will_downscale = False
+    will_downscale_before_threshold = False
     if downscale_high_dpi and current_dpi and current_dpi > high_dpi_threshold:
         will_downscale = True
         original_dpi_for_restoration = current_dpi
         downscale_factor = target_processing_dpi / current_dpi
-        print(f"High DPI detected ({current_dpi}). Will downscale AFTER thresholding to preserve detail.")
+
+        if current_dpi > 500:  # Very high DPI - downscale BEFORE thresholding
+            will_downscale_before_threshold = True
+            print(f"Very high DPI detected ({current_dpi}). Will downscale BEFORE thresholding to reduce noise.")
+        else:
+            print(f"High DPI detected ({current_dpi}). Will downscale AFTER thresholding to preserve detail.")
 
     # Note: Upscaling is still done BEFORE thresholding since we want to add detail
     # before binarization. This is different from downscaling which removes detail.
