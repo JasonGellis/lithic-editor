@@ -400,7 +400,8 @@ def separate_cortex_and_structure(binary_image, preserve_cortex=True, cortex_siz
 def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=None, format_info=None, output_dpi=None, save_debug=False,
                           upscale_low_dpi=False, default_dpi=None, upscale_model='espcn', target_dpi=300,
                           scale_image_path=None, return_scale_factor=False, debug_filename=None, preserve_cortex=True,
-                          downscale_high_dpi=False, high_dpi_threshold=300):
+                          downscale_high_dpi=False, high_dpi_threshold=300, neural_cleaning=False,
+                          neural_cleaning_dpi_range=(200, 400), neural_cleaning_target_dpi=None):
     """
     Process lithic drawings to remove ripple artifacts while preserving structural elements.
 
@@ -459,6 +460,15 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
         Enable downscaling of high DPI images for processing (default: False).
     high_dpi_threshold : int, optional
         DPI threshold above which downscaling is offered (default: 500).
+    neural_cleaning : bool, optional
+        Enable neural cleaning via downscale-upscale preprocessing to remove scanning artifacts
+        (default: False). This applies intelligent smoothing by leveraging neural network upscaling.
+    neural_cleaning_dpi_range : tuple of int, optional
+        DPI range (min, max) for which neural cleaning is applied when enabled (default: (200, 400)).
+        Images within this DPI range benefit most from neural cleaning to remove artifacts.
+    neural_cleaning_target_dpi : int, optional
+        Target DPI for neural cleaning output. If None, returns to original DPI. If specified,
+        the cleaned image will be resampled to this target DPI (default: None).
 
     Returns
     -------
@@ -610,10 +620,101 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
         current_dpi = default_dpi
         print(f"Using default DPI: {current_dpi} (no metadata found)")
 
+    # Apply neural cleaning if enabled and within DPI range
+    was_neural_cleaned = False
+    if neural_cleaning and current_dpi:
+        min_dpi, max_dpi = neural_cleaning_dpi_range
+        if min_dpi <= current_dpi <= max_dpi:
+            print(f"Applying neural cleaning for {current_dpi} DPI image...")
+
+            # Save original for comparison if debugging
+            if save_debug:
+                save_debug_image(original_image, os.path.join(output_folder, f'0_{base_filename}_before_neural_cleaning.png'),
+                                f'Before Neural Cleaning ({current_dpi} DPI)', dpi_info, format_info, output_dpi)
+
+            # Store original DPI for restoration
+            original_neural_dpi = current_dpi
+
+            # Determine target DPI for final output
+            if neural_cleaning_target_dpi:
+                final_dpi = neural_cleaning_target_dpi
+                print(f"  - Neural cleaning will output at {final_dpi} DPI (user specified)")
+            else:
+                final_dpi = original_neural_dpi
+                print(f"  - Neural cleaning will output at {final_dpi} DPI (original resolution)")
+
+            # Implement exact logic as requested:
+            # 75 DPI -> upscale to 300
+            # 300 DPI -> downscale to 75, then neural back to 300
+            # 600 DPI -> downscale to 400, then neural back to 600
+
+            if current_dpi <= 75:
+                # 75 DPI: Upscale directly to 300
+                cleaned_image, _ = upscale_image_to_target_dpi(
+                    original_image, current_dpi, 300, upscale_model
+                )
+                print(f"  - 75 DPI: Neural upscaled to 300 DPI: {original_image.shape} → {cleaned_image.shape}")
+                current_dpi = 300
+                dpi_info = 300
+
+            elif current_dpi <= 300:
+                # 300 DPI: Downscale to 75, then neural upscale back to 300
+                downscale_factor = 75.0 / current_dpi
+                temp_height = int(original_image.shape[0] * downscale_factor)
+                temp_width = int(original_image.shape[1] * downscale_factor)
+
+                downscaled_temp = cv2.resize(original_image, (temp_width, temp_height),
+                                            interpolation=cv2.INTER_AREA)
+                print(f"  - 300 DPI: Downscaled to 75 DPI: {original_image.shape} → {downscaled_temp.shape}")
+
+                cleaned_image, _ = upscale_image_to_target_dpi(
+                    downscaled_temp, 75, 300, upscale_model
+                )
+                print(f"  - Neural upscaled back to 300 DPI: {downscaled_temp.shape} → {cleaned_image.shape}")
+
+            elif current_dpi >= 600:
+                # 600 DPI: Downscale to 400, then neural upscale back to 600
+                downscale_factor = 400.0 / current_dpi
+                temp_height = int(original_image.shape[0] * downscale_factor)
+                temp_width = int(original_image.shape[1] * downscale_factor)
+
+                downscaled_temp = cv2.resize(original_image, (temp_width, temp_height),
+                                            interpolation=cv2.INTER_AREA)
+                print(f"  - 600 DPI: Downscaled to 400 DPI: {original_image.shape} → {downscaled_temp.shape}")
+
+                cleaned_image, _ = upscale_image_to_target_dpi(
+                    downscaled_temp, 400, 600, upscale_model
+                )
+                print(f"  - Neural upscaled back to 600 DPI: {downscaled_temp.shape} → {cleaned_image.shape}")
+
+            else:
+                # Other DPI values: use original logic
+                cleaned_image = original_image
+                print(f"  - DPI {current_dpi} not in standard ranges, no neural cleaning applied")
+
+            # Replace the original image with the cleaned version
+            original_image = cleaned_image
+            was_neural_cleaned = True
+
+            # Update DPI info if we changed the target resolution
+            if neural_cleaning_target_dpi:
+                current_dpi = neural_cleaning_target_dpi
+                dpi_info = neural_cleaning_target_dpi
+                print(f"  - Updated working DPI to {current_dpi}")
+
+            # Save cleaned image if debugging
+            if save_debug:
+                save_debug_image(original_image, os.path.join(output_folder, f'0a_{base_filename}_after_neural_cleaning.png'),
+                                f'After Neural Cleaning ({current_dpi} DPI)', dpi_info, format_info, output_dpi)
+
+            print(f"Neural cleaning complete. Image now at {current_dpi} DPI with artifacts removed.")
+        else:
+            print(f"Neural cleaning skipped: {current_dpi} DPI outside range {neural_cleaning_dpi_range}")
+
     # Check if we WILL downscale and when
     will_downscale = False
     will_downscale_before_threshold = False
-    if downscale_high_dpi and current_dpi and current_dpi > high_dpi_threshold:
+    if downscale_high_dpi and current_dpi and current_dpi > high_dpi_threshold and not was_neural_cleaned:
         will_downscale = True
         original_dpi_for_restoration = current_dpi
         downscale_factor = target_processing_dpi / current_dpi
@@ -626,7 +727,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
 
     # Note: Upscaling is still done BEFORE thresholding since we want to add detail
     # before binarization. This is different from downscaling which removes detail.
-    if upscale_low_dpi and not will_downscale:
+    if upscale_low_dpi and not will_downscale and not was_neural_cleaned:
         if not current_dpi:
             # Non-interactive mode requires DPI information to proceed
             print("Warning: No DPI information found and no default_dpi provided. Skipping upscaling.")
