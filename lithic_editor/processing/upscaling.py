@@ -9,7 +9,7 @@ import os
 import cv2
 import numpy as np
 from PIL import Image
-from typing import Tuple, Optional, Union
+from typing import Tuple, Optional
 
 
 def detect_image_dpi(image_path: str) -> Optional[int]:
@@ -122,7 +122,7 @@ def upscale_with_model(image: np.ndarray, scale_factor: float, model: str = 'esp
     sr_model = load_upscaling_model(model, model_scale)
     
     if sr_model is None:
-        print(f"Falling back to INTER_LANCZOS4 interpolation")
+        print("Falling back to INTER_LANCZOS4 interpolation")
         return upscale_with_interpolation(image, scale_factor)
     
     try:

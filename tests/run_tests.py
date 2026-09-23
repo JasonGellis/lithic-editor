@@ -5,6 +5,7 @@ Convenience script to run tests with coverage.
 
 import sys
 import subprocess
+from importlib.util import find_spec
 from pathlib import Path
 
 def run_tests():
@@ -21,15 +22,15 @@ def run_tests():
     ]
     
     # Add coverage if pytest-cov is installed
-    try:
-        import pytest_cov
+    has_cov = find_spec("pytest_cov") is not None
+    if has_cov:
         cmd.extend([
             "--cov=lithic_editor",
             "--cov-report=term-missing",
             "--cov-report=html",
         ])
         print("Running tests with coverage...")
-    except ImportError:
+    else:
         print("Running tests without coverage (install pytest-cov for coverage reports)")
     
     # Add color if supported
@@ -40,11 +41,8 @@ def run_tests():
     
     if result.returncode == 0:
         print("\n✅ All tests passed!")
-        try:
-            import pytest_cov
+        if has_cov:
             print("📊 Coverage report saved to htmlcov/index.html")
-        except ImportError:
-            pass
     else:
         print("\n❌ Some tests failed")
     

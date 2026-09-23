@@ -2,9 +2,7 @@
 Tests for the documentation server module.
 """
 
-import pytest
-from unittest.mock import patch, MagicMock, mock_open
-from pathlib import Path
+from unittest.mock import patch, MagicMock
 
 
 class TestDocsServer:

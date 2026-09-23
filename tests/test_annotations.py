@@ -2,9 +2,7 @@
 Tests for the annotations module (arrows).
 """
 
-import pytest
 from PyQt5.QtCore import Qt, QPoint
-from PyQt5.QtGui import QColor, QPixmap
 from lithic_editor.annotations.arrows import Arrow, ArrowCanvasWidget
 
 

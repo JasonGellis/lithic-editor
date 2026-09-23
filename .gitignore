@@ -38,6 +38,7 @@ ENV/
 # Project-specific output
 output/
 image_debug/
+results/
 error_log.txt
 *.tmp
 

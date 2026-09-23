@@ -4,9 +4,7 @@ Tests for the upscaling module.
 
 import pytest
 import numpy as np
-import cv2
 from PIL import Image
-from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 from lithic_editor.processing.upscaling import (

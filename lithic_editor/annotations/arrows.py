@@ -5,8 +5,8 @@ This module provides classes for adding, manipulating, and rendering
 arrow annotations on images.
 """
 
-from PyQt5.QtWidgets import QLabel, QColorDialog
-from PyQt5.QtGui import QPainter, QPen, QColor, QPainterPath, QPixmap, QPolygon
+from PyQt5.QtWidgets import QLabel
+from PyQt5.QtGui import QPainter, QPen, QPixmap, QPolygon
 from PyQt5.QtCore import Qt, QPoint, QLineF
 
 
@@ -190,6 +190,8 @@ class ArrowCanvasWidget(QLabel):
 
         # Alignment
         self.setAlignment(Qt.AlignCenter)
+        # Take keyboard focus on click so Delete and the arrow keys reach keyPressEvent
+        self.setFocusPolicy(Qt.ClickFocus)
 
     def set_base_image(self, pixmap):
         """Set the base image to display"""

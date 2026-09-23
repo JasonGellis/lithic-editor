@@ -4,7 +4,6 @@ Tests for the image processing module.
 
 import pytest
 import numpy as np
-from pathlib import Path
 from lithic_editor.processing import process_lithic_drawing
 
 

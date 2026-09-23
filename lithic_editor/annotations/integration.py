@@ -7,7 +7,7 @@ into the main application without cluttering the main code.
 import sys
 from PyQt5.QtWidgets import (
     QPushButton, QLabel, QHBoxLayout, QGroupBox,
-    QSlider, QColorDialog
+    QColorDialog
 )
 from PyQt5.QtCore import Qt, QPoint
 from PyQt5.QtGui import QColor
@@ -25,7 +25,6 @@ def setup_arrow_controls(parent):
     parent.add_arrow_button.setEnabled(False)
 
     # Add tooltip for the button
-    import sys
     if sys.platform == 'darwin':  # macOS
         parent.add_arrow_button.setToolTip("Add an arrow to the center of the image\n"
                                      "Drag to move, Option+drag to resize, Shift+drag to rotate")
@@ -50,7 +49,6 @@ def setup_arrow_controls(parent):
     parent.clear_arrows_button.setEnabled(False)
 
     # Create a platform-aware hint message
-    import sys
     if sys.platform == 'darwin':  # macOS
         interaction_hint = QLabel("Shift+drag to rotate, Option+drag to resize")
     else:  # Windows, Linux, etc.

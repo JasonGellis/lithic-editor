@@ -50,9 +50,9 @@ def serve_docs(port=8000):
     try:
         with socketserver.TCPServer(("", port), handler) as httpd:
             url = f"http://127.0.0.1:{port}"
-            print(f"✓ Documentation server started")
+            print("✓ Documentation server started")
             print(f"  View documentation at: {url}")
-            print(f"  Press Ctrl+C to stop the server")
+            print("  Press Ctrl+C to stop the server")
             
             # Open browser in a separate thread to avoid blocking
             threading.Thread(target=lambda: webbrowser.open(url), daemon=True).start()
