@@ -4,66 +4,89 @@ Integration tests for combined features.
 
 import pytest
 import numpy as np
-from pathlib import Path
 from unittest.mock import patch, MagicMock
 from PIL import Image
 
 
 class TestUpscalingIntegration:
-    """Test integration of upscaling with main processing."""
-    
-    def test_low_dpi_image_processing_with_upscaling(self, temp_dir):
-        """Test processing low DPI image with automatic upscaling."""
+    """Test integration of adaptive upscaling with main processing."""
+
+    @staticmethod
+    def _thin_hatched_drawing(size=60):
+        """One-pixel strokes with two-pixel gaps: too thin and too close to skeletonize well."""
+        img = np.full((size, size), 255, dtype=np.uint8)
+        img[5, 5:55] = img[54, 5:55] = 0
+        img[5:55, 5] = img[5:55, 54] = 0
+        for row in range(12, 48, 3):
+            img[row, 10:40] = 0
+        return img
+
+    def test_thin_drawing_is_upscaled_and_restored(self, temp_dir):
+        """A thin, tightly hatched drawing is upscaled for processing and returned at input size."""
         from lithic_editor.processing import process_lithic_drawing
-        
-        # Create low DPI test image with DPI metadata
-        img = Image.new('L', (50, 50), 255)
-        # Add some content
-        img_array = np.array(img)
-        img_array[20:30, 20:30] = 0  # Black square
-        img = Image.fromarray(img_array)
-        
-        image_path = temp_dir / "low_dpi_test.png"
-        img.save(image_path, dpi=(150, 150))  # Low DPI
-        
+
+        img = Image.fromarray(self._thin_hatched_drawing())
+        image_path = temp_dir / "thin_test.png"
+        img.save(image_path, dpi=(150, 150))
+
         result = process_lithic_drawing(
             image_path=str(image_path),
             output_folder=str(temp_dir),
-            target_dpi=300,
             upscale_model='espcn',
             upscale_low_dpi=True,
             save_debug=True
         )
-        
+
         assert result is not None
-        # Should be upscaled
-        assert result.shape[0] >= 50
-        assert result.shape[1] >= 50
-        
-        # Check upscaling debug images were created
-        debug_files = list(temp_dir.glob("*.png"))
-        debug_names = [f.stem for f in debug_files]
+        assert result.shape == (60, 60)
+        debug_names = [f.stem for f in temp_dir.glob("*.png")]
         assert any("upscaled" in name.lower() for name in debug_names)
-    
-    def test_high_dpi_image_no_upscaling(self, temp_dir):
-        """Test that high DPI images skip upscaling."""
+        assert any("restored" in name.lower() for name in debug_names)
+
+    def test_thin_drawing_can_keep_upscaled_size(self, temp_dir):
+        """With restore_original_size=False the result is larger and the factor is reported."""
         from lithic_editor.processing import process_lithic_drawing
-        
-        # Create high DPI test image
-        img = Image.new('L', (100, 100), 255)
-        image_path = temp_dir / "high_dpi_test.png"
-        img.save(image_path, dpi=(600, 600))  # High DPI
-        
+
+        img = Image.fromarray(self._thin_hatched_drawing())
+        image_path = temp_dir / "thin_keep.png"
+        img.save(image_path, dpi=(150, 150))
+
         result = process_lithic_drawing(
             image_path=str(image_path),
             output_folder=str(temp_dir),
-            target_dpi=300,
+            upscale_low_dpi=True,
+            restore_original_size=False,
+            return_scale_factor=True,
+        )
+
+        factor = result['scale_factor']
+        assert factor > 1
+        assert result['working_scale_factor'] == factor
+        assert result['processed_image'].shape == (60 * factor, 60 * factor)
+        assert result['final_dpi'] == 150 * factor
+
+    def test_thick_drawing_is_not_upscaled(self, temp_dir):
+        """Wide, well-separated strokes need no upscaling even when upscaling is allowed."""
+        from lithic_editor.processing import process_lithic_drawing
+
+        img = np.full((120, 120), 255, dtype=np.uint8)
+        img[10:22, 10:110] = img[98:110, 10:110] = 0
+        img[10:110, 10:22] = img[10:110, 98:110] = 0
+        image_path = temp_dir / "thick_test.png"
+        Image.fromarray(img).save(image_path, dpi=(600, 600))
+
+        result = process_lithic_drawing(
+            image_path=str(image_path),
+            output_folder=str(temp_dir),
+            upscale_low_dpi=True,
+            return_scale_factor=True,
             save_debug=True
         )
-        
-        assert result is not None
-        # Should maintain original size (no upscaling)
-        assert result.shape == (100, 100)
+
+        assert result['working_scale_factor'] == 1
+        assert result['processed_image'].shape == (120, 120)
+        debug_names = [f.stem for f in temp_dir.glob("*.png")]
+        assert not any("upscaled" in name.lower() for name in debug_names)
 
 
 class TestCortexUpscalingIntegration:
@@ -91,7 +114,6 @@ class TestCortexUpscalingIntegration:
         result = process_lithic_drawing(
             image_path=str(image_path),
             output_folder=str(temp_dir),
-            target_dpi=300,
             preserve_cortex=True,
             upscale_model='espcn',
             upscale_low_dpi=True,
@@ -100,7 +122,7 @@ class TestCortexUpscalingIntegration:
         
         assert result is not None
         # Should have both upscaling and cortex preservation
-        assert result.shape[0] >= 50  # Upscaled
+        assert result.shape == (50, 50)  # Returned on the input grid
         assert np.sum(result > 0) > 0  # Cortex preserved
         
         # Check both upscaling and cortex debug images
@@ -187,7 +209,6 @@ class TestDebugImageIntegration:
         result = process_lithic_drawing(
             image_path=str(image_path),
             output_folder=str(temp_dir),
-            target_dpi=300,
             preserve_cortex=True,
             upscale_model='espcn',
             upscale_low_dpi=True,
@@ -286,8 +307,7 @@ class TestParameterCombinations:
             result = process_lithic_drawing(
                 image_path=str(image_path),
                 output_folder=str(temp_dir),
-                target_dpi=300,
-                upscale_model='nonexistent',
+                    upscale_model='nonexistent',
                 upscale_low_dpi=True,
                 save_debug=False
             )

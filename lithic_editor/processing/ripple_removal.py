@@ -1,16 +1,19 @@
 import cv2
 import numpy as np
 import networkx as nxgraph
-from skimage import morphology
-from skimage.morphology import thin
+from skimage.morphology import skeletonize
 from skimage.filters import threshold_sauvola  # Wolf is a variant of Sauvola
-from scipy.ndimage import label
+from scipy.ndimage import convolve, label
+import math
 import os
+import sys
 import traceback
 from PIL import Image
-from .upscaling import (
-    detect_image_dpi, needs_upscaling, upscale_image_to_target_dpi,
-    validate_upscaling_inputs
+from lithic_editor.config import resolve_config
+
+from .resolution import (
+    choose_upscale_factor, measure_line_geometry, restore_to_grid, smooth_for_threshold,
+    upscale_by_factor
 )
 
 
@@ -27,11 +30,10 @@ def exception_hook(exc_type, exc_value, exc_traceback):
         f.write(f"Traceback: {''.join(traceback.format_tb(exc_traceback))}")
     sys.__excepthook__(exc_type, exc_value, exc_traceback)
 
-# Install the exception hook
-import sys
-sys.excepthook = exception_hook
+_EIGHT_NEIGHBOURS = np.ones((3, 3), dtype=np.int32)
 
-print("Starting Lithic Editor GUI")
+# Install the exception hook
+sys.excepthook = exception_hook
 
 
 def improve_line_quality_antialias(binary_image, line_boost=1.0, preserve_thickness=True):
@@ -155,53 +157,29 @@ def create_thickness_aware_mask(original_binary, structural_mask, min_thickness=
     and creates adaptive dilation zones that respect original drawing characteristics
     while preventing over-thickening artifacts.
     """
-    # Convert structural mask to distance transform to get reconstruction zones
-    from scipy.ndimage import distance_transform_edt
+    from scipy.ndimage import binary_dilation, distance_transform_edt, maximum_filter
 
-    # Create distance transform from structural skeleton
-    # Creates zones around structural lines where original content should be preserved
-    structural_distance = distance_transform_edt(~structural_mask)
+    # Local line thickness at every pixel: the largest distance-to-background found in a
+    # window around it. Equivalent to the per-pixel neighbourhood search this replaced,
+    # but computed once for the whole image.
+    inside_distance = distance_transform_edt(original_binary)
+    window = 2 * (max_thickness + 2) + 1
+    local_thickness = maximum_filter(inside_distance, size=window, mode='constant', cval=0.0)
 
-    # Create adaptive dilation zones based on local line thickness in original
-    original_distance = distance_transform_edt(~original_binary)
-
-    # For each structural pixel, determine appropriate reconstruction radius
-    reconstruction_mask = np.zeros_like(original_binary, dtype=bool)
-
-    # Get coordinates of structural skeleton pixels
     struct_y, struct_x = np.where(structural_mask)
+    thickness_at_skeleton = local_thickness[struct_y, struct_x]
+    radius = np.clip((thickness_at_skeleton * 0.2).astype(int), min_thickness, max_thickness)
+    has_ink_nearby = thickness_at_skeleton > 0
 
-    for i in range(len(struct_y)):
-        y, x = struct_y[i], struct_x[i]
-
-        # Find original line thickness at this location by looking in neighborhood
-        # Get local neighborhood around this skeleton point
-        neighborhood_size = max_thickness + 2
-        y_min = max(0, y - neighborhood_size)
-        y_max = min(original_binary.shape[0], y + neighborhood_size + 1)
-        x_min = max(0, x - neighborhood_size)
-        x_max = min(original_binary.shape[1], x + neighborhood_size + 1)
-
-        # Get the original content in this neighborhood
-        local_original = original_binary[y_min:y_max, x_min:x_max]
-
-        if np.any(local_original):
-            # Find the maximum distance to background in this neighborhood
-            # This approximates the local line thickness
-            local_distances = distance_transform_edt(local_original)
-            local_thickness = np.max(local_distances)
-
-            # Clamp thickness to reasonable bounds
-            reconstruction_radius = max(min_thickness, min(max_thickness, int(local_thickness * 0.2)))
-
-            # Create circular reconstruction zone around this skeleton point
-            for dy in range(-reconstruction_radius, reconstruction_radius + 1):
-                for dx in range(-reconstruction_radius, reconstruction_radius + 1):
-                    ny, nx = y + dy, x + dx
-                    if (0 <= ny < original_binary.shape[0] and
-                        0 <= nx < original_binary.shape[1] and
-                        dy*dy + dx*dx <= reconstruction_radius*reconstruction_radius):
-                        reconstruction_mask[ny, nx] = True
+    # Union of discs around the skeleton pixels, one dilation per distinct radius
+    reconstruction_mask = np.zeros_like(original_binary, dtype=bool)
+    for r in np.unique(radius[has_ink_nearby]):
+        selected = has_ink_nearby & (radius == r)
+        points = np.zeros_like(original_binary, dtype=bool)
+        points[struct_y[selected], struct_x[selected]] = True
+        offsets = np.arange(-r, r + 1)
+        disc = (offsets[:, None] ** 2 + offsets[None, :] ** 2) <= r * r
+        reconstruction_mask |= binary_dilation(points, structure=disc)
 
     # Final mask: original content AND within reconstruction zones
     final_mask = original_binary & reconstruction_mask
@@ -308,16 +286,50 @@ def debug_image_info(name, img):
         try:
             min_val = f"{img.min():.2f}"
             max_val = f"{img.max():.2f}"
-        except:
+        except (TypeError, ValueError):
             min_val = "Error"
             max_val = "Error"
 
     print(f"{name:<30} {w:>10} {h:>10} {img_type:>15} {min_val:>8} {max_val:>8}")
     return img
 
-    # Save the image
-    cv2.imwrite(output_path, img)
-    print(f"Debug image saved to {output_path}")
+def _find_endpoints_and_junctions(skeleton):
+    """Interior skeleton pixels with exactly one 8-neighbour, and with three or more."""
+    neighbor_count = convolve(skeleton.astype(np.int32), _EIGHT_NEIGHBOURS, mode='constant') - skeleton
+    interior = np.zeros_like(skeleton)
+    interior[1:-1, 1:-1] = True
+    endpoints = [(int(x), int(y)) for y, x in np.argwhere(skeleton & interior & (neighbor_count == 1))]
+    junctions = [(int(x), int(y)) for y, x in np.argwhere(skeleton & interior & (neighbor_count >= 3))]
+    return endpoints, junctions
+
+
+def _bridge_close_endpoints(skeleton, endpoints, max_distance):
+    """
+    Draw a one-pixel line between every pair of free ends within ``max_distance``.
+
+    Modifies ``skeleton`` in place and returns the number of bridges drawn. Each
+    endpoint is bridged at most once, to its nearest partner.
+    """
+    if len(endpoints) < 2 or max_distance <= 0:
+        return 0
+    points = np.array(endpoints, dtype=np.float64)
+    used = set()
+    bridges = 0
+    canvas = skeleton.view(np.uint8)
+    for i in range(len(points)):
+        if i in used:
+            continue
+        distances = np.hypot(*(points - points[i]).T)
+        distances[i] = np.inf
+        for j in used:
+            distances[j] = np.inf
+        j = int(np.argmin(distances))
+        if distances[j] <= max_distance:
+            cv2.line(canvas, tuple(int(v) for v in points[i]), tuple(int(v) for v in points[j]), 1, 1)
+            used.update((i, j))
+            bridges += 1
+    return bridges
+
 
 def separate_cortex_and_structure(binary_image, preserve_cortex=True, cortex_size_threshold=60, cortex_min_threshold=5):
     """
@@ -377,9 +389,9 @@ def separate_cortex_and_structure(binary_image, preserve_cortex=True, cortex_siz
     structural_count = 0
 
     # Process each component (skip background label 0)
-    for label in range(1, num_labels):
-        component_area = stats[label, cv2.CC_STAT_AREA]
-        component_mask = labels == label
+    for component_id in range(1, num_labels):
+        component_area = stats[component_id, cv2.CC_STAT_AREA]
+        component_mask = labels == component_id
 
         if component_area < cortex_min_threshold:
             # Too small - filter out as noise (don't add to either cortex or structural)
@@ -398,10 +410,9 @@ def separate_cortex_and_structure(binary_image, preserve_cortex=True, cortex_siz
 
 
 def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=None, format_info=None, output_dpi=None, save_debug=False,
-                          upscale_low_dpi=False, default_dpi=None, upscale_model='espcn', target_dpi=300,
+                          upscale_low_dpi=False, default_dpi=None, upscale_model=None,
                           scale_image_path=None, return_scale_factor=False, debug_filename=None, preserve_cortex=True,
-                          downscale_high_dpi=False, high_dpi_threshold=300, neural_cleaning=False,
-                          neural_cleaning_dpi_range=(200, 400), neural_cleaning_target_dpi=None):
+                          max_upscale_factor=None, restore_original_size=True, smooth_lines=None, config=None):
     """
     Process lithic drawings to remove ripple artifacts while preserving structural elements.
 
@@ -441,13 +452,16 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
     save_debug : bool, optional
         Enable saving intermediate processing steps for analysis (default: False).
     upscale_low_dpi : bool, optional
-        Enable neural network upscaling for images below target_dpi threshold (default: False).
+        Allow automatic upscaling for processing when the drawing's strokes are too
+        thin or too close together for a reliable skeleton (default: False). The
+        factor (2x, 3x or 4x) is chosen from the measured line width and hatch
+        clearance, not from the DPI. Images are never downscaled.
     default_dpi : int, optional
-        DPI value to assume when metadata is missing and upscaling is enabled.
-    upscale_model : {'espcn', 'fsrcnn'}, optional
-        Neural network model for upscaling: 'espcn' (faster) or 'fsrcnn' (higher quality) (default: 'espcn').
-    target_dpi : int, optional
-        Minimum DPI threshold for triggering upscaling operations (default: 300).
+        DPI to assume for images without metadata. Used only to scale the
+        pipeline's size thresholds.
+    upscale_model : str, optional
+        Neural network model for upscaling: 'espcn' or 'fsrcnn'. Default: the
+        configuration value (espcn).
     scale_image_path : str, optional
         Path to scale bar image to be processed with the same upscaling factor as main image.
     return_scale_factor : bool, optional
@@ -456,19 +470,23 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
         Custom base filename for debug output files. If None, derives from input filename.
     preserve_cortex : bool, optional
         Enable cortex stippling preservation during processing (default: True).
-    downscale_high_dpi : bool, optional
-        Enable downscaling of high DPI images for processing (default: False).
-    high_dpi_threshold : int, optional
-        DPI threshold above which downscaling is offered (default: 500).
-    neural_cleaning : bool, optional
-        Enable neural cleaning via downscale-upscale preprocessing to remove scanning artifacts
-        (default: False). This applies intelligent smoothing by leveraging neural network upscaling.
-    neural_cleaning_dpi_range : tuple of int, optional
-        DPI range (min, max) for which neural cleaning is applied when enabled (default: (200, 400)).
-        Images within this DPI range benefit most from neural cleaning to remove artifacts.
-    neural_cleaning_target_dpi : int, optional
-        Target DPI for neural cleaning output. If None, returns to original DPI. If specified,
-        the cleaned image will be resampled to this target DPI (default: None).
+    max_upscale_factor : int, optional
+        Largest factor automatic upscaling may use. Default: the configuration
+        value (4).
+    restore_original_size : bool, optional
+        Return the result on the input's pixel grid even when processing was
+        upscaled (default: True), so a scale bar measured alongside the drawing
+        keeps its meaning. Set False to keep the upscaled result; the returned
+        'scale_factor' then reports its size relative to the input.
+    smooth_lines : bool, optional
+        Blur the grayscale image in proportion to the measured line width before
+        thresholding. This detaches the tapered tips of hatch lines from the
+        contours they touch, so they are classified as ripples. Default: the
+        configuration value (True).
+    config : Config or str or path, optional
+        The pipeline configuration: a ``lithic_editor.config.Config``, the path
+        of a YAML file, or None for the file named by ``LITHIC_EDITOR_CONFIG`` or
+        the shipped default. Every size threshold in the pipeline comes from it.
 
     Returns
     -------
@@ -479,12 +497,15 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
 
         - 'processed_image' : numpy.ndarray
             The processed lithic drawing with ripple artifacts removed
-        - 'scale_factor' : float
-            Upscaling factor applied (1.0 indicates no scaling performed)
+        - 'scale_factor' : int
+            Size of the returned image relative to the input (1 when the result
+            was returned on the input's pixel grid, which is the default)
+        - 'working_scale_factor' : int
+            Upscale factor used internally for processing (1 when none was needed)
         - 'original_dpi' : int
-            Original image DPI before processing
+            Input image DPI
         - 'final_dpi' : int
-            Final image DPI after processing and upscaling
+            DPI of the returned image (equals original_dpi when restored)
         - 'processed_scale' : numpy.ndarray, optional
             Processed scale bar image (included when scale_image_path provided)
 
@@ -533,7 +554,6 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
     ...     output_folder="results",
     ...     save_debug=True,
     ...     upscale_low_dpi=True,
-    ...     target_dpi=300,
     ...     preserve_cortex=True
     ... )
     >>>
@@ -601,189 +621,66 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
         original_image = image_path
         print(f"Using provided numpy array. Shape: {original_image.shape}")
 
-    # Initialize scaling variables
-    scale_factor = 1.0
-    processed_scale = None
-    downscale_applied = False
-    original_dpi_for_restoration = None
-    downscale_factor = 1.0
-    target_processing_dpi = 300
+    # Every size threshold below comes from the configuration; explicit arguments win.
+    cfg = resolve_config(config)
+    if upscale_model is None:
+        upscale_model = cfg.resolution.upscale_model
+    if max_upscale_factor is None:
+        max_upscale_factor = cfg.resolution.max_upscale_factor
+    if smooth_lines is None:
+        smooth_lines = cfg.smoothing.enabled
+    print(f"Configuration: {cfg.source}")
 
-    # Determine current DPI first
+    # Working resolution. Upscale only when the drawing's strokes are too thin or too
+    # close together for a reliable skeleton; never downscale, since shrinking throws
+    # away the separation that makes the graph analysis work.
+    scale_factor = 1
+    processed_scale = None
+    input_shape = original_image.shape[:2]
+    input_dpi_info = dpi_info
+
     current_dpi = None
     if dpi_info:
-        if isinstance(dpi_info, tuple):
-            current_dpi = max(dpi_info[0], dpi_info[1])
-        else:
-            current_dpi = int(dpi_info)
+        current_dpi = max(dpi_info[0], dpi_info[1]) if isinstance(dpi_info, tuple) else int(dpi_info)
     elif default_dpi:
         current_dpi = default_dpi
         print(f"Using default DPI: {current_dpi} (no metadata found)")
+    input_dpi = current_dpi
 
-    # Apply neural cleaning if enabled and within DPI range
-    was_neural_cleaned = False
-    if neural_cleaning and current_dpi:
-        min_dpi, max_dpi = neural_cleaning_dpi_range
-        if min_dpi <= current_dpi <= max_dpi:
-            print(f"Applying neural cleaning for {current_dpi} DPI image...")
-
-            # Save original for comparison if debugging
+    # Line width and hatch clearance drive upscaling, smoothing and the rebuilt line weight
+    geometry = measure_line_geometry(original_image, cfg.resolution) if original_image.max() > 1 else None
+    if geometry is not None:
+        print(f"Measured {geometry.describe()}")
+    if upscale_low_dpi:
+        scale_factor = choose_upscale_factor(geometry, max_upscale_factor, cfg.resolution)
+        print(f"Upscale factor {scale_factor}x")
+        if scale_factor > 1:
             if save_debug:
-                save_debug_image(original_image, os.path.join(output_folder, f'0_{base_filename}_before_neural_cleaning.png'),
-                                f'Before Neural Cleaning ({current_dpi} DPI)', dpi_info, format_info, output_dpi)
-
-            # Store original DPI for restoration
-            original_neural_dpi = current_dpi
-
-            # Determine target DPI for final output
-            if neural_cleaning_target_dpi:
-                final_dpi = neural_cleaning_target_dpi
-                print(f"  - Neural cleaning will output at {final_dpi} DPI (user specified)")
-            else:
-                final_dpi = original_neural_dpi
-                print(f"  - Neural cleaning will output at {final_dpi} DPI (original resolution)")
-
-            # Implement exact logic as requested:
-            # 75 DPI -> upscale to 300
-            # 300 DPI -> downscale to 75, then neural back to 300
-            # 600 DPI -> downscale to 400, then neural back to 600
-
-            if current_dpi <= 75:
-                # 75 DPI: Upscale directly to 300
-                cleaned_image, _ = upscale_image_to_target_dpi(
-                    original_image, current_dpi, 300, upscale_model
-                )
-                print(f"  - 75 DPI: Neural upscaled to 300 DPI: {original_image.shape} → {cleaned_image.shape}")
-                current_dpi = 300
-                dpi_info = 300
-
-            elif current_dpi <= 300:
-                # 300 DPI: Downscale to 75, then neural upscale back to 300
-                downscale_factor = 75.0 / current_dpi
-                temp_height = int(original_image.shape[0] * downscale_factor)
-                temp_width = int(original_image.shape[1] * downscale_factor)
-
-                downscaled_temp = cv2.resize(original_image, (temp_width, temp_height),
-                                            interpolation=cv2.INTER_AREA)
-                print(f"  - 300 DPI: Downscaled to 75 DPI: {original_image.shape} → {downscaled_temp.shape}")
-
-                cleaned_image, _ = upscale_image_to_target_dpi(
-                    downscaled_temp, 75, 300, upscale_model
-                )
-                print(f"  - Neural upscaled back to 300 DPI: {downscaled_temp.shape} → {cleaned_image.shape}")
-
-            elif current_dpi >= 600:
-                # 600 DPI: Downscale to 400, then neural upscale back to 600
-                downscale_factor = 400.0 / current_dpi
-                temp_height = int(original_image.shape[0] * downscale_factor)
-                temp_width = int(original_image.shape[1] * downscale_factor)
-
-                downscaled_temp = cv2.resize(original_image, (temp_width, temp_height),
-                                            interpolation=cv2.INTER_AREA)
-                print(f"  - 600 DPI: Downscaled to 400 DPI: {original_image.shape} → {downscaled_temp.shape}")
-
-                cleaned_image, _ = upscale_image_to_target_dpi(
-                    downscaled_temp, 400, 600, upscale_model
-                )
-                print(f"  - Neural upscaled back to 600 DPI: {downscaled_temp.shape} → {cleaned_image.shape}")
-
-            else:
-                # Other DPI values: use original logic
-                cleaned_image = original_image
-                print(f"  - DPI {current_dpi} not in standard ranges, no neural cleaning applied")
-
-            # Replace the original image with the cleaned version
-            original_image = cleaned_image
-            was_neural_cleaned = True
-
-            # Update DPI info if we changed the target resolution
-            if neural_cleaning_target_dpi:
-                current_dpi = neural_cleaning_target_dpi
-                dpi_info = neural_cleaning_target_dpi
-                print(f"  - Updated working DPI to {current_dpi}")
-
-            # Save cleaned image if debugging
+                os.makedirs(output_folder, exist_ok=True)
+                save_debug_image(original_image, os.path.join(output_folder, f'0_{base_filename}_input.png'),
+                                f'Input ({geometry.describe()})', dpi_info, format_info, dpi_info)
+            original_image = upscale_by_factor(original_image, scale_factor, upscale_model)
+            if current_dpi:
+                current_dpi = int(current_dpi * scale_factor)
+                dpi_info = (current_dpi, current_dpi) if isinstance(dpi_info, tuple) else current_dpi
+            print(f"Upscaled {scale_factor}x for processing: {input_shape} -> {original_image.shape[:2]}")
             if save_debug:
-                save_debug_image(original_image, os.path.join(output_folder, f'0a_{base_filename}_after_neural_cleaning.png'),
-                                f'After Neural Cleaning ({current_dpi} DPI)', dpi_info, format_info, output_dpi)
+                save_debug_image(original_image, os.path.join(output_folder, f'0a_{base_filename}_upscaled.png'),
+                                f'Upscaled {scale_factor}x', dpi_info, format_info, dpi_info)
 
-            print(f"Neural cleaning complete. Image now at {current_dpi} DPI with artifacts removed.")
-        else:
-            print(f"Neural cleaning skipped: {current_dpi} DPI outside range {neural_cleaning_dpi_range}")
-
-    # Check if we WILL downscale and when
-    will_downscale = False
-    will_downscale_before_threshold = False
-    if downscale_high_dpi and current_dpi and current_dpi > high_dpi_threshold and not was_neural_cleaned:
-        will_downscale = True
-        original_dpi_for_restoration = current_dpi
-        downscale_factor = target_processing_dpi / current_dpi
-
-        if current_dpi > 500:  # Very high DPI - downscale BEFORE thresholding
-            will_downscale_before_threshold = True
-            print(f"Very high DPI detected ({current_dpi}). Will downscale BEFORE thresholding to reduce noise.")
-        else:
-            print(f"High DPI detected ({current_dpi}). Will downscale AFTER thresholding to preserve detail.")
-
-    # Note: Upscaling is still done BEFORE thresholding since we want to add detail
-    # before binarization. This is different from downscaling which removes detail.
-    if upscale_low_dpi and not will_downscale and not was_neural_cleaned:
-        if not current_dpi:
-            # Non-interactive mode requires DPI information to proceed
-            print("Warning: No DPI information found and no default_dpi provided. Skipping upscaling.")
-            upscale_low_dpi = False
-
-        if upscale_low_dpi and current_dpi:
-            # Validate upscaling parameters
-            is_valid, error_msg = validate_upscaling_inputs(current_dpi, target_dpi, upscale_model)
-            if not is_valid:
-                print(f"Upscaling validation failed: {error_msg}")
-                upscale_low_dpi = False
-            elif needs_upscaling(current_dpi, target_dpi):
-                print(f"Image DPI ({current_dpi}) below target ({target_dpi}). Upscaling...")
-
-                # Save original low-DPI image for comparison
+    if scale_image_path:
+        # The scale bar must stay on the same pixel grid as the drawing. It is only
+        # upscaled when the drawing itself is returned upscaled.
+        try:
+            processed_scale = np.array(Image.open(scale_image_path).convert('L'))
+            if scale_factor > 1 and not restore_original_size:
+                processed_scale = upscale_by_factor(processed_scale, scale_factor, upscale_model)
                 if save_debug:
-                    os.makedirs(output_folder, exist_ok=True)  # Ensure folder exists before upscaling
-                    save_debug_image(original_image, os.path.join(output_folder, f'0_{base_filename}_original_low_dpi.png'),
-                                    f'Input ({current_dpi} DPI)', dpi_info, format_info, (current_dpi, current_dpi) if isinstance(current_dpi, int) else current_dpi)
-
-                # Upscale the main image
-                upscaled_image, scale_factor = upscale_image_to_target_dpi(
-                    original_image, current_dpi, target_dpi, upscale_model
-                )
-                original_image = upscaled_image
-
-                # Update DPI info to reflect upscaling
-                new_dpi = int(current_dpi * scale_factor)
-                if isinstance(dpi_info, tuple):
-                    dpi_info = (new_dpi, new_dpi)
-                else:
-                    dpi_info = new_dpi
-
-                print(f"Upscaling completed: {current_dpi} DPI → {new_dpi} DPI (factor: {scale_factor:.1f}x)")
-
-                # Process scale image if provided
-                if scale_image_path:
-                    print(f"Processing scale image with same factor...")
-                    try:
-                        scale_pil = Image.open(scale_image_path)
-                        scale_array = np.array(scale_pil.convert('L'))
-                        processed_scale, _ = upscale_image_to_target_dpi(
-                            scale_array, current_dpi, target_dpi, upscale_model
-                        )
-                        if save_debug:
-                            save_debug_image(processed_scale, os.path.join(output_folder, f'0b_{base_filename}_upscaled_scale.png'),
-                                            f'Upscaled Scale ({new_dpi} DPI)', (new_dpi, new_dpi), 'PNG', (new_dpi, new_dpi))
-                    except Exception as e:
-                        print(f"Error processing scale image: {e}")
-
-                # Save upscaled main image
-                if save_debug:
-                    save_debug_image(original_image, os.path.join(output_folder, f'0a_{base_filename}_upscaled_300dpi.png'),
-                                    f'Upscaled ({new_dpi} DPI)', dpi_info, format_info, (new_dpi, new_dpi) if isinstance(new_dpi, int) else new_dpi)
-            else:
-                print(f"Image DPI ({current_dpi}) already meets target ({target_dpi}). No upscaling needed.")
+                    save_debug_image(processed_scale, os.path.join(output_folder, f'0b_{base_filename}_upscaled_scale.png'),
+                                    f'Upscaled Scale {scale_factor}x', dpi_info, 'PNG', dpi_info)
+        except Exception as e:
+            print(f"Error processing scale image: {e}")
+            processed_scale = None
 
     # Print metadata info
     if dpi_info:
@@ -802,46 +699,45 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
         save_debug_image(original_image, os.path.join(output_folder, f'1_{base_filename}_original_image.png'),
                         'Original Image (Pre-threshold)', dpi_info, format_info, output_dpi)
 
-    # Step 2: Preprocess the image AT ORIGINAL RESOLUTION
-    print("Preprocessing image at original resolution...")
+    # Step 2: Preprocess the image at the working resolution
+    print("Preprocessing image...")
 
-    # Extract DPI value (use original DPI for thresholding, not downscaled)
-    current_dpi_value = None
-    if original_dpi_for_restoration:  # If we're planning to downscale, use original DPI
-        current_dpi_value = original_dpi_for_restoration
-    elif dpi_info:
-        if isinstance(dpi_info, tuple):
-            current_dpi_value = max(dpi_info[0], dpi_info[1])
-        else:
-            current_dpi_value = int(dpi_info)
-    elif default_dpi:
-        current_dpi_value = default_dpi
+    # All size thresholds below are keyed to the working resolution
+    current_dpi_value = current_dpi
 
-    # Threshold to binary at ORIGINAL resolution (if necessary)
+    # Smooth in proportion to line width so hatch-line tips detach from contours. The
+    # unsmoothed image is kept: the skeleton and graph come from the smoothed one, but
+    # the final lines are rebuilt from the unsmoothed ink so they keep the pen's weight.
+    unsmoothed_image = None
+    if smooth_lines and geometry is not None and original_image.max() > 1:
+        working_line_width = geometry.line_width * scale_factor
+        unsmoothed_image = original_image
+        original_image = smooth_for_threshold(original_image, working_line_width, cfg.smoothing)
+        print(f"Smoothed with sigma {cfg.smoothing.sigma_in_line_widths * working_line_width:.1f} px before thresholding")
+        if save_debug:
+            save_debug_image(original_image, os.path.join(output_folder, f'1b_{base_filename}_smoothed.png'),
+                            'Smoothed', dpi_info, format_info, output_dpi)
+
+    # Threshold to binary (if necessary)
     if original_image.max() > 1:  # Check if image is not already binary
-        # Use Sauvola thresholding directly on original image
-        # Window size should be odd and adapt to ORIGINAL image size/DPI
-        if current_dpi_value and current_dpi_value >= 600:
-            window_size = 51  # Extra large for very high DPI
-        elif current_dpi_value and current_dpi_value >= 300:
-            window_size = 25  # Larger window for high DPI
-        else:
-            window_size = 15  # Smaller window for lower DPI
+        # Sauvola local threshold; the window adapts to the working DPI
+        window_size = cfg.threshold.window_for_dpi(current_dpi_value)
+        sauvola_k = cfg.threshold.sauvola_k
 
-        # Ensure window size is odd
-        if window_size % 2 == 0:
-            window_size += 1
-
-        # Apply Sauvola thresholding at FULL resolution on original image
         print(f"Applying Sauvola thresholding at {current_dpi_value} DPI (window={window_size})")
         # Sauvola with k=0.2 (standard for document images)
-        sauvola_thresh = threshold_sauvola(original_image, window_size=window_size, k=0.2, r=None)
+        sauvola_thresh = threshold_sauvola(original_image, window_size=window_size, k=sauvola_k, r=None)
         # For lithic drawings (dark lines on light background), we need inverted comparison
         binary = original_image < sauvola_thresh  # Dark pixels (lines) become True
+        if unsmoothed_image is not None:
+            unsmoothed_ink = unsmoothed_image < threshold_sauvola(unsmoothed_image, window_size=window_size, k=sauvola_k, r=None)
+        else:
+            unsmoothed_ink = None
 
-        print(f"Image thresholded using Sauvola on original image")
+        print("Image thresholded using Sauvola")
     else:
         binary = original_image > 0
+        unsmoothed_ink = None
         print("Image already binary")
 
     # Convert to uint8 binary image
@@ -852,57 +748,8 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
         save_debug_image(binary_image, os.path.join(output_folder, f'1c_{base_filename}_binary_thresholded.png'),
                         'Binary Thresholded', dpi_info, format_info, output_dpi)
 
-    # NOW apply downscaling to the binary image if needed
-    if will_downscale:
-        print(f"Downscaling binary image from {current_dpi} DPI to {target_processing_dpi} DPI...")
-
-        new_height = int(binary_image.shape[0] * downscale_factor)
-        new_width = int(binary_image.shape[1] * downscale_factor)
-
-        # Use INTER_NEAREST for downscaling binary images (preserves sharp edges)
-        binary_image = cv2.resize(binary_image, (new_width, new_height), interpolation=cv2.INTER_NEAREST)
-        binary = binary_image > 0
-
-        # Update DPI info
-        current_dpi = target_processing_dpi
-        dpi_info = target_processing_dpi
-        downscale_applied = True
-
-        # Override output_dpi to 300 when downscaling
-        if output_dpi and output_dpi != target_processing_dpi:
-            print(f"Overriding output DPI from {output_dpi} to {target_processing_dpi} due to downscaling")
-            output_dpi = target_processing_dpi
-
-        print(f"Downscaled binary image to {new_width}x{new_height} (factor: {downscale_factor:.3f})")
-
-        if save_debug:
-            save_debug_image(binary_image, os.path.join(output_folder, f'1d_{base_filename}_binary_downscaled.png'),
-                           f'Binary Downscaled ({target_processing_dpi} DPI)', (target_processing_dpi, target_processing_dpi), format_info, (target_processing_dpi, target_processing_dpi))
-
-    # Update current_dpi_value for subsequent processing
-    if downscale_applied:
-        current_dpi_value = target_processing_dpi
-
-    # Update binary boolean array
-    binary = binary_image > 0
-
-    # Calculate DPI-scaled cortex threshold (exact same as develop branch)
-    # Base threshold is 60 pixels at 150 DPI
-    # Area scales quadratically with resolution
-    # Results: 75 DPI=30, 150 DPI=60, 300 DPI=240, 600 DPI=960 pixels
-    if current_dpi_value:
-        dpi_scale = current_dpi_value / 150.0
-        cortex_threshold = int(60 * dpi_scale * dpi_scale)
-        # Set minimum threshold to avoid being too restrictive at low DPI
-        cortex_threshold = max(30, cortex_threshold)
-
-        # Calculate minimum threshold to filter out noise
-        # Base: 3 pixels at 150 DPI, scales quadratically
-        cortex_min_threshold = int(3 * dpi_scale * dpi_scale)
-        cortex_min_threshold = max(2, cortex_min_threshold)  # Minimum 2 pixels
-    else:
-        cortex_threshold = 60  # Default if no DPI info
-        cortex_min_threshold = 3
+    # Cortex area limits scale with the square of the working DPI (see config.yaml)
+    cortex_min_threshold, cortex_threshold = cfg.cortex.area_limits_for_dpi(current_dpi_value)
 
     print(f"Using DPI-scaled cortex threshold: {cortex_min_threshold}-{cortex_threshold} pixels (DPI: {current_dpi_value})")
 
@@ -930,22 +777,22 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
                         'Cortex Stippling Mask', dpi_info, format_info, output_dpi)
 
     # Thin the structural elements (cortex bypasses thinning)
-    print("Thinning structural elements using thin operation...")
+    print("Thinning structural elements using Lee skeletonization...")
     if preserve_cortex:
         # Thin only structural lines
         structural_binary = structural_image > 0
-        # Use thin operation instead of skeletonize
-        skeleton = thin(structural_binary, max_iter=None)
-        print("Using thin operation for thinning")
+        # Use Lee skeletonization method
+        skeleton = skeletonize(structural_binary, method='lee').astype(bool)
+        print("Using Lee skeletonization method")
         # Update binary_image to reflect structural-only processing
         binary_image = structural_image
         binary = structural_binary
     else:
         # Process everything together (original behavior)
         binary = binary_image > 0
-        # Use thin operation instead of skeletonize
-        skeleton = thin(binary, max_iter=None)
-        print("Using thin operation for thinning")
+        # Use Lee skeletonization method
+        skeleton = skeletonize(binary, method='lee').astype(bool)
+        print("Using Lee skeletonization method")
     skeleton_img = skeleton.astype(np.uint8) * 255
     print(f"Skeleton created. Non-zero pixels: {np.count_nonzero(skeleton)}")
 
@@ -964,9 +811,9 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
 
     # Re-thin to get back to 1-pixel width but smoother
     skeleton_smoothed_binary = skeleton_smoothed > 0
-    # Use thin operation for re-thinning
-    skeleton = thin(skeleton_smoothed_binary, max_iter=None)
-    print("Using thin operation for re-thinning")
+    # Use Lee method for re-thinning
+    skeleton = skeletonize(skeleton_smoothed_binary, method='lee').astype(bool)
+    print("Using Lee method for re-thinning")
     skeleton_img = skeleton.astype(np.uint8) * 255
 
     print(f"Smoothed skeleton created. Non-zero pixels: {np.count_nonzero(skeleton)}")
@@ -979,14 +826,12 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
         skel_copy = skel.copy()
         h, w = skel.shape
 
-        # Find endpoints (pixels with exactly 1 neighbor)
-        endpoints = []
-        for y in range(1, h-1):
-            for x in range(1, w-1):
-                if skel[y, x]:
-                    neighbors = np.sum(skel[y-1:y+2, x-1:x+2]) - 1
-                    if neighbors == 1:
-                        endpoints.append((x, y))
+        # Find endpoints (interior pixels with exactly 1 neighbor), in row-major order
+        neighbor_count = convolve(skel.astype(np.int32), _EIGHT_NEIGHBOURS, mode='constant') - skel
+        is_endpoint = skel & (neighbor_count == 1)
+        is_endpoint[0, :] = is_endpoint[-1, :] = False
+        is_endpoint[:, 0] = is_endpoint[:, -1] = False
+        endpoints = [(int(x), int(y)) for y, x in np.argwhere(is_endpoint)]
 
         print(f"Found {len(endpoints)} endpoints to analyze")
 
@@ -1051,7 +896,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
         return skel_copy
 
     # Apply branch length analysis
-    skeleton_pruned = remove_short_branches(skeleton, min_length=5)
+    skeleton_pruned = remove_short_branches(skeleton, min_length=cfg.skeleton.spur_length_px)
 
     # Count removed pixels
     removed_pixels = np.count_nonzero(skeleton) - np.count_nonzero(skeleton_pruned)
@@ -1074,29 +919,22 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
     endpoints = []
     junctions = []
 
-    # Get coordinates of skeleton pixels
-    y_coords, x_coords = np.where(skeleton)
-    print(f"Total skeleton pixels: {len(y_coords)}")
+    print(f"Total skeleton pixels: {np.count_nonzero(skeleton)}")
 
-    # For each skeleton pixel, count neighbors to determine if it's an endpoint or junction
-    for i in range(len(y_coords)):
-        y, x = y_coords[i], x_coords[i]
-
-        # Skip border pixels
-        if y > 0 and y < height-1 and x > 0 and x < width-1:
-            # Get 8-connected neighborhood
-            neighborhood = skeleton[y-1:y+2, x-1:x+2].flatten()
-            # Remove the center pixel (which is the pixel itself)
-            neighborhood = np.delete(neighborhood, 4)
-            # Count non-zero neighbors
-            num_neighbors = np.count_nonzero(neighborhood)
-
-            if num_neighbors == 1:
-                # This is an endpoint
-                endpoints.append((x, y))
-            elif num_neighbors >= 3:
-                # This is a junction
-                junctions.append((x, y))
+    # Thinning can leave a break of a few pixels in a contour. An open contour has two
+    # free ends and would be classed as a ripple, so free ends closer together than
+    # about a line width are bridged before classification. Hatch-line tips are never
+    # that close to another free end: they sit a hatch gap apart.
+    if geometry is not None and not math.isnan(geometry.line_width):
+        working_gap = None if math.isnan(geometry.hatch_gap) else geometry.hatch_gap * scale_factor
+        bridge_distance = cfg.skeleton.bridge_distance(geometry.line_width * scale_factor, working_gap)
+    else:
+        bridge_distance = cfg.skeleton.bridge_distance(None, None)
+    endpoints, junctions = _find_endpoints_and_junctions(skeleton)
+    bridged = _bridge_close_endpoints(skeleton, endpoints, bridge_distance)
+    if bridged:
+        print(f"Bridged {bridged} skeleton gaps of up to {bridge_distance:.1f} px")
+        endpoints, junctions = _find_endpoints_and_junctions(skeleton)
 
     print(f"Found {len(endpoints)} endpoints and {len(junctions)} junctions")
 
@@ -1105,21 +943,8 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
     print("Converting Y-tip junctions to endpoints...")
 
     # Y-tip threshold optimized for 300 DPI processing
-    # Since we normalize all images to 300 DPI (upscale if <300, downscale if >300),
-    # we can use a single optimized threshold
-    if current_dpi_value and abs(current_dpi_value - 300) < 50:
-        # At or near 300 DPI (our target) - use optimized threshold
-        y_tip_threshold = 5
-        print("Using optimized 300 DPI Y-tip threshold")
-    elif current_dpi_value and current_dpi_value >= 150:
-        # Medium DPI that wasn't scaled - use moderate threshold
-        y_tip_threshold = 3
-    elif current_dpi_value and current_dpi_value < 150:
-        # Low DPI - conservative to avoid removing structural details
-        y_tip_threshold = 2
-    else:
-        # Default for 300 DPI target
-        y_tip_threshold = 5
+    # Keyed to the working DPI, which adaptive upscaling raises when strokes are thin
+    y_tip_threshold = cfg.ripples.y_tip_distance_for_dpi(current_dpi_value)
 
     print(f"Using Y-tip threshold: {y_tip_threshold} pixels (DPI: {current_dpi_value})")
     junctions_to_convert = []
@@ -1189,10 +1014,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
     colors[0] = [0, 0, 0]  # Background is black
 
     # Apply colors to segments
-    for y in range(height):
-        for x in range(width):
-            segment_id = labeled_segments[y, x]
-            segment_colors[y, x] = colors[segment_id]
+    segment_colors = colors[labeled_segments]
 
     if save_debug:
         save_debug_image(segment_colors, os.path.join(output_folder, f'5_{base_filename}_labeled_segments.png'),
@@ -1213,29 +1035,18 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
     for node, data in G.nodes(data=True):
         coord_to_node[data['pos']] = node
 
-    # For each segment, find which special points it connects
+    # For each segment, find which special points it touches. A point touches a segment
+    # when a pixel of that segment lies in the point's 3x3 neighbourhood.
+    touching = {segment_id: [] for segment_id in range(1, num_segments + 1)}
+    for x, y in endpoints + junctions:
+        window = labeled_segments[max(0, y - 1):y + 2, max(0, x - 1):x + 2]
+        for segment_id in np.unique(window):
+            if segment_id > 0:
+                touching[int(segment_id)].append(coord_to_node[(x, y)])
+
     segment_connections = {}
     for segment_id in range(1, num_segments + 1):
-        # Get mask for this segment
-        segment_mask = labeled_segments == segment_id
-
-        # Dilate to find connecting special points
-        dilated_mask = morphology.binary_dilation(segment_mask, np.ones((3, 3), dtype=np.uint8))
-
-        # Find all special points connected to this segment
-        connected_points = []
-
-        # Check endpoints
-        for point in endpoints:
-            x, y = point
-            if dilated_mask[y, x]:
-                connected_points.append(coord_to_node[(x, y)])
-
-        # Check junctions
-        for point in junctions:
-            x, y = point
-            if dilated_mask[y, x]:
-                connected_points.append(coord_to_node[(x, y)])
+        connected_points = touching[segment_id]
 
         # Store the connections for this segment
         if len(connected_points) >= 2:
@@ -1264,16 +1075,12 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
     # Create visualization of ripple segments
     ripple_viz = np.zeros((height, width, 3), dtype=np.uint8)
 
-    # Draw structural segments in white
-    for segment_id in range(1, num_segments + 1):
-        if segment_id not in ripple_segments:
-            segment_mask = labeled_segments == segment_id
-            ripple_viz[segment_mask] = [255, 255, 255]
-
-    # Draw ripple segments in red
-    for segment_id in ripple_segments:
-        segment_mask = labeled_segments == segment_id
-        ripple_viz[segment_mask] = [0, 0, 255]
+    is_ripple = np.zeros(num_segments + 1, dtype=bool)
+    is_ripple[list(ripple_segments)] = True
+    ripple_pixels = is_ripple[labeled_segments]
+    structural_pixels = (labeled_segments > 0) & ~ripple_pixels
+    ripple_viz[structural_pixels] = [255, 255, 255]
+    ripple_viz[ripple_pixels] = [0, 0, 255]
 
     # Mark endpoints and junctions
     for x, y in endpoints:
@@ -1293,10 +1100,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
     structural_mask = np.zeros_like(skeleton, dtype=bool)
 
     # Add non-ripple segments to the mask
-    for segment_id in range(1, num_segments + 1):
-        if segment_id not in ripple_segments:
-            segment_mask = labeled_segments == segment_id
-            structural_mask = structural_mask | segment_mask
+    structural_mask |= structural_pixels
 
     # Add junction points (single pixel) to ensure connectivity
     for x, y in junctions:
@@ -1344,10 +1148,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
     filtered_endpoints_viz[skeleton] = [100, 100, 100]  # Gray for all skeleton
 
     # Mark structural segments in white
-    for segment_id in range(1, num_segments + 1):
-        if segment_id not in ripple_segments:
-            segment_mask = labeled_segments == segment_id
-            filtered_endpoints_viz[segment_mask] = [255, 255, 255]
+    filtered_endpoints_viz[structural_pixels] = [255, 255, 255]
 
     # Mark junctions in green
     for x, y in junctions:
@@ -1373,31 +1174,27 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
     # Convert binary_image to boolean for processing
     binary_bool = binary_image > 0
 
-    # Calculate thickness parameters optimized for target DPI
-    # Since most processing happens at ~300 DPI, use DPI-aware thickness
-    if current_dpi_value:
-        if current_dpi_value >= 300:
-            # High DPI (300+): use thicker preservation
-            min_thickness = 4
-            max_thickness = 6
-        elif current_dpi_value >= 150:
-            # Medium DPI (150-299): moderate thickness preservation
-            min_thickness = 3
-            max_thickness = 4
-        else:
-            # Low DPI (<150): thinner preservation to avoid over-thickening
-            min_thickness = 2
-            max_thickness = 3
+    # Rebuild structural lines at the pen width measured from the drawing, so the output
+    # keeps the original line weight at any resolution. The DPI buckets are only a
+    # fallback when nothing was measured.
+    if geometry is not None and not math.isnan(geometry.line_width):
+        min_thickness, max_thickness = cfg.lines.radius_range(geometry.line_width * scale_factor)
+    elif current_dpi_value and current_dpi_value >= 300:
+        min_thickness, max_thickness = 4, 6
+    elif current_dpi_value and current_dpi_value >= 150:
+        min_thickness, max_thickness = 3, 4
+    elif current_dpi_value:
+        min_thickness, max_thickness = 2, 3
     else:
-        # Default optimized for 300 DPI target
-        min_thickness = 4
-        max_thickness = 6
+        min_thickness, max_thickness = 4, 6
 
-    print(f"Using DPI-aware thickness range: {min_thickness}-{max_thickness} pixels (DPI: {current_dpi_value})")
+    print(f"Rebuilding lines with radius {min_thickness}-{max_thickness} px (working DPI: {current_dpi_value})")
 
     # Use the new thickness-aware reconstruction
+    # Rebuild from the unsmoothed ink when available, so lines keep their full weight
+    reconstruction_ink = unsmoothed_ink if unsmoothed_ink is not None else binary_bool
     thickness_preserved_mask = create_thickness_aware_mask(
-        original_binary=binary_bool,
+        original_binary=reconstruction_ink,
         structural_mask=structural_mask,
         min_thickness=min_thickness,
         max_thickness=max_thickness
@@ -1422,20 +1219,20 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
 
     # Save the final cleaned image (inverted)
     if save_debug:
-        # Use appropriate DPI for the final image
-        # If downscaled, we're at 300 DPI now. Otherwise use original output_dpi
-        if downscale_applied:
-            final_dpi = 300  # We downscaled to 300 DPI
-        else:
-            final_dpi = output_dpi if output_dpi else dpi_info
         save_debug_image(final_cleaned_inverted, os.path.join(output_folder, f'8_{base_filename}_final_cleaned.png'),
-                        'Final Cleaned', dpi_info, format_info, final_dpi)
+                        'Final Cleaned', dpi_info, format_info, output_dpi if output_dpi else dpi_info)
 
-    # Skip upscaling back to original resolution - keep at 300 DPI
-    if downscale_applied and original_dpi_for_restoration:
-        print(f"Keeping result at 300 DPI (not upscaling back to {original_dpi_for_restoration} DPI)")
-        # Keep DPI at 300 instead of restoring to original
-        # This avoids pixelation artifacts from upscaling
+    # Return to the input's pixel grid so measurements taken against a scale bar still hold
+    output_scale = scale_factor
+    if scale_factor > 1 and restore_original_size:
+        final_cleaned_inverted = restore_to_grid(final_cleaned_inverted, input_shape, cfg.resolution)
+        dpi_info = input_dpi_info
+        current_dpi = input_dpi
+        output_scale = 1
+        print(f"Restored result to input size {input_shape} (processed at {scale_factor}x)")
+        if save_debug:
+            save_debug_image(final_cleaned_inverted, os.path.join(output_folder, f'9_{base_filename}_restored.png'),
+                            'Restored to input size', dpi_info, format_info, output_dpi if output_dpi else dpi_info)
 
     print("Processing complete!")
 
@@ -1443,15 +1240,15 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
     if return_scale_factor or scale_image_path:
         result = {
             'processed_image': final_cleaned_inverted,
-            'scale_factor': scale_factor,
-            'original_dpi': current_dpi if 'current_dpi' in locals() else None,
-            'final_dpi': int(current_dpi * scale_factor) if 'current_dpi' in locals() and scale_factor > 1 else None
+            'scale_factor': output_scale,
+            'working_scale_factor': scale_factor,
+            'original_dpi': input_dpi,
+            'final_dpi': int(input_dpi * output_scale) if input_dpi else None,
         }
         if processed_scale is not None:
             result['processed_scale'] = processed_scale
         return result
-    else:
-        return final_cleaned_inverted
+    return final_cleaned_inverted
 
 def save_debug_image(image, output_path, title=None, dpi_info=None, format=None, output_dpi=None):
     """
@@ -1484,8 +1281,8 @@ def save_debug_image(image, output_path, title=None, dpi_info=None, format=None,
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         pil_mode = 'RGB'
 
-    # Create PIL Image
-    pil_img = Image.fromarray(img, mode=pil_mode)
+    # Create PIL Image (Pillow infers the mode from dtype and shape)
+    pil_img = Image.fromarray(img)
 
     # Set DPI if provided (output_dpi takes precedence over dpi_info)
     if output_dpi:
