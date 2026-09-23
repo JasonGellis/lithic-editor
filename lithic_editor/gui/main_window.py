@@ -9,15 +9,13 @@ from PyQt5.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QWidget, QFileDialog,
     QProgressBar, QMessageBox, QCheckBox, QSplitter,
     QTextEdit, QComboBox, QGroupBox, QScrollArea,
-    QRadioButton, QButtonGroup, QSpinBox, QSlider,
-    QColorDialog, QDialog, QLineEdit
+    QRadioButton, QButtonGroup, QSpinBox, QDialog, QLineEdit
 )
 from PyQt5.QtGui import (
-    QPixmap, QImage, QPainter, QPen, QColor,
-    QPainterPath
+    QPixmap, QImage, QPainter, QPen, QColor
 )
 from PyQt5.QtCore import (
-    Qt, QThread, pyqtSignal, QPoint, QPointF, QLineF
+    Qt, QThread, pyqtSignal, QPoint
 )
 
 # Import arrow annotation functionality
@@ -30,7 +28,8 @@ from lithic_editor.annotations import integration as arrow_integration
 # Import your processing function
 # Import processing function - handle potential circular import
 from lithic_editor.processing import process_lithic_drawing
-from lithic_editor.processing.upscaling import detect_image_dpi, needs_upscaling
+from lithic_editor.processing.resolution import choose_upscale_factor, measure_line_geometry
+from lithic_editor.config import load_config, default_config_path, ConfigError
 
 
 class DPISelectionDialog(QDialog):
@@ -45,7 +44,7 @@ class DPISelectionDialog(QDialog):
         layout = QVBoxLayout()
 
         # Info label
-        info_label = QLabel("No DPI information found in image.\nPlease specify the approximate DPI:")
+        info_label = QLabel("The image has no DPI value.\nSelect the DPI of the image:")
         layout.addWidget(info_label)
 
         # DPI buttons
@@ -85,66 +84,32 @@ class DPISelectionDialog(QDialog):
                 self.selected_dpi = custom_dpi
                 self.accept()
             else:
-                QMessageBox.warning(self, "Invalid DPI", "DPI must be between 50 and 2400")
+                QMessageBox.warning(self, "Invalid DPI", "The DPI must be between 50 and 2400.")
         except ValueError:
-            QMessageBox.warning(self, "Invalid Input", "Please enter a valid number")
-
-
-class DownscalingDialog(QDialog):
-    """Dialog for confirming downscaling for high DPI processing"""
-
-    def __init__(self, current_dpi, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("High DPI Processing Option")
-        self.setModal(True)
-        self.current_dpi = current_dpi
-        self.downscale_confirmed = False
-
-        layout = QVBoxLayout()
-
-        # Warning message
-        warning_text = (f"Your image is {current_dpi} DPI. Images greater than 300 DPI may cause\n"
-                       f"issues with processing but the image will retain original scale.\n\n"
-                       f"Do you want to downscale to 300 DPI for analysis?\n"
-                       f"(Uses Lanczos downscaling for optimal edge preservation)")
-        warning_label = QLabel(warning_text)
-        layout.addWidget(warning_label)
-
-        # Buttons
-        button_layout = QHBoxLayout()
-        yes_btn = QPushButton("Yes, Downscale for Processing")
-        yes_btn.clicked.connect(self.confirm_downscale)
-        no_btn = QPushButton("No, Continue at Original DPI")
-        no_btn.clicked.connect(self.reject)
-        button_layout.addWidget(yes_btn)
-        button_layout.addWidget(no_btn)
-        layout.addLayout(button_layout)
-
-        self.setLayout(layout)
-
-    def confirm_downscale(self):
-        self.downscale_confirmed = True
-        self.accept()
+            QMessageBox.warning(self, "Invalid DPI", "Enter a whole number.")
 
 
 class UpscalingDialog(QDialog):
-    """Dialog for confirming upscaling with model selection"""
+    """Dialog that offers upscaling, with the model and the output size choices"""
 
-    def __init__(self, current_dpi, target_dpi=300, parent=None):
+    def __init__(self, geometry, factor, parent=None, keep_upscaled=False, default_model='espcn',
+                 has_scale_image=False):
         super().__init__(parent)
         self.setWindowTitle("Upscale Image")
         self.setModal(True)
-        self.current_dpi = current_dpi
-        self.target_dpi = target_dpi
+        self.geometry_info = geometry
+        self.factor = factor
         self.upscale_confirmed = False
-        self.selected_model = 'espcn'
+        self.selected_model = default_model
+        self.keep_upscaled = keep_upscaled
+        self.has_scale_image = has_scale_image
 
         layout = QVBoxLayout()
 
-        # Warning message
-        warning_text = (f"Image is {current_dpi} DPI, below recommended {target_dpi} DPI.\n"
-                       f"This may impact final output quality.\n\n"
-                       f"Upscale to {target_dpi} DPI?")
+        warning_text = (f"Measured {geometry.describe()}.\n"
+                        f"For lines this thin or this near to each other, processing at {factor}x "
+                        f"gives a better result.\n\n"
+                        f"Upscale {factor}x for processing?")
         warning_label = QLabel(warning_text)
         layout.addWidget(warning_label)
 
@@ -154,14 +119,27 @@ class UpscalingDialog(QDialog):
         self.model_combo = QComboBox()
         self.model_combo.addItem("ESPCN (Recommended)", "espcn")
         self.model_combo.addItem("FSRCNN (Alternative)", "fsrcnn")
+        self.model_combo.setCurrentIndex(max(0, self.model_combo.findData(default_model)))
         model_layout.addWidget(self.model_combo)
         layout.addLayout(model_layout)
 
+        # Output size: the choice is made here, where its effect is explained, and is
+        # kept in step with the checkbox in the options panel
+        self.keep_checkbox = QCheckBox("Keep the upscaled size")
+        self.keep_checkbox.setChecked(keep_upscaled)
+        self.keep_checkbox.toggled.connect(self._update_size_text)
+        layout.addWidget(self.keep_checkbox)
+        self.size_label = QLabel()
+        self.size_label.setWordWrap(True)
+        self.size_label.setStyleSheet("font-style: italic;")
+        layout.addWidget(self.size_label)
+        self._update_size_text(keep_upscaled)
+
         # Buttons
         button_layout = QHBoxLayout()
-        yes_btn = QPushButton("Yes, Upscale")
+        yes_btn = QPushButton("Upscale")
         yes_btn.clicked.connect(self.confirm_upscale)
-        no_btn = QPushButton("No, Continue")
+        no_btn = QPushButton("Do not upscale")
         no_btn.clicked.connect(self.reject)
         button_layout.addWidget(yes_btn)
         button_layout.addWidget(no_btn)
@@ -169,9 +147,23 @@ class UpscalingDialog(QDialog):
 
         self.setLayout(layout)
 
+    def _update_size_text(self, keep):
+        if keep:
+            text = (f"The result is {self.factor}x the input size. "
+                    f"The DPI value is {self.factor}x the input DPI.")
+            if self.has_scale_image:
+                text += " The scale image is scaled by the same factor and saved with the result."
+            else:
+                text += (" No scale image is loaded: scale a separate scale bar image "
+                         f"{self.factor}x before you measure.")
+        else:
+            text = "The result has the pixel size and DPI of the input."
+        self.size_label.setText(text)
+
     def confirm_upscale(self):
         self.upscale_confirmed = True
         self.selected_model = self.model_combo.currentData()
+        self.keep_upscaled = self.keep_checkbox.isChecked()
         self.accept()
 
 
@@ -181,10 +173,17 @@ class ProcessingThread(QThread):
     finished_signal = pyqtSignal(object, object, object)  # image_data, dpi_info, format_info
 
     def __init__(self, input_path, output_folder, dpi_info=None, format_info=None, output_dpi=None, save_debug=False,
-                 upscale_low_dpi=False, default_dpi=None, upscale_model='espcn', target_dpi=300, debug_filename=None, preserve_cortex=True,
-                 downscale_high_dpi=False, high_dpi_threshold=300):
+                 upscale_low_dpi=False, default_dpi=None, upscale_model='espcn', debug_filename=None, preserve_cortex=True,
+                 keep_upscaled=False, scale_image_path=None, config=None):
         super().__init__()
         self.input_path = input_path
+        self.config = config
+        self.keep_upscaled = keep_upscaled
+        self.scale_image_path = scale_image_path
+        # Filled in after a run: the factor the returned image is scaled by relative to
+        # the input, and the scale image resampled by the same factor, if one was given.
+        self.result_scale_factor = 1
+        self.processed_scale_image = None
         self.output_folder = output_folder
         self.dpi_info = dpi_info  # Original DPI
         self.format_info = format_info
@@ -193,11 +192,8 @@ class ProcessingThread(QThread):
         self.upscale_low_dpi = upscale_low_dpi
         self.default_dpi = default_dpi
         self.upscale_model = upscale_model
-        self.target_dpi = target_dpi
         self.debug_filename = debug_filename
         self.preserve_cortex = preserve_cortex
-        self.downscale_high_dpi = downscale_high_dpi
-        self.high_dpi_threshold = high_dpi_threshold
 
     def run(self):
         try:
@@ -213,7 +209,7 @@ class ProcessingThread(QThread):
             builtins.print = progress_print
 
             # Run the processing function
-            result_image = process_lithic_drawing(
+            result = process_lithic_drawing(
                 self.input_path, self.output_folder,
                 dpi_info=self.dpi_info,
                 format_info=self.format_info,
@@ -222,19 +218,29 @@ class ProcessingThread(QThread):
                 upscale_low_dpi=self.upscale_low_dpi,
                 default_dpi=self.default_dpi,
                 upscale_model=self.upscale_model,
-                target_dpi=self.target_dpi,
                 debug_filename=self.debug_filename,
                 preserve_cortex=self.preserve_cortex,
-                downscale_high_dpi=self.downscale_high_dpi,
-                high_dpi_threshold=self.high_dpi_threshold
+                restore_original_size=not self.keep_upscaled,
+                scale_image_path=self.scale_image_path,
+                return_scale_factor=True,
+                config=self.config,
             )
 
             # Restore the original print function
             builtins.print = original_print
 
-            # The processing function now returns the image data
-            # Pass it back to the main thread along with metadata
-            self.finished_signal.emit(result_image, self.output_dpi or self.dpi_info, self.format_info)
+            result_image = result['processed_image']
+            self.result_scale_factor = result['scale_factor']
+            self.processed_scale_image = result.get('processed_scale')
+            # When the result is kept at the working size its DPI is the input DPI times
+            # the factor, which keeps the physical size truthful.
+            dpi_out = self.output_dpi or self.dpi_info
+            if self.result_scale_factor > 1 and dpi_out:
+                if isinstance(dpi_out, tuple):
+                    dpi_out = (dpi_out[0] * self.result_scale_factor, dpi_out[1] * self.result_scale_factor)
+                else:
+                    dpi_out = dpi_out * self.result_scale_factor
+            self.finished_signal.emit(result_image, dpi_out, self.format_info)
         except Exception as e:
             self.progress_signal.emit(f"Error: {str(e)}")
             self.finished_signal.emit(None, None, None)
@@ -593,68 +599,116 @@ class LithicProcessorGUI(QMainWindow):
         left_controls_layout.addWidget(arrow_tools)
 
         # RIGHT COLUMN: Options & DPI settings (single tall panel)
-        options_group = QGroupBox("Options and DPI Settings")
+        options_group = QGroupBox("Options")
         options_layout = QVBoxLayout(options_group)
-        options_layout.setSpacing(10)
+        options_layout.setSpacing(6)
         options_layout.setContentsMargins(10, 10, 10, 10)
 
-        # Debug images option (combined view and save)
-        debug_images_label = QLabel("Debug Images:")
-        debug_images_label.setStyleSheet("font-weight: bold; font-size: 11px;")
+        def heading(text):
+            label = QLabel(text)
+            label.setStyleSheet("font-weight: bold; font-size: 11px; margin-top: 4px;")
+            return label
 
-        self.debug_images_checkbox = QCheckBox('View and Save Debug Images')
+        # --- Processing ---
+        self.preserve_cortex_checkbox = QCheckBox('Keep the cortex stipple')
+        self.preserve_cortex_checkbox.setChecked(True)  # Default ON
+        self.preserve_cortex_checkbox.setToolTip('Keep the small cortex dots when the lines are processed.')
+
+        # --- Output ---
+        # The default returns the result at the input's pixel size so a separately
+        # scanned scale bar keeps its meaning. Keeping the working size gives smoother
+        # lines but the scale image must then be scaled by the same factor.
+        self.keep_upscaled_checkbox = QCheckBox('Keep the upscaled size')
+        self.keep_upscaled_checkbox.setChecked(False)
+        self.keep_upscaled_checkbox.setToolTip(
+            'Off: the result has the pixel size and DPI of the input.\n'
+            'On: the result keeps the upscaled size. The DPI value increases by the same factor.\n'
+            'Load the scale image below. It is scaled by the same factor and saved with the result.')
+
+        self.scale_image_path = None
+        scale_layout = QHBoxLayout()
+        self.load_scale_button = QPushButton('Load Scale Image...')
+        self.load_scale_button.setToolTip('The scale bar image scanned with this drawing. It is saved with the result, scaled by the same factor.')
+        self.load_scale_button.clicked.connect(self.load_scale_image)
+        self.scale_image_label = QLabel('No scale image')
+        self.scale_image_label.setStyleSheet("font-size: 10px; font-style: italic;")
+        scale_layout.addWidget(self.load_scale_button)
+        scale_layout.addWidget(self.scale_image_label)
+        scale_layout.addStretch()
+
+        # --- Debug ---
+        self.debug_images_checkbox = QCheckBox('Show and save the debug images')
         self.debug_images_checkbox.setChecked(False)
         self.debug_images_checkbox.stateChanged.connect(self.toggle_debug_images)
-
-        # Cortex preservation checkbox
-        self.preserve_cortex_checkbox = QCheckBox('Preserve Cortex Stippling')
-        self.preserve_cortex_checkbox.setChecked(True)  # Default ON
-        self.preserve_cortex_checkbox.setToolTip('Preserve small cortex dots while processing structural lines')
-
         # Keep the old attributes for backward compatibility
         self.show_debug_images = self.debug_images_checkbox
         self.save_debug_images = self.debug_images_checkbox
 
-        # DPI settings section
-        dpi_title = QLabel("DPI Settings")
-        dpi_title.setStyleSheet("font-weight: bold; font-size: 12px;")
+        # --- Configuration ---
+        # Every size threshold of the pipeline comes from a configuration file.
+        config_layout = QHBoxLayout()
+        self.load_config_button = QPushButton('Load Configuration...')
+        self.load_config_button.setToolTip('A copy of the shipped config.yaml with your changes.')
+        self.load_config_button.clicked.connect(self.load_configuration)
+        self.reset_config_button = QPushButton('Reset to default')
+        self.reset_config_button.setToolTip('Use the configuration file shipped with the package.')
+        self.reset_config_button.clicked.connect(self.reset_configuration)
+        config_layout.addWidget(self.load_config_button)
+        config_layout.addWidget(self.reset_config_button)
+        config_layout.addStretch()
+        self.config_label = QLabel('Configuration: default')
+        self.config_label.setStyleSheet("font-size: 10px; font-style: italic;")
+        self.config_label.setWordWrap(True)
 
-        self.current_dpi_label = QLabel("Detected DPI in loaded image: None")
+        # --- DPI ---
+        self.current_dpi_label = QLabel("DPI of the image: none")
         self.current_dpi_label.setStyleSheet("font-size: 11px;")
 
-        self.dpi_explanation_label = QLabel("Original DPI is preserved when available")
+        self.dpi_explanation_label = QLabel("The DPI of the input is kept when the file has one.")
         self.dpi_explanation_label.setStyleSheet("font-style: italic; font-size: 10px;")
+        self.dpi_explanation_label.setWordWrap(True)
 
-        # DPI radio buttons
+        # The choice below applies only to a file with no DPI tag, and is shown only then
         self.dpi_group = QButtonGroup(self)
-        self.keep_unset_dpi = QRadioButton("Leave unset (application defaults)")
-        self.use_custom_dpi = QRadioButton("Set custom DPI:")
-
+        self.keep_unset_dpi = QRadioButton("No DPI value")
+        self.use_custom_dpi = QRadioButton("Set the DPI:")
         self.dpi_group.addButton(self.keep_unset_dpi)
         self.dpi_group.addButton(self.use_custom_dpi)
 
-        # Custom DPI spinner with helpful hint
-        custom_dpi_layout = QHBoxLayout()
-        custom_dpi_layout.addWidget(self.use_custom_dpi)
         self.custom_dpi_spinner = QSpinBox()
         self.custom_dpi_spinner.setRange(72, 1200)
         self.custom_dpi_spinner.setValue(300)
         self.custom_dpi_spinner.setSuffix(" DPI")
         self.custom_dpi_spinner.setMaximumWidth(100)
-        self.custom_dpi_spinner.setToolTip("Common values: 96 (screen), 300 (print), 600 (high quality)")
+        self.custom_dpi_spinner.setToolTip("Usual values: 96 (screen), 300 (print), 600 (high quality)")
+
+        self.dpi_choice_widget = QWidget()
+        dpi_choice_layout = QVBoxLayout(self.dpi_choice_widget)
+        dpi_choice_layout.setContentsMargins(0, 0, 0, 0)
+        dpi_choice_layout.setSpacing(4)
+        custom_dpi_layout = QHBoxLayout()
+        custom_dpi_layout.addWidget(self.use_custom_dpi)
         custom_dpi_layout.addWidget(self.custom_dpi_spinner)
         custom_dpi_layout.addStretch()
+        dpi_choice_layout.addWidget(self.keep_unset_dpi)
+        dpi_choice_layout.addLayout(custom_dpi_layout)
+        self.dpi_choice_widget.setVisible(False)
 
-
-        # Add all options to the right panel
-        options_layout.addWidget(debug_images_label)
-        options_layout.addWidget(self.debug_images_checkbox)
+        # Assemble the panel
+        options_layout.addWidget(heading("Processing"))
         options_layout.addWidget(self.preserve_cortex_checkbox)
-        options_layout.addWidget(dpi_title)
+        options_layout.addWidget(heading("Output"))
+        options_layout.addWidget(self.keep_upscaled_checkbox)
+        options_layout.addLayout(scale_layout)
+        options_layout.addWidget(heading("Debug"))
+        options_layout.addWidget(self.debug_images_checkbox)
+        options_layout.addWidget(heading("Configuration"))
+        options_layout.addLayout(config_layout)
+        options_layout.addWidget(self.config_label)
+        options_layout.addWidget(heading("DPI"))
         options_layout.addWidget(self.current_dpi_label)
         options_layout.addWidget(self.dpi_explanation_label)
-        options_layout.addWidget(self.keep_unset_dpi)
-        options_layout.addLayout(custom_dpi_layout)
+        options_layout.addWidget(self.dpi_choice_widget)
         options_layout.addStretch()  # Push everything to top
 
         # Add left column and right column to top layout
@@ -802,7 +856,8 @@ class LithicProcessorGUI(QMainWindow):
         self.update_brush()
 
         # Initial log message
-        self.log("Lithic Editor and Annotator started. Ready to load images.")
+        self.log("Lithic Editor and Annotator started. Load an image.")
+        self.apply_configuration(None)
 
     def update_brush(self):
         """Update brush properties based on UI settings"""
@@ -866,6 +921,52 @@ class LithicProcessorGUI(QMainWindow):
         scroll_bar = self.log_display.verticalScrollBar()
         scroll_bar.setValue(scroll_bar.maximum())
 
+    def apply_configuration(self, path):
+        """Read a configuration file (None: environment variable or shipped default) and show it"""
+        try:
+            self.config = load_config(path)
+        except ConfigError as e:
+            self.config = None
+            self.config_label.setText('Configuration: defaults (the file was not read)')
+            self.log(f"Warning: the configuration file was not read: {e}. The defaults are used.")
+            QMessageBox.warning(self, 'Configuration', f'The configuration file was not read:\n{e}')
+            return
+        source = self.config.source
+        shown = 'default' if source == str(default_config_path()) else os.path.basename(source)
+        self.config_label.setText(f'Configuration: {shown}')
+        self.config_label.setToolTip(source)
+        self.log(f"Configuration: {source}")
+
+    def load_configuration(self):
+        """Choose a configuration file"""
+        file_path, _ = QFileDialog.getOpenFileName(
+            parent=self,
+            caption="Open Configuration",
+            directory="",
+            filter="YAML Files (*.yaml *.yml)",
+            options=QFileDialog.DontUseNativeDialog
+        )
+        if file_path:
+            self.apply_configuration(file_path)
+
+    def reset_configuration(self):
+        """Use the configuration file shipped with the package"""
+        self.apply_configuration(default_config_path())
+
+    def load_scale_image(self):
+        """Choose the scale bar image scanned with the drawing, so it can be scaled with it"""
+        file_path, _ = QFileDialog.getOpenFileName(
+            parent=self,
+            caption="Open Scale Image",
+            directory="",
+            filter="Image Files (*.png *.jpg *.jpeg *.bmp *.tif *.tiff)",
+            options=QFileDialog.DontUseNativeDialog
+        )
+        if file_path:
+            self.scale_image_path = file_path
+            self.scale_image_label.setText(os.path.basename(file_path))
+            self.log(f"Scale image: {file_path}")
+
     def load_image(self):
         """Load an image using native file dialog"""
         # Create a synchronous file dialog with explicit options
@@ -893,11 +994,11 @@ class LithicProcessorGUI(QMainWindow):
                     # Store DPI info with the class for later use (properly rounded)
                     self.image_dpi = (round(dpi_info[0]), round(dpi_info[1]))
                     # Update the UI with rounded values
-                    self.current_dpi_label.setText(f"Detected DPI: {self.image_dpi[0]}×{self.image_dpi[1]}")
+                    self.current_dpi_label.setText(f"DPI of the image: {self.image_dpi[0]}x{self.image_dpi[1]}")
                 else:
-                    self.log("No DPI information found in image")
+                    self.log("The image has no DPI value")
                     self.image_dpi = None
-                    self.current_dpi_label.setText("Detected DPI: None")
+                    self.current_dpi_label.setText("DPI of the image: none")
 
                 # Also log the image format
                 self.log(f"Image format: {pil_img.format}")
@@ -906,7 +1007,7 @@ class LithicProcessorGUI(QMainWindow):
                 # Get image dimensions
                 self.log(f"Original dimensions: {pil_img.width}x{pil_img.height} pixels")
             except Exception as e:
-                self.log(f"Warning: Could not read image metadata: {str(e)}")
+                self.log(f"Warning: the image metadata was not read: {str(e)}")
                 self.image_dpi = None
                 self.image_format = None
 
@@ -916,12 +1017,14 @@ class LithicProcessorGUI(QMainWindow):
                 self.keep_unset_dpi.setChecked(False)
                 self.use_custom_dpi.setChecked(False)
                 self.dpi_group.setExclusive(True)  # Restore exclusive behavior
-                dpi_options_explanation = f"Original DPI ({round(self.image_dpi[0])}x{round(self.image_dpi[1])}) will be preserved"
+                dpi_options_explanation = f"The input DPI ({round(self.image_dpi[0])}x{round(self.image_dpi[1])}) is kept."
                 self.dpi_explanation_label.setText(dpi_options_explanation)
+                self.dpi_choice_widget.setVisible(False)
             else:
-                self.dpi_explanation_label.setText("No DPI found in image. Select what DPI to use for output:")
+                self.dpi_explanation_label.setText("The image has no DPI value. Select the DPI for the output:")
                 # Default to leave unset when no DPI in image
                 self.keep_unset_dpi.setChecked(True)
+                self.dpi_choice_widget.setVisible(True)
 
             # Load and crop the image to content
             img = cv2.imread(file_path)
@@ -951,7 +1054,7 @@ class LithicProcessorGUI(QMainWindow):
                     else:
                         cropped_pil.save(cropped_path)
                 except Exception as e:
-                    self.log(f"Warning: Could not save with metadata: {str(e)}")
+                    self.log(f"Warning: the metadata was not written: {str(e)}")
                     # Fallback to OpenCV
                     cv2.imwrite(cropped_path, cropped_img)
 
@@ -1050,9 +1153,6 @@ class LithicProcessorGUI(QMainWindow):
         # Handle upscaling logic
         upscale_params = self.check_and_prompt_upscaling(dpi_info)
 
-        # Handle downscaling logic for high DPI
-        downscale_params = self.check_and_prompt_downscaling(dpi_info)
-
         # Pass output folder for debug images if enabled
         output_folder = self.output_folder if debug_enabled else None
 
@@ -1060,78 +1160,69 @@ class LithicProcessorGUI(QMainWindow):
 
         self.processing_thread = ProcessingThread(self.input_image_path, output_folder,
                 dpi_info, format_info, output_dpi, debug_enabled, debug_filename=original_filename,
-                preserve_cortex=self.preserve_cortex_checkbox.isChecked(), **upscale_params, **downscale_params)
+                preserve_cortex=self.preserve_cortex_checkbox.isChecked(),
+                keep_upscaled=self.keep_upscaled_checkbox.isChecked(),
+                scale_image_path=self.scale_image_path,
+                config=getattr(self, 'config', None),
+                **upscale_params)
         self.processing_thread.progress_signal.connect(self.update_progress)
         self.processing_thread.finished_signal.connect(self.processing_finished)
         self.processing_thread.start()
 
     def check_and_prompt_upscaling(self, dpi_info):
-        """Check if upscaling is needed and prompt user for decisions"""
+        """Ask for a DPI when the file has none, then offer upscaling if the drawing needs it"""
+        settings = getattr(self, 'config', None)
+        default_model = settings.resolution.upscale_model if settings else 'espcn'
         upscale_params = {
             'upscale_low_dpi': False,
             'default_dpi': None,
-            'upscale_model': 'espcn',
-            'target_dpi': 300
+            'upscale_model': default_model,
         }
 
         # Determine current DPI
-        current_dpi = None
-        if dpi_info:
-            if isinstance(dpi_info, tuple):
-                current_dpi = max(dpi_info[0], dpi_info[1])
-            else:
-                current_dpi = int(dpi_info)
-        else:
+        if not dpi_info:
             # No DPI metadata - prompt user to specify
             dialog = DPISelectionDialog(self)
             if dialog.exec_() == QDialog.Accepted and dialog.selected_dpi:
-                current_dpi = dialog.selected_dpi
-                upscale_params['default_dpi'] = current_dpi
+                upscale_params['default_dpi'] = dialog.selected_dpi
             else:
-                # User cancelled - proceed without upscaling
                 return upscale_params
 
-        # Check if upscaling is needed
-        if current_dpi and needs_upscaling(current_dpi, 300):
-            # Show upscaling confirmation dialog
-            upscale_dialog = UpscalingDialog(current_dpi, 300, self)
+        # The decision comes from the drawing, not the DPI: too-thin strokes or too-close
+        # hatching make the skeleton unreliable, and only upscaling repairs that.
+        try:
+            gray = np.array(Image.open(self.input_image_path).convert('L'))
+            if settings is not None:
+                geometry = measure_line_geometry(gray, settings.resolution)
+                factor = choose_upscale_factor(geometry, settings=settings.resolution)
+            else:
+                geometry = measure_line_geometry(gray)
+                factor = choose_upscale_factor(geometry)
+        except Exception as e:
+            self.log(f"The line width was not measured: {e}")
+            return upscale_params
+
+        self.log(f"Measured {geometry.describe()}")
+        if factor > 1:
+            upscale_dialog = UpscalingDialog(
+                geometry, factor, self,
+                keep_upscaled=self.keep_upscaled_checkbox.isChecked(),
+                default_model=default_model,
+                has_scale_image=self.scale_image_path is not None,
+            )
             if upscale_dialog.exec_() == QDialog.Accepted and upscale_dialog.upscale_confirmed:
                 upscale_params['upscale_low_dpi'] = True
                 upscale_params['upscale_model'] = upscale_dialog.selected_model
-                self.log(f"User confirmed upscaling from {current_dpi} DPI to 300 DPI using {upscale_dialog.selected_model.upper()}")
+                # The dialog's choice becomes the panel's, so the processing thread reads it
+                self.keep_upscaled_checkbox.setChecked(upscale_dialog.keep_upscaled)
+                size_note = "kept at the upscaled size" if upscale_dialog.keep_upscaled else "returned to the input size"
+                self.log(f"Upscale {factor}x for processing with {upscale_dialog.selected_model.upper()}; result {size_note}")
             else:
-                self.log(f"User declined upscaling. Proceeding with {current_dpi} DPI")
-        elif current_dpi:
-            self.log(f"Image DPI ({current_dpi}) already meets target (300). No upscaling needed.")
+                self.log("No upscaling. Processing at the input size")
+        else:
+            self.log("The line width and the hatch gap are sufficient. No upscaling is necessary.")
 
         return upscale_params
-
-    def check_and_prompt_downscaling(self, dpi_info):
-        """Check if downscaling is needed for high DPI and prompt user"""
-        downscale_params = {
-            'downscale_high_dpi': False,
-            'high_dpi_threshold': 300
-        }
-
-        # Determine current DPI
-        current_dpi = None
-        if dpi_info:
-            if isinstance(dpi_info, tuple):
-                current_dpi = max(dpi_info[0], dpi_info[1])
-            else:
-                current_dpi = int(dpi_info)
-
-        # Check if downscaling might be helpful (high DPI)
-        if current_dpi and current_dpi > 300:
-            # Show downscaling confirmation dialog
-            downscale_dialog = DownscalingDialog(current_dpi, self)
-            if downscale_dialog.exec_() == QDialog.Accepted and downscale_dialog.downscale_confirmed:
-                downscale_params['downscale_high_dpi'] = True
-                self.log(f"User confirmed downscaling from {current_dpi} DPI to 300 DPI for processing")
-            else:
-                self.log(f"User declined downscaling. Proceeding with {current_dpi} DPI")
-
-        return downscale_params
 
     def update_progress(self, message):
             self.status_label.setText(message)
@@ -1150,42 +1241,50 @@ class LithicProcessorGUI(QMainWindow):
             self.processed_image_data = image_data
             self.processed_dpi_info = dpi_info
             self.processed_format_info = format_info
+            thread = getattr(self, 'processing_thread', None)
+            self.processed_scale_factor = getattr(thread, 'result_scale_factor', 1)
+            self.processed_scale_image = getattr(thread, 'processed_scale_image', None)
 
-            self.log(f"Processing complete. Image ready for annotation.")
+            self.log("Processing complete. Add arrows to the result if necessary.")
+            if self.processed_scale_factor > 1:
+                self.log(f"The result is {self.processed_scale_factor}x the input size. The DPI value is now {dpi_info}.")
+                if self.processed_scale_image is None:
+                    self.log("Warning: no scale image is loaded. Scale the scale bar image "
+                             f"{self.processed_scale_factor}x before you measure.")
 
             # Debug dimensions for processed image
             if len(image_data.shape) == 2:
                 proc_h, proc_w = image_data.shape
             else:
                 proc_h, proc_w = image_data.shape[:2]
-            self.log(f"DIMENSIONS: Processed image: {proc_w}x{proc_h}")
+            self.log(f"Result size: {proc_w}x{proc_h} pixels")
 
             # Display the processed image from memory
             self.display_image_from_array(image_data, self.canvas)
 
             # Enable arrow tools
             arrow_integration.enable_arrow_controls(self)
-            self.log("You can now add arrows to the processed image (Alt+drag to resize, Shift+drag to rotate)")
+            self.log("Add arrows to the result: drag to move, Shift+drag to rotate, Alt+drag to resize")
 
             # Update DPI display if we have DPI info
             if dpi_info:
                 self.image_dpi = dpi_info
-                self.current_dpi_label.setText(f"Detected DPI: {round(dpi_info[0])}x{round(dpi_info[1])}")
-                self.log(f"DPI information: {round(dpi_info[0])}x{round(dpi_info[1])}")
+                self.current_dpi_label.setText(f"DPI of the result: {round(dpi_info[0])}x{round(dpi_info[1])}")
+                self.log(f"DPI of the result: {round(dpi_info[0])}x{round(dpi_info[1])}")
 
             self.save_button.setEnabled(True)
             self.clear_annotations_button.setEnabled(True)
-            self.status_label.setText('Processing complete!')
-            self.log("You can draw on the input image with the brush tools")
+            self.status_label.setText('Processing complete')
+            self.log("Use the brush tools to edit the input image")
 
             # Load and handle debug images if checkbox is enabled
             if self.debug_images_checkbox.isChecked():
                 self.load_debug_images()
         else:
             # Processing failed
-            self.status_label.setText('Processing failed!')
-            self.log("ERROR: Processing failed!")
-            QMessageBox.critical(self, 'Error', 'Image processing failed!')
+            self.status_label.setText('Processing failed')
+            self.log("Error: processing failed")
+            QMessageBox.critical(self, 'Error', 'Processing failed. See the log.')
 
     def load_debug_images(self):
         """Load all debug images from the output folder into the debug panel"""
@@ -1193,13 +1292,12 @@ class LithicProcessorGUI(QMainWindow):
         original_filename = getattr(self, 'original_filename', '*')
 
         debug_patterns = [
-            f'0_{original_filename}_original_low_dpi.png',
-            f'0a_{original_filename}_upscaled_300dpi.png',
+            f'0_{original_filename}_input.png',
+            f'0a_{original_filename}_upscaled.png',
             f'0b_{original_filename}_upscaled_scale.png',
-            f'1a_{original_filename}_original_image.png',
-            f'1b_{original_filename}_bilateral_filtered.png',
+            f'1_{original_filename}_original_image.png',
+            f'1b_{original_filename}_smoothed.png',
             f'1c_{original_filename}_binary_thresholded.png',
-            f'1d_{original_filename}_binary_downscaled.png',
             f'2a_{original_filename}_structural_only.png',
             f'2b_{original_filename}_cortex_mask.png',
             f'3_{original_filename}_skeleton.png',
@@ -1208,7 +1306,8 @@ class LithicProcessorGUI(QMainWindow):
             f'6_{original_filename}_ripple_identification.png',
             f'7_{original_filename}_skeleton_cleaned.png',
             f'7a_{original_filename}_endpoint_filtering.png',
-            f'8_{original_filename}_final_cleaned.png'
+            f'8_{original_filename}_final_cleaned.png',
+            f'9_{original_filename}_restored.png'
         ]
 
         for debug_file in debug_patterns:
@@ -1226,13 +1325,12 @@ class LithicProcessorGUI(QMainWindow):
 
                 # Shorten common long titles
                 title_map = {
-                    '_original_low_dpi': 'Input (Low DPI)',
-                    '_upscaled_300dpi': 'Upscaled (300 DPI)',
+                    '_input': 'Input',
+                    '_upscaled': 'Upscaled',
                     '_upscaled_scale': 'Scale Bar',
                     '_original_image': 'Original',
-                    '_bilateral_filtered': 'Bilateral Filter',
+                    '_smoothed': 'Smoothed',
                     '_binary_thresholded': 'Binary Threshold',
-                    '_binary_downscaled': 'Downscaled',
                     '_structural_only': 'Structural Only',
                     '_cortex_mask': 'Cortex Mask',
                     '_skeleton': 'Skeleton',
@@ -1241,7 +1339,8 @@ class LithicProcessorGUI(QMainWindow):
                     '_ripple_identification': 'Ripple ID',
                     '_skeleton_cleaned': 'Cleaned',
                     '_endpoint_filtering': 'Filtered',
-                    '_final_cleaned': 'Final'
+                    '_final_cleaned': 'Final',
+                    '_restored': 'Restored'
                 }
 
                 # Apply title mapping
@@ -1328,14 +1427,14 @@ class LithicProcessorGUI(QMainWindow):
     def save_result(self):
         """Save the processed image with arrows"""
         if not hasattr(self, 'processed_image_data') or self.processed_image_data is None:
-            QMessageBox.warning(self, 'Warning', 'No processed image to save. Please process an image first.')
+            QMessageBox.warning(self, 'No result', 'There is no result to save. Process an image first.')
             return
 
         # Ensure all arrows are detectable before saving
         if hasattr(self, 'canvas') and hasattr(self.canvas, 'make_all_arrows_detectable'):
             adjusted_count = self.canvas.make_all_arrows_detectable()
             if adjusted_count > 0:
-                self.log(f"Adjusted {adjusted_count} arrows to ensure detection in saved image")
+                self.log(f"{adjusted_count} arrows made larger so they stay visible in the saved image")
                 # Update the display to show adjusted arrows
                 self.canvas.update_display()
 
@@ -1390,29 +1489,38 @@ class LithicProcessorGUI(QMainWindow):
                     # Create PIL Image
                     pil_img = Image.fromarray(rgb)
 
-                    # Try to get DPI from original image
-                    # Get DPI setting based on user selection
+                    # DPI of the processed result: the input's, or the user's choice, raised
+                    # by the upscale factor when the result was kept at the working size
                     dpi_info = self.get_output_dpi()
+                    factor = getattr(self, 'processed_scale_factor', 1)
+                    if dpi_info and factor > 1:
+                        dpi_info = (dpi_info[0] * factor, dpi_info[1] * factor)
 
                     # Log the DPI setting
                     if dpi_info:
-                        self.log(f"Using DPI: {dpi_info}")
+                        self.log(f"DPI of the saved image: {dpi_info}")
                     else:
-                        self.log("Leaving DPI unset (application defaults will apply)")
+                        self.log("The saved image has no DPI value")
 
-                    # Set default DPI if none found (300 DPI is standard for publications)
-                    if not dpi_info:
-                        dpi_info = (300, 300)
-                        self.log(f"Setting default DPI: {dpi_info}")
-
-                    # Save the image with metadata
-                    pil_img.save(file_path, format=save_format, dpi=dpi_info)
+                    # Save the image with metadata. An image with no known DPI is saved
+                    # without a DPI tag; a guessed tag would mislead measurement tools.
+                    save_kwargs = {'dpi': dpi_info} if dpi_info else {}
+                    pil_img.save(file_path, format=save_format, **save_kwargs)
 
                     self.status_label.setText(f'Saved to: {os.path.basename(file_path)}')
-                    self.log(f"Processed image saved to: {file_path} with DPI: {dpi_info}")
+                    self.log(f"Result saved to: {file_path} (DPI: {dpi_info})")
+
+                    # The scale image goes next to the result, scaled by the same factor,
+                    # so the pair keeps one pixel scale
+                    scale_image = getattr(self, 'processed_scale_image', None)
+                    if scale_image is not None and factor > 1:
+                        stem, ext = os.path.splitext(file_path)
+                        scale_path = f"{stem}_scale{ext}"
+                        Image.fromarray(np.asarray(scale_image)).save(scale_path, format=save_format, **save_kwargs)
+                        self.log(f"Scale image saved to: {scale_path} (scaled {factor}x)")
                 except Exception as e:
-                    self.log(f"ERROR saving file: {str(e)}")
-                    QMessageBox.critical(self, 'Error', f'Error saving file: {str(e)}')
+                    self.log(f"Error: the file was not saved: {str(e)}")
+                    QMessageBox.critical(self, 'Error', f'The file was not saved: {str(e)}')
 
     def display_image(self, image_path, display_widget):
         """Load and display an image in the given widget, ensuring it fits within bounds"""
@@ -1510,15 +1618,6 @@ class LithicProcessorGUI(QMainWindow):
         # Clear arrows when a new image is loaded in the output canvas
         if display_widget == self.canvas:
             arrow_integration.clear_arrows_on_new_image(self)
-
-    def resizeEvent(self, event):
-        """Handle window resize event to adjust image displays"""
-        super().resizeEvent(event)
-
-        # Refresh displayed images if they exist
-        if hasattr(self, 'input_image_path') and self.input_image_path and hasattr(self, 'input_image_display'):
-            if self.input_image_display.pixmap() and not self.input_image_display.pixmap().isNull():
-                self.display_image(self.input_image_path, self.input_image_display)
 
 
 if __name__ == '__main__':

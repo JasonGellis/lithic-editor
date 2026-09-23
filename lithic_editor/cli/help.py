@@ -1,238 +1,203 @@
 """
-Comprehensive help system for the Lithic Editor and Annotator CLI.
+Help text for the Lithic Editor and Annotator command line.
 
-This module provides detailed help documentation covering installation,
-usage, API documentation, and GUI workflows as specified in PythonPackaging.md.
+All text follows Simplified Technical English: short sentences, active voice,
+one instruction for each sentence.
 """
 
-from lithic_editor import __version__
 import sys
+
+from lithic_editor import __version__
 
 
 def show_help():
-    """
-    Display comprehensive help information for the Lithic Editor and Annotator.
-    """
+    """Print the full help text."""
     help_text = f"""
 LITHIC EDITOR AND ANNOTATOR v{__version__}
 ========================================
 
-A specialized image processing tool for archaeological lithic drawings that automatically
-removes ripple lines while preserving structural elements, and provides annotation
-capabilities for technical analysis.
+Lithic Editor removes the ripple lines from a scanned lithic drawing. It keeps
+the scar contours, the outline and the cortex stipple. You can then add
+direction arrows to the result.
 
 INSTALLATION
------------
-Install from git repository:
-  pip install git+https://github.com/user/lithic-editor.git
+------------
+Install from the repository:
+  pip install git+https://github.com/JasonGellis/lithic-editor.git
 
-COMMAND LINE USAGE
------------------
-Launch GUI application:
+Python 3.10 or later is necessary.
+
+COMMANDS
+--------
+Start the graphical interface:
+  lithic-editor gui
   lithic-editor --gui
-  python -m lithic_editor
 
-Process image via CLI:
-  lithic-editor process <input_image> [options]
+Process one image from the command line:
+  lithic-editor process INPUT [options]
 
-📚 COMPREHENSIVE DOCUMENTATION:
-  lithic-editor docs              # Open full documentation online
-  lithic-editor docs --offline    # Serve documentation locally
-  
+Read the documentation:
+  lithic-editor docs              Open the documentation in the web browser
+  lithic-editor docs --offline    Serve the documentation on this computer
   Online: https://jasongellis.github.io/lithic-editor/
-  
-  The documentation includes:
-  • Installation Guide - Detailed setup instructions
-  • Quick Start Tutorial - Process your first image in minutes  
-  • User Guide - Complete feature documentation with examples
-  • Developer Guide - Contributing, testing, and extending
-  • API Reference - Python API documentation
 
-Show version:
+Show the version:
   lithic-editor --version
 
 Show this help:
-  lithic-editor --help
+  lithic-editor help
+  lithic-editor help api          Show the Python API help
 
-CLI PROCESSING OPTIONS
----------------------
-  --output DIR          Output directory (default: image_debug)
-  --debug               Save debug images and processing steps
-  --quiet               Suppress processing output
+PROCESS OPTIONS
+---------------
+  -o, --output DIR      Output directory (default: image_debug). The result is
+                        written there as <name>_cleaned.png.
+  --debug               Write the debug images for each processing step.
+  -q, --quiet           Do not print processing messages.
+  --auto-upscale        Upscale the image for processing when the lines are
+                        too thin or too near to each other. The factor is
+                        measured from the drawing.
+  --default-dpi DPI     The DPI to use when the image file has no DPI value.
+  --upscale-model MODEL The neural model for upscaling: espcn (default) or
+                        fsrcnn.
+  --config PATH         A configuration file. It holds every size threshold of
+                        the pipeline. Default: the file named by the environment
+                        variable LITHIC_EDITOR_CONFIG, or the file shipped with
+                        the package (lithic_editor/config/config.yaml).
+  --keep-upscaled       Keep the result at the upscaled size. The DPI value
+                        increases by the same factor. Without this option the
+                        result has the pixel size and DPI of the input.
+  --scale-image PATH    The scale bar image scanned with the drawing. With
+                        --keep-upscaled it is scaled by the same factor and
+                        written as <name>_scale.png.
+  --no-preserve-cortex  Process the cortex stipple as lines.
 
-UPSCALING OPTIONS (New!)
------------------------
-  --auto-upscale        Automatically upscale images below target DPI
-  --default-dpi DPI     Default DPI to assume for images without metadata
-  --upscale-model MODEL Model to use for upscaling (espcn, fsrcnn)
-  --upscale-threshold DPI DPI threshold for upscaling (default: 300)
-
-CORTEX PRESERVATION OPTIONS (New!)
-----------------------------------
-  --no-preserve-cortex  Disable cortex stippling preservation
-
-Examples:
-  lithic-editor process lithic.png --output results/ --debug
+EXAMPLES
+--------
+  lithic-editor process lithic.png --output results --debug
   lithic-editor process image.jpg --quiet
-  lithic-editor process low_res.png --auto-upscale --default-dpi 150
-  lithic-editor process drawing.png --upscale-model fsrcnn --upscale-threshold 300
-  lithic-editor process cortex_image.png --no-preserve-cortex
+  lithic-editor process scan_75dpi.png --auto-upscale
+  lithic-editor process scan.png --auto-upscale --keep-upscaled --scale-image bar.png
+  lithic-editor process drawing.png --auto-upscale --upscale-model fsrcnn
+  lithic-editor process drawing.png --no-preserve-cortex
 
-PROGRAMMATIC API USAGE
----------------------
-
-Basic Processing:
+PYTHON API
+----------
   from lithic_editor.processing import process_lithic_drawing
-  
-  result = process_lithic_drawing(
-      image_path="lithic.png",
-      output_folder="results/",
-      save_debug=True
-  )
 
-GUI Integration:
-  from lithic_editor.gui.main_window import LithicProcessorGUI
-  
-  # Embed in PyQt application
-  from PyQt5.QtWidgets import QApplication
-  app = QApplication([])
-  editor = LithicProcessorGUI()
-  editor.show()
+  result = process_lithic_drawing("lithic.png", output_folder="results", save_debug=True)
 
-Arrow Annotations:
-  from lithic_editor.annotations.arrows import Arrow, ArrowCanvasWidget
-  
-  # Create arrow programmatically
-  arrow = Arrow(position=(100, 200), angle=45, size=30)
-  
-  # Use canvas widget
-  canvas = ArrowCanvasWidget()
-  canvas.set_base_image(pixmap)
+Type `lithic-editor help api` for the full parameter list.
 
-DEVELOPMENT USAGE
-----------------
-For developers and contributors:
-
-Setup development environment:
+DEVELOPMENT
+-----------
   git clone https://github.com/JasonGellis/lithic-editor.git
   cd lithic-editor
-  pip install -e ".[test]"    # Install with test dependencies
-  pip install -e ".[dev]"     # Install with all dev tools
-  pip install -e ".[docs]"    # Install with documentation tools
+  pip install -e ".[dev]"     Package, tests and ruff
+  pip install -e ".[docs]"    Documentation tools
 
-Run tests:
-  pytest                      # Run test suite
-  pytest --cov=lithic_editor # Run with coverage
-  pytest -v tests/test_processing.py  # Run specific tests
+  pytest                      Run the tests
+  ruff check lithic_editor tests
+  mkdocs serve                Serve the documentation on this computer
 
-Build documentation:
-  mkdocs serve               # Serve docs locally
-  mkdocs build               # Build static docs
-
-Code quality:
-  black lithic_editor tests  # Format code
-  flake8 lithic_editor tests # Check style
-
-The package provides a complete, self-contained application with
-CLI interface and programmatic API.
-
-SUPPORT
+VERSION
 -------
-For issues and documentation, see the project repository.
-
-VERSION INFORMATION
-------------------
 Version: {__version__}
 Python: {sys.version}
 Platform: {sys.platform}
-
 """
     print(help_text)
 
 
 def show_version():
-    """Display version information."""
+    """Print the version."""
     print(f"Lithic Editor and Annotator v{__version__}")
 
 
 def show_api_help():
-    """Display API-specific help information."""
+    """Print the Python API help text."""
     api_help = f"""
-LITHIC EDITOR API REFERENCE v{__version__}
-=========================================
+LITHIC EDITOR API v{__version__}
+================================
 
-PROCESSING MODULE
-----------------
+PROCESSING
+----------
 from lithic_editor.processing import process_lithic_drawing
 
 process_lithic_drawing(
-    image_path,                 # Path to input image or numpy array
-    output_folder="image_debug", # Directory for output files  
-    dpi_info=None,              # DPI tuple (x_dpi, y_dpi)
-    format_info=None,           # Original image format
-    output_dpi=None,            # Desired output DPI
-    save_debug=False,           # Save intermediate processing steps
-    upscale_low_dpi=False,      # Enable neural network upscaling
-    default_dpi=None,           # DPI to assume if metadata missing
-    upscale_model='espcn',      # ESPCN or FSRCNN model
-    target_dpi=300,             # Target DPI for upscaling
-    scale_image_path=None,      # Scale image to process with same factor
-    return_scale_factor=False,  # Return upscaling details
-    debug_filename=None,        # Custom filename for debug images
-    preserve_cortex=True        # Preserve cortex stippling (default: True)
-) -> numpy.ndarray              # Returns processed image
-
-GUI MODULE
-----------
-from lithic_editor.gui.main_window import LithicProcessorGUI
-
-# Embeddable widget
-widget = LithicProcessorGUI()
-widget.show()
-
-ANNOTATIONS MODULE
------------------
-from lithic_editor.annotations.arrows import Arrow, ArrowCanvasWidget
-
-# Arrow class usage
-arrow = Arrow(
-    position=(x, y),            # Center position
-    angle=0,                    # Rotation in degrees
-    size=30,                    # Size in pixels
-    color=Qt.black             # Arrow color
+    image_path,                   # File path, or a grayscale numpy array
+    output_folder="image_debug",  # Directory for the debug images
+    dpi_info=None,                # DPI of the input: a number or (x, y)
+    format_info=None,             # Format of the input file
+    output_dpi=None,              # DPI value for the debug images
+    save_debug=False,             # Write the debug images
+    upscale_low_dpi=False,        # Upscale when lines are too thin or too near
+    default_dpi=None,             # DPI to use when the file has no DPI value
+    upscale_model='espcn',        # 'espcn' or 'fsrcnn'
+    scale_image_path=None,        # Scale bar image scanned with the drawing
+    return_scale_factor=False,    # Return a dict with the scale details
+    debug_filename=None,          # Base name for the debug images
+    preserve_cortex=True,         # Keep the cortex stipple
+    max_upscale_factor=4,         # Largest upscale factor: 2, 3 or 4
+    restore_original_size=True,   # Return the result at the input size
+    smooth_lines=None,            # Smooth before the threshold (default: configuration value)
+    config=None,                  # Config object, YAML path, or None for the default file
 )
 
-# Canvas widget usage
+Returns a numpy array: black lines on a white background, uint8.
+
+With return_scale_factor=True or scale_image_path, returns a dict:
+    processed_image        The result
+    scale_factor           Size of the result relative to the input (1 when restored)
+    working_scale_factor   The factor used for processing
+    original_dpi           DPI of the input
+    final_dpi              DPI of the result
+    processed_scale        The scale image, scaled with the result (with scale_image_path)
+
+CONFIGURATION
+-------------
+from lithic_editor.config import load_config, default_config_path
+
+config = load_config("my_config.yaml")      # a copy of the shipped file with your changes
+result = process_lithic_drawing("lithic.png", config=config)
+print(default_config_path())                # the shipped file, with comments for every key
+
+MEASUREMENT
+-----------
+from lithic_editor.processing.resolution import measure_line_geometry, choose_upscale_factor
+
+geometry = measure_line_geometry(gray_array)   # .line_width, .hatch_gap, .ink_fraction (pixels)
+factor = choose_upscale_factor(geometry)       # 1, 2, 3 or 4
+
+GUI
+---
+from PyQt5.QtWidgets import QApplication
+from lithic_editor.gui.main_window import LithicProcessorGUI
+
+app = QApplication([])
+window = LithicProcessorGUI()
+window.show()
+app.exec_()
+
+ARROWS
+------
+from lithic_editor.annotations.arrows import Arrow, ArrowCanvasWidget
+
+arrow = Arrow(position=(100, 200), angle=45, size=30)
 canvas = ArrowCanvasWidget()
 canvas.set_base_image(pixmap)
 
-EXAMPLES
---------
-
-Basic Processing:
-    from lithic_editor.processing import process_lithic_drawing
-    
-    result = process_lithic_drawing(
-        "input.png",
-        output_folder="results",
-        save_debug=True
-    )
-
-Custom GUI Integration:
-    from PyQt5.QtWidgets import QApplication, QMainWindow
-    from lithic_editor.gui.main_window import LithicProcessorGUI
-    
-    class MyApp(QMainWindow):
-        def __init__(self):
-            super().__init__()
-            self.lithic_editor = LithicProcessorGUI()
-            self.setCentralWidget(self.lithic_editor)
-    
-    app = QApplication([])
-    window = MyApp()
-    window.show()
-    app.exec_()
-
+EXAMPLE: KEEP THE UPSCALED SIZE WITH A SCALE IMAGE
+--------------------------------------------------
+result = process_lithic_drawing(
+    "scan_75dpi.png",
+    dpi_info=75,
+    upscale_low_dpi=True,
+    restore_original_size=False,
+    scale_image_path="bar.png",
+)
+image = result["processed_image"]        # 4x the input size, at 300 DPI
+scale = result["processed_scale"]        # the scale bar, also 4x
 """
     print(api_help)
 

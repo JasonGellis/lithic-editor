@@ -3,11 +3,8 @@ Tests for the GUI module.
 """
 
 import pytest
-from unittest.mock import MagicMock, patch
-from PyQt5.QtWidgets import QApplication
-from PyQt5.QtCore import Qt, QThread
-from PyQt5.QtTest import QTest
-from PyQt5.QtGui import QPixmap
+from unittest.mock import patch
+from PyQt5.QtCore import QThread
 
 
 class TestGUIBasic:

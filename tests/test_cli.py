@@ -2,9 +2,8 @@
 Tests for the command-line interface.
 """
 
+import numpy as np
 import pytest
-import sys
-from pathlib import Path
 from unittest.mock import patch, MagicMock
 from lithic_editor.cli.main import (
     create_parser, 
@@ -13,7 +12,6 @@ from lithic_editor.cli.main import (
     show_help_cli,
     open_docs
 )
-from lithic_editor import __version__
 
 
 class TestCLIParser:
@@ -170,32 +168,32 @@ class TestInputValidation:
 class TestProcessImageCLI:
     """Test process_image_cli function."""
     
-    def test_process_success(self, sample_image):
+    def test_process_success(self, sample_image, tmp_path):
         """Test successful image processing."""
         args = MagicMock()
         args.input_image = str(sample_image)
-        args.output = "test_output"
+        args.output = str(tmp_path / "out")
         args.debug = False
         args.quiet = False
         
         with patch('lithic_editor.cli.main.process_lithic_drawing') as mock_process:
-            mock_process.return_value = MagicMock()
+            mock_process.return_value = np.full((20, 20), 255, dtype=np.uint8)
             
             result = process_image_cli(args)
             
             assert result == 0
             mock_process.assert_called_once()
     
-    def test_process_quiet_mode(self, sample_image, capsys):
+    def test_process_quiet_mode(self, sample_image, capsys, tmp_path):
         """Test quiet mode suppresses output."""
         args = MagicMock()
         args.input_image = str(sample_image)
-        args.output = "test_output"
+        args.output = str(tmp_path / "out")
         args.debug = False
         args.quiet = True
         
         with patch('lithic_editor.cli.main.process_lithic_drawing') as mock_process:
-            mock_process.return_value = MagicMock()
+            mock_process.return_value = np.full((20, 20), 255, dtype=np.uint8)
             
             result = process_image_cli(args)
             
@@ -203,28 +201,28 @@ class TestProcessImageCLI:
             captured = capsys.readouterr()
             assert captured.out == ""
     
-    def test_process_file_not_found(self):
+    def test_process_file_not_found(self, tmp_path):
         """Test handling of missing file."""
         args = MagicMock()
         args.input_image = "nonexistent.png"
-        args.output = "test_output"
+        args.output = str(tmp_path / "out")
         args.debug = False
         args.quiet = False
         
         result = process_image_cli(args)
         assert result == 1
     
-    def test_process_with_cortex_parameter(self, sample_image):
+    def test_process_with_cortex_parameter(self, sample_image, tmp_path):
         """Test processing with cortex preservation parameter."""
         args = MagicMock()
         args.input_image = str(sample_image)
-        args.output = "test_output"
+        args.output = str(tmp_path / "out")
         args.debug = False
         args.quiet = False
         args.no_preserve_cortex = True
         
         with patch('lithic_editor.cli.main.process_lithic_drawing') as mock_process:
-            mock_process.return_value = MagicMock()
+            mock_process.return_value = np.full((20, 20), 255, dtype=np.uint8)
             
             result = process_image_cli(args)
             
@@ -283,3 +281,106 @@ class TestDocsCLI:
             
             assert result == 0
             mock_serve.assert_called_once()
+
+class TestKeepUpscaledOutput:
+    """The CLI keeps the working size on request and scales the scale image with it."""
+
+    @staticmethod
+    def _thin_drawing(size=60):
+        img = np.full((size, size), 255, dtype=np.uint8)
+        img[5, 5:55] = img[54, 5:55] = 0
+        img[5:55, 5] = img[5:55, 54] = 0
+        for row in range(12, 48, 3):
+            img[row, 10:40] = 0
+        return img
+
+    def _args(self, image_path, out_dir, **overrides):
+        from unittest.mock import MagicMock
+        args = MagicMock()
+        args.input_image = str(image_path)
+        args.output = str(out_dir)
+        args.debug = False
+        args.quiet = True
+        args.no_preserve_cortex = False
+        args.auto_upscale = True
+        args.default_dpi = None
+        args.upscale_model = 'espcn'
+        args.keep_upscaled = False
+        args.scale_image = None
+        args.config = None
+        for key, value in overrides.items():
+            setattr(args, key, value)
+        return args
+
+    def test_default_returns_input_size_and_dpi(self, tmp_path):
+        from PIL import Image
+        from lithic_editor.cli.main import process_image_cli
+        image_path = tmp_path / "thin.png"
+        Image.fromarray(self._thin_drawing()).save(image_path, dpi=(150, 150))
+
+        assert process_image_cli(self._args(image_path, tmp_path / "out")) == 0
+        with Image.open(tmp_path / "out" / "thin_cleaned.png") as out:
+            assert out.size == (60, 60)
+            assert tuple(round(d) for d in out.info["dpi"]) == (150, 150)
+        assert not (tmp_path / "out" / "thin_scale.png").exists()
+
+    def test_keep_upscaled_scales_scale_image_and_dpi(self, tmp_path):
+        from PIL import Image
+        from lithic_editor.cli.main import process_image_cli
+        image_path = tmp_path / "thin.png"
+        Image.fromarray(self._thin_drawing()).save(image_path, dpi=(150, 150))
+        scale = np.full((10, 40), 255, dtype=np.uint8)
+        scale[4:6, 2:38] = 0
+        scale_path = tmp_path / "bar.png"
+        Image.fromarray(scale).save(scale_path, dpi=(150, 150))
+
+        args = self._args(image_path, tmp_path / "out", keep_upscaled=True, scale_image=str(scale_path))
+        assert process_image_cli(args) == 0
+        with Image.open(tmp_path / "out" / "thin_cleaned.png") as out, \
+                Image.open(tmp_path / "out" / "thin_scale.png") as out_scale:
+            factor = out.size[0] // 60
+            assert factor > 1
+            assert out.size == (60 * factor, 60 * factor)
+            assert out_scale.size == (40 * factor, 10 * factor)
+            assert tuple(round(d) for d in out.info["dpi"]) == (150 * factor, 150 * factor)
+            assert tuple(round(d) for d in out_scale.info["dpi"]) == (150 * factor, 150 * factor)
+
+
+class TestParserOptions:
+    def test_process_options_parse(self):
+        parser = create_parser()
+        args = parser.parse_args(["process", "in.png", "--auto-upscale", "--keep-upscaled",
+                                  "--scale-image", "bar.png", "--config", "c.yaml",
+                                  "--upscale-model", "fsrcnn", "--default-dpi", "150"])
+        assert args.auto_upscale and args.keep_upscaled
+        assert args.scale_image == "bar.png" and args.config == "c.yaml"
+        assert args.upscale_model == "fsrcnn" and args.default_dpi == 150
+
+    def test_upscale_model_defaults_to_configuration(self):
+        args = create_parser().parse_args(["process", "in.png"])
+        assert args.upscale_model is None and args.config is None
+
+    def test_removed_option_is_rejected(self):
+        import pytest
+        with pytest.raises(SystemExit):
+            create_parser().parse_args(["process", "in.png", "--upscale-threshold", "300"])
+
+    def test_config_path_reaches_the_pipeline(self, sample_image, tmp_path):
+        from unittest.mock import MagicMock, patch
+        args = MagicMock()
+        args.input_image = str(sample_image)
+        args.output = str(tmp_path / "out")
+        args.debug = False
+        args.quiet = True
+        args.no_preserve_cortex = False
+        args.auto_upscale = False
+        args.default_dpi = None
+        args.upscale_model = None
+        args.keep_upscaled = False
+        args.scale_image = None
+        args.config = "my.yaml"
+        with patch('lithic_editor.cli.main.process_lithic_drawing') as mock_process:
+            mock_process.return_value = np.full((20, 20), 255, dtype=np.uint8)
+            assert process_image_cli(args) == 0
+            assert mock_process.call_args[1]["config"] == "my.yaml"
+            assert mock_process.call_args[1]["restore_original_size"] is True
