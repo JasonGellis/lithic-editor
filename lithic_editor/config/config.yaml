@@ -1,0 +1,76 @@
+# Lithic Editor configuration.
+#
+# This is the default file, shipped with the package. To change a value, copy
+# this file, edit the copy, and give its path with `--config PATH` on the
+# command line, with `config=PATH` in the Python API, or with the environment
+# variable LITHIC_EDITOR_CONFIG. A copy can hold only the keys you change; the
+# other keys keep their defaults. Unknown keys are an error.
+#
+# Lengths are in pixels at the working resolution, which is the input
+# resolution multiplied by the upscale factor.
+
+resolution:
+  # The pipeline upscales for processing when the measured line width or the
+  # measured hatch gap is below these floors. It never downscales.
+  min_line_width_px: 6.0
+  min_hatch_gap_px: 12.0
+  # The largest upscale factor: 2, 3 or 4. The bundled models provide 2x, 3x and 4x.
+  max_upscale_factor: 4
+  # The neural model: espcn or fsrcnn.
+  upscale_model: espcn
+  # A component shorter than this many line widths is a dot, not a stroke. Dots
+  # are left out of the hatch gap measurement.
+  dot_extent_in_line_widths: 4.0
+  # Ink coverage at which a pixel counts as ink when the result returns to the
+  # input size. A lower value keeps thin lines continuous.
+  restore_ink_coverage: 0.35
+
+smoothing:
+  # Blur before the threshold. This separates the tips of hatch lines from the
+  # contours they touch, so they gain a free end. Sigma is a fraction of the
+  # measured line width.
+  enabled: true
+  sigma_in_line_widths: 0.25
+
+threshold:
+  # Sauvola local threshold. The window is chosen by the working DPI.
+  sauvola_k: 0.2
+  window_high_dpi: 51     # working DPI of 600 or more
+  window_medium_dpi: 25   # working DPI of 300 to 599
+  window_low_dpi: 15      # working DPI below 300
+
+cortex:
+  # A connected component is cortex stipple when its area is between the two
+  # limits. The limits are given at the reference DPI and scale with the square
+  # of (working DPI / reference DPI). The floors apply at low DPI.
+  reference_dpi: 150.0
+  max_area_px: 60
+  min_area_px: 3
+  max_area_floor_px: 30
+  min_area_floor_px: 2
+
+skeleton:
+  # Skeleton branches shorter than this that end at a junction are removed.
+  spur_length_px: 5
+  # Two free skeleton ends closer than this many line widths are joined, so a
+  # contour with a small break stays closed. The distance is never more than
+  # this fraction of the hatch gap, so two hatch-line tips are never joined,
+  # and never less than the minimum. Larger values join ends that belong to
+  # different lines and make the result worse on real drawings.
+  bridge_in_line_widths: 1.5
+  bridge_max_hatch_gap_fraction: 0.5
+  bridge_min_px: 3.0
+
+ripples:
+  # A junction closer than this to a free end is a Y-tip and becomes a free end.
+  # The distance is chosen by the working DPI.
+  y_tip_distance_near_300_px: 5   # working DPI within 50 of 300
+  y_tip_distance_medium_px: 3     # working DPI of 150 or more
+  y_tip_distance_low_px: 2        # working DPI below 150
+
+lines:
+  # Structural lines are rebuilt from the original ink within this radius of
+  # the skeleton, as a fraction of the measured line width. The output keeps
+  # the pen weight of the input.
+  radius_in_line_widths: 0.5
+  radius_max_in_line_widths: 0.75
