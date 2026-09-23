@@ -1,5 +1,7 @@
 """Tests for the GUI's resolution options, dialogs, and its debug-image list."""
 
+import os
+
 import numpy as np
 from PIL import Image
 
@@ -133,7 +135,7 @@ class TestDebugPanelMatchesPipeline:
         window.output_folder = str(tmp_path)
         window.debug_images = []
         window.load_debug_images()
-        listed = sorted(p.split("/")[-1] for p in window.debug_images)
+        listed = sorted(os.path.basename(p) for p in window.debug_images)
         assert listed == written
 
 
