@@ -1,249 +1,169 @@
-# Contributing to Lithic Editor
+# Contributing
 
-Thank you for your interest in contributing to the Lithic Editor and Annotator! This guide will help you get started.
+This page tells you how to set up a development environment and how to submit a change.
 
-## Development Setup
+## Requirements
 
-### Prerequisites
-
-- Python 3.7 or higher
+- Python 3.10 to 3.13
 - Git
-- Basic familiarity with PyQt5 and image processing concepts
 
-### Setting Up Your Environment
+## Set up the environment
 
-1. **Fork and clone the repository**:
+1. Clone the repository.
+
+    ```bash
+    git clone https://github.com/JasonGellis/lithic-editor.git
+    cd lithic-editor
+    ```
+
+2. Create and activate a virtual environment.
+
+    ```bash
+    python -m venv .venv
+    source .venv/bin/activate      # Linux and macOS
+    .venv\Scripts\activate         # Windows
+    ```
+
+3. Install the package in editable mode with the development tools.
+
+    ```bash
+    pip install -e ".[dev]"
+    ```
+
+    The `dev` extra installs `pytest`, `pytest-qt`, `pytest-cov` and `ruff`.
+
+4. To build the documentation, also install the `docs` extra.
+
+    ```bash
+    pip install -e ".[docs]"
+    ```
+
+The package depends on `opencv-contrib-python`. The neural upscaling models need the `contrib` build.
+
+## Run the checks
+
+Run these commands before you submit a change.
+
 ```bash
-git clone https://github.com/YourUsername/lithic-editor.git
-cd lithic-editor
-```
-
-2. **Create a virtual environment** (recommended):
-```bash
-python -m venv lithic-env
-source lithic-env/bin/activate  # Linux/macOS
-# or
-lithic-env\Scripts\activate     # Windows
-```
-
-3. **Install in development mode**:
-```bash
-# Install with test dependencies
-pip install -e ".[test]"
-
-# Or install with all development tools
-pip install -e ".[dev]"
-
-# Or install everything (dev + docs + test)
-pip install -e ".[dev,docs,test]"
-```
-
-## Development Workflow
-
-### Running Tests
-
-Always run tests before submitting changes:
-
-```bash
-# Run all tests
+ruff check lithic_editor tests
 pytest
-
-# Run with coverage
-pytest --cov=lithic_editor --cov-report=html
-
-# Run specific test file
-pytest tests/test_processing.py
-
-# Run specific test
-pytest tests/test_processing.py::TestProcessingModule::test_process_image_from_file
-
-# View coverage report
-open htmlcov/index.html  # macOS
-xdg-open htmlcov/index.html  # Linux
-start htmlcov/index.html  # Windows
 ```
 
-### Code Quality
+On a Linux machine without a display, set `QT_QPA_PLATFORM=offscreen` before you run `pytest`.
 
-We use several tools to maintain code quality:
+### Lint
+
+The project uses [ruff](https://docs.astral.sh/ruff/). The configuration is in `pyproject.toml` under `[tool.ruff]`:
+
+- Line length: 100.
+- Target version: Python 3.10.
+- Rules: Pyflakes (`F`) and the pycodestyle error classes `E4`, `E7` and `E9`.
+- Ignored rules: `E712` and `F841`.
+
+To apply the safe automatic fixes:
 
 ```bash
-# Format code
-black lithic_editor tests
-
-# Check style
-flake8 lithic_editor tests
-
-# Type checking (optional)
-mypy lithic_editor
+ruff check --fix lithic_editor tests
 ```
 
-### Running the Application
+### Tests
 
-Test your changes:
+See the [Testing Guide](testing.md) for the test layout, the fixtures and the CI matrix.
+
+### Documentation
 
 ```bash
-# GUI mode
-lithic-editor --gui
+mkdocs serve             # local preview
+mkdocs build --strict    # the build that CI runs
+```
 
-# CLI mode
-lithic-editor process example.png --debug
+A GitHub Actions workflow builds the documentation on each push to `main` and deploys it to GitHub Pages.
 
-# Help system
+## Code standards
+
+- Follow [PEP 8](https://peps.python.org/pep-0008/).
+- Give each module, class and public function a docstring.
+- Give each function one responsibility. If a function does two things, split it.
+- Write the documentation and the `--help` text in Simplified Technical English.
+
+## Run the application
+
+```bash
+lithic-editor gui
+lithic-editor process example_images/369.png --debug
 lithic-editor docs --offline
 ```
 
-## Project Structure
+## Project layout
 
 ```
 lithic_editor/
-├── annotations/         # Arrow annotation system
-│   ├── arrows.py       # Arrow classes and canvas
-│   └── integration.py  # GUI integration helpers
-├── cli/                # Command-line interface
-│   ├── main.py        # Main CLI entry point
-│   ├── help.py        # Help system
-│   └── docs_server.py # Documentation server
-├── gui/                # Graphical user interface
-│   └── main_window.py # Main application window
-└── processing/         # Image processing algorithms
-    └── ripple_removal.py # Core processing engine
+├── annotations/          # Arrow annotation system
+│   ├── arrows.py         # Arrow class and canvas widget
+│   └── integration.py    # GUI integration helpers
+├── cli/                  # Command-line interface
+│   ├── main.py           # Entry point and argument parser
+│   ├── help.py           # Help text
+│   └── docs_server.py    # Offline documentation server
+├── gui/
+│   └── main_window.py    # Main window
+├── models/               # Bundled ESPCN and FSRCNN models (*.pb)
+└── processing/
+    ├── ripple_removal.py # Processing pipeline
+    ├── resolution.py     # Line geometry and upscale factor
+    └── upscaling.py      # DPI detection and neural upscaling
 
-tests/                  # Test suite
-├── conftest.py        # Test configuration
-├── test_processing.py # Processing tests
-├── test_annotations.py # Annotation tests
-├── test_cli.py        # CLI tests
-└── test_gui.py        # GUI tests
-
-docs/                   # Documentation source
-├── index.md           # Homepage
-├── user-guide/        # User documentation
-├── developer/         # Developer documentation
-└── getting-started/   # Installation guides
+tests/                    # Test suite (see the Testing Guide)
+tools/dpi_eval/           # Evaluation harness
+docs/                     # MkDocs source
 ```
 
-## Writing Tests
+## Extend the evaluation harness
 
-### Test Categories
+The harness in `tools/dpi_eval/` compares processing strategies across input DPI. The [Testing Guide](testing.md#evaluation-harness) describes how to run it.
 
-1. **Unit Tests**: Test individual functions/classes
-2. **Integration Tests**: Test component interactions
-3. **GUI Tests**: Test user interface components
-4. **CLI Tests**: Test command-line interface
+### Add a strategy
 
-### Test Guidelines
-
-- Write tests for new features
-- Maintain test coverage above 80%
-- Use descriptive test names
-- Use fixtures for common setup
-- Mock external dependencies
-
-### Example Test
+A strategy is a function in `tools/dpi_eval/strategies.py` with this signature:
 
 ```python
-def test_process_image_with_debug(sample_image, temp_dir):
-    """Test processing with debug output enabled."""
-    result = process_lithic_drawing(
-        image_path=str(sample_image),
-        output_folder=str(temp_dir),
-        save_debug=True
-    )
-
-    assert result is not None
-    debug_files = list(temp_dir.glob("*.png"))
-    assert len(debug_files) > 0
+def my_strategy(variant_path: Path, dpi: int, workdir: Path) -> np.ndarray:
+    """One sentence that says what this strategy changes."""
 ```
 
-## Documentation
+1. Read the input with `load_grayscale(variant_path)`. The file is a grayscale PNG of one DPI variant.
+2. Process the image. To call this branch's pipeline, use `_run_pipeline(image, dpi, workdir, **kwargs)`. It writes the console output to `workdir/pipeline.log`.
+3. Return the result as a black-on-white `uint8` array. The result can have a different size from the input. The metrics module puts all outputs on a common grid.
+4. If the strategy cannot run in this checkout, raise `StrategyUnavailable` with the reason. The harness then skips the strategy and continues.
+5. Add the function to the `STRATEGIES` dictionary. The key is the name that `--strategies` accepts.
+6. Add a test in `tests/tools/`. `test_dpi_eval_smoke.py` shows the pattern.
 
-### Building Documentation
+### Add a source
 
-```bash
-# Install documentation dependencies
-pip install -e ".[docs]"
+A source is a real scan at 600 DPI. The harness makes the 300, 150 and 75 DPI variants from it by area interpolation.
 
-# Serve documentation locally
-mkdocs serve
+1. Save the scan as `example_images/<name>.png` with a 600 DPI tag.
+2. Add `<name>` to `PRIMARY_SOURCES` in `tools/dpi_eval/sources.py`. Without this step, the source runs only when you pass `--sources <name>`.
+3. Optional: put a hand-cleaned drawing at `example_images/ground_truth/<name>.png`. The harness then also reports the `gt_*` scores for this source.
 
-# Build static documentation
-mkdocs build
+To add a real scan to the `--real-scans` set, add a `(<name>, <dpi>)` pair to `REAL_SCANS`. All real scans must show the same drawing.
 
-# Deploy to GitHub Pages (maintainers only)
-mkdocs gh-deploy
-```
+## Submit a change
 
-### Writing Documentation
+1. Create a branch from `develop`.
+2. Make the change. Add or update tests for it.
+3. Update the documentation if the behaviour changes.
+4. Run `ruff check lithic_editor tests` and `pytest`.
+5. Push the branch and open a pull request.
 
-- Use clear, concise language
-- Include code examples
-- Add screenshots for UI features
-- Follow the existing structure
+The pull request must:
 
-## Submission Guidelines
+- pass the tests on all CI platforms and Python versions,
+- pass `ruff check`,
+- include tests for new behaviour,
+- describe the change.
 
-### Pull Request Process
+## Get help
 
-1. **Create a feature branch**:
-```bash
-git checkout -b feature/your-feature-name
-```
-
-2. **Make your changes** following the coding standards
-
-3. **Write tests** for new functionality
-
-4. **Update documentation** if needed
-
-5. **Run the full test suite**:
-```bash
-pytest
-```
-
-6. **Check code quality**:
-```bash
-black lithic_editor tests
-flake8 lithic_editor tests
-```
-
-7. **Commit your changes**:
-```bash
-git add .
-git commit -m "Add feature: your feature description"
-```
-
-8. **Push and create pull request**:
-```bash
-git push origin feature/your-feature-name
-```
-
-### Pull Request Requirements
-
-- [ ] All tests pass
-- [ ] Code coverage maintained or improved
-- [ ] Documentation updated (if applicable)
-- [ ] Code follows style guidelines
-- [ ] Descriptive commit messages
-- [ ] Pull request description explains changes
-
-## Getting Help
-
-- **Issues**: [GitHub Issues](https://github.com/JasonGellis/lithic-editor/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/JasonGellis/lithic-editor/discussions)
-- **Email**: jg760@cam.ac.uk
-
-## Code of Conduct
-
-Please note that this project is released with a Contributor Code of Conduct. By participating in this project you agree to abide by its terms.
-
-## Areas for Contribution
-
-- **Algorithm improvements**: Enhance ripple detection accuracy
-- **GUI enhancements**: Improve user experience
-- **Documentation**: Add examples and tutorials
-- **Testing**: Increase test coverage
-- **Performance**: Optimize processing speed
-- **Platform support**: Improve cross-platform compatibility
-
-Thank you for contributing! 🏛️
+- Bugs and questions: [GitHub Issues](https://github.com/JasonGellis/lithic-editor/issues)
+- Email: jg760@cam.ac.uk

@@ -2,45 +2,38 @@
 
 ## Introduction
 
-Lithic Editor and Annotator is a specialized software tool developed for the
-systematic processing and enhancement of archaeological lithic drawings. This
-comprehensive guide provides detailed instructions for utilizing the software's
-core functionalities: automated ripple line removal, cortex preservation, neural
-network-based image enhancement, and vector-based directional arrow annotation.
+Lithic Editor and Annotator removes ripple lines from scanned lithic drawings. It keeps the scar contours, the outline and the cortex stipple. You can then add direction arrows to the result. The output is a black-on-white drawing.
 
-## Before You Begin
+This guide tells you how to use the graphical interface (GUI) and the command line.
 
-Ensure you have:
+## Before you start
 
-- Lithic Editor and Annotator installed ([Installation Guide](../getting-started/installation.md))
-- High-resolution (>= 300 DPI) lithic drawing images (PNG, JPEG, TIFF recommended)
-- Basic familiarity with image editing concepts
+Make sure that you have:
 
-## User Guide Contents
+- Lithic Editor and Annotator installed. See the [Installation Guide](../getting-started/installation.md).
+- A scanned lithic drawing. Black lines on a white background at 300 to 600 DPI give the best result. See [Lithic Illustrations](images.md).
 
-This guide walks you through the complete workflow for processing, annotating, and saving lithic drawings:
+## Contents
 
-1. [Lithic Illustrations](images.md) - Image types, quality requirements, and preparation guidelines
-2. [Lithic Editor and Annotator GUI](interface.md) - Launch the application and understand the interface
-3. [Processing Images](processing.md) - Clean images, remove ripple lines, and preserve important features
-      - Load images
-      - Ripple remover
-      - Brush tool
-      - Image debugging
-      - Cortex preservation
-      - Neural network upscaling for low-resolution (< 300 DPI) images
-4. [Annotations](arrows.md) - Add directional arrows to images
-      - Add and remove arrows
-      - Resize and rotate arrows
-5. [Saving Options](output.md) - Save your work in multiple formats
-6. [CLI tool](CLI.md) - run Lithic Editor and Annotator in the command line
-7. [Troubleshooting](troubleshooting.md) - Guide to problems and errors
+1. [Lithic Illustrations](images.md): image requirements and preparation.
+2. [Interface](interface.md): start the GUI and identify the controls.
+3. [Processing Images](processing.md): load, edit and process an image. The pipeline stages and the debug images.
+4. [Arrow Annotations](arrows.md): add, move, rotate, resize and remove arrows.
+5. [Output](output.md): output size, DPI tag, scale image and file formats.
+6. [Command Line](CLI.md): process images from the terminal.
+7. [Troubleshooting](troubleshooting.md): problems and solutions.
 
-## Getting Support
+## Workflow
 
-If you need help:
+1. Load an image.
+2. Edit the input with the brush, if necessary.
+3. Process the image.
+4. Examine the result. Use the debug images to find problems.
+5. Add arrows.
+6. Save the result.
 
-1. **Check Documentation**: Review relevant guide sections
-2. **GitHub Issues**: Search existing issues or create new one
-3. **Community Forum**: Ask in GitHub Discussions
-4. **Direct Contact**: Email jg760@cam.ac.uk for research inquiries
+## Support
+
+1. Read the related page of this guide.
+2. Search the [GitHub issues](https://github.com/JasonGellis/lithic-editor/issues). Open a new issue if you do not find your problem.
+3. Send an email to jg760@cam.ac.uk for research inquiries.

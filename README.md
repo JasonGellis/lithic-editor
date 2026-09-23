@@ -3,192 +3,123 @@
 [![Tests](https://github.com/JasonGellis/lithic-editor/workflows/Tests/badge.svg)](https://github.com/JasonGellis/lithic-editor/actions)
 [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://jasongellis.github.io/lithic-editor/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
-A specialized image processing tool for archaeological lithic drawings that automatically removes ripple lines while preserving structural elements, and provides annotation capabilities for technical analysis.
+Lithic Editor removes the ripple lines from a scanned lithic drawing. It keeps the scar contours, the outline and the cortex stipple. You can then add direction arrows to the result.
 
-📚 **[Full Documentation](https://jasongellis.github.io/lithic-editor/)** | 🐛 **[Report Issues](https://github.com/JasonGellis/lithic-editor/issues)** | 💬 **[Discussions](https://github.com/JasonGellis/lithic-editor/discussions)**
+**[Documentation](https://jasongellis.github.io/lithic-editor/)** | **[Report an issue](https://github.com/JasonGellis/lithic-editor/issues)**
 
-## Table of Contents
-
-- [Overview](#overview)
-  - [Features](#features)
-    - [Image Processing](#image-processing)
-    - [Annotation Tools](#annotation-tools)
-    - [Technical Features](#technical-features)
-  - [Requirements](#requirements)
-  - [Installation](#installation)
-    - [Option 1: Install as Package (Recommended)](#option-1-install-as-package-recommended)
-    - [Option 2: Install from Git](#option-2-install-from-git)
-  - [Usage Guide](#usage-guide)
-    - [Processing Lithic Drawings](#processing-lithic-drawings)
-    - [Annotating with Arrows](#annotating-with-arrows)
-    - [Saving Results](#saving-results)
-  - [Architecture](#architecture)
-  - [License](#license)
-  - [Acknowledgements](#acknowledgements)
-
-## Overview
-
-Lithic Editor and Annotator is a purpose-built application for archaeological lithic analysis. It addresses two common challenges in lithic illustration processing:
-
-1. **Ripple Line Removal**: Automatically distinguishes and removes hatching/ripple lines from structural elements in technical lithic drawings using advanced image processing algorithms.
-
-2. **Technical Annotation**: Provides intuitive tools for adding directional arrows to indicate striking direction for scar flakes.
-
-Developed specifically for archaeological research, the application maintains the scientific integrity of drawings while enhancing their clarity and analytical value.
+| Input | Ripples removed | Arrows added |
+|:---:|:---:|:---:|
+| ![Input drawing with ripple lines](docs/assets/images/lithic_300dpi.png) | ![Result with the ripple lines removed](docs/assets/images/lithic_300dpi_processed.png) | ![Result with direction arrows](docs/assets/images/lithic_300dpi_annotation.png) |
 
 ## Features
 
-### Image Processing
-
-- **Neural Network Upscaling**: ESPCN and FSRCNN models automatically enhance low-DPI images to 300 DPI ([Learn more](https://learnopencv.com/super-resolution-in-opencv/#sec3))
-- **Cortex Preservation**: Intelligently preserves natural cortex stippling while processing structural elements
-- **Intelligent Ripple Removal**: Uses graph-based analysis to identify and remove hatching lines while preserving structural features
-- **Processing Visualization**: View step-by-step processing stages to understand how the algorithm works
-- **Manual Editing**: Tools for touching up images before processing
-
-### Annotation Tools
-
-- **Directional Arrows**: Add and orient arrows to indicate force direction and flake scars
-- **Arrow Customization**: Resize, rotate, and change color of arrows for precise annotation
-- **Intuitive Controls**:
-  - Drag to move arrows
-  - Shift+drag to rotate arrows
-  - Alt/Option+drag to resize arrows
-- **Cross-platform**: Keyboard shortcuts adapted for both Windows/Linux and Mac
-
-### Technical Features
-
-- **DPI Preservation**: Maintains original image resolution and DPI information throughout processing
-- **Multiple Output Formats**: Save in PNG, JPEG, or TIFF formats with preserved metadata
-- **Publication-Ready Output**: Options for controlling output resolution for various uses
+- **Ripple removal.** The software builds a skeleton graph of the drawing. A line segment that ends in a free point is a ripple. All other segments are structure.
+- **Cortex preservation.** The software separates the cortex stipple from the lines by area and adds it back to the result.
+- **Upscaling for thin lines.** The software measures the line width and the hatch gap. When they are too small, it upscales the drawing 2, 3 or 4 times for processing. The neural models ESPCN and FSRCNN are included in the package. The software never downscales.
+- **Line weight kept.** The output lines have the pen width of the input.
+- **Output at the input size.** By default the result has the pixel size and the DPI of the input. A scale bar scanned with the drawing keeps its meaning. You can keep the upscaled size instead, with the scale bar scaled by the same factor.
+- **Arrow annotation.** Add, move, rotate, resize and colour direction arrows in the GUI.
+- **Brush tools.** Edit the input image before processing.
+- **Debug images.** Examine the image after each processing step.
+- **Three interfaces.** GUI, command line and Python API.
 
 ## Requirements
 
-- Python 3.7+
-- OpenCV with contrib modules (opencv-contrib-python) for neural network upscaling
+- Python 3.10 to 3.13
+- Windows, macOS or Linux
 
-All other dependencies are automatically installed when you install the package.
+pip installs all dependencies with the package. This includes `opencv-contrib-python`, which the neural models need.
 
 ## Installation
 
-### Option 1: Install as Package (Recommended)
+Install from GitHub:
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/lithic-editor.git
-   cd lithic-editor
-   ```
-
-2. Install the package:
-   ```bash
-   pip install -e .
-   ```
-
-3. Launch the application:
-   ```bash
-   lithic-editor --gui
-   ```
-
-## Documentation
-
-After installation, you can access comprehensive documentation in several ways:
-
-### 📚 View Documentation Online
-The full documentation is always available at: **https://jasongellis.github.io/lithic-editor/**
-
-### 💻 View Documentation Locally
 ```bash
-# Open documentation in your browser
-lithic-editor docs
-
-# Or serve documentation locally (requires mkdocs)
-lithic-editor docs --offline
+pip install git+https://github.com/JasonGellis/lithic-editor.git
 ```
 
-### 📖 Quick Help
-```bash
-lithic-editor --help     # Show all commands and options
-lithic-editor help       # Show detailed help information  
-lithic-editor help api   # Show API usage examples
-```
-
-The documentation includes:
-- **Installation Guide** - Detailed setup instructions
-- **Quick Start Tutorial** - Get processing your first image in minutes
-- **User Guide** - Complete feature documentation with examples
-- **Developer Guide** - Contributing, testing, and extending the application
-- **API Reference** - Python API documentation for programmatic usage
-
-## For Developers
-
-To contribute to the project or run tests:
+Or clone the repository and install in editable mode:
 
 ```bash
-# Clone and install in development mode with test dependencies
 git clone https://github.com/JasonGellis/lithic-editor.git
 cd lithic-editor
-pip install -e ".[test]"
-
-# Run the test suite
-pytest
-
-# Run tests with coverage
-pytest --cov=lithic_editor --cov-report=html
-
-# View coverage report
-open htmlcov/index.html
+pip install -e .
 ```
 
-### Option 2: Install from Git
+## Usage
 
-Install directly from GitHub repository:
+### GUI
+
 ```bash
-pip install git+https://github.com/yourusername/lithic-editor.git
+lithic-editor gui
 ```
 
-## Usage Guide
+1. Click **Load Image** and select a drawing.
+2. Click **Process Image**. If the lines are thin, a dialog offers to upscale for processing.
+3. Add arrows to the result if necessary.
+4. Click **Save Result**.
 
-### Processing Lithic Drawings
+### Command line
 
-1. **Load Image**: Click "Load Image" to open a lithic drawing file (PNG, JPEG, TIFF, BMP supported)
-2. **Edit Input (Optional)**: Use the brush tools to clean up the input image if needed
-3. **Process Image**: Click "Process Image" to automatically remove ripple lines
-4. **View Results**: Examine the resulting image and the processing steps in the debug panel
+```bash
+lithic-editor process drawing.png -o output --auto-upscale
+```
 
-### Annotating with Arrows
+The result is written to `output/drawing_cleaned.png` with the DPI of the input. Add `--debug` to write the debug images. Add `--keep-upscaled --scale-image bar.png` to keep the upscaled size and to scale the scale bar with the drawing.
 
-1. **Add Arrow**: Click "Add Arrow" to place an arrow in the processed image
-2. **Position Arrow**: Drag the arrow to position it over a flake scar or other feature
-3. **Orient Arrow**: Hold Shift and drag to rotate the arrow to indicate direction
-4. **Resize Arrow**: Hold Alt (Windows/Linux) or Option (Mac) and drag to resize the arrow
-5. **Change Color**: Click "Arrow Color" to select a different arrow color
+```bash
+lithic-editor process --help   # All options
+lithic-editor help             # Full help
+lithic-editor help api         # Python API help
+lithic-editor docs             # Open the documentation
+```
 
-### Saving Results
+### Python
 
-1. **Save Result**: Click "Save Result" to save the annotated image
-2. **Format Options**: Choose from PNG, JPEG, or TIFF formats
-3. **DPI Control**: The application preserves original DPI information, or you can specify DPI settings for images without metadata
+```python
+from lithic_editor.processing import process_lithic_drawing
 
-## Architecture
+result = process_lithic_drawing("drawing.png", dpi_info=300, upscale_low_dpi=True)
+```
 
-The application consists of several key components:
+`result` is a NumPy array with black lines on a white background. See the [Python API reference](https://jasongellis.github.io/lithic-editor/api-reference/python-api/) for all parameters.
 
-- **GUI Module** (`lithic_editor.gui`): Main application window and workflow control
-- **Processing Module** (`lithic_editor.processing`): Core image processing algorithms
-- **Annotations Module** (`lithic_editor.annotations`): Arrow drawing and manipulation system
-- **CLI Interface** (`lithic_editor.cli`): Command-line interface and help system
+## How it works
 
-The ripple removal algorithm uses a multi-step approach:
-1. DPI-aware upscaling using neural networks (ESPCN/FSRCNN) for low-resolution images
-2. DPI-adaptive cortex separation with quadratically-scaled thresholds to preserve stippling
-3. Targeted morphological operations (dilation, closing, opening) on structural elements only
-4. Skeletonization of processed structural regions to single-pixel width
-5. Graph-based analysis with junction and endpoint detection to identify line segments
-6. Classification of segments as structural or ripple lines based on connectivity patterns
-7. Selective removal of ripple lines while preserving structural elements and cortex
-8. Quality enhancement and cortex restoration to produce clean, publication-ready output
+1. Measure the line width and the hatch gap in pixels.
+2. Upscale for processing when the line width is below 6 px or the hatch gap is below 12 px.
+3. Smooth the image in proportion to the line width. This separates the tips of the hatch lines from the contours.
+4. Threshold, separate the cortex stipple, and skeletonize the lines.
+5. Bridge small breaks in the skeleton. Find the endpoints and the junctions.
+6. Remove each segment that ends in a free point. Keep the rest.
+7. Rebuild the lines at the pen width of the input. Add the cortex back.
+8. Return the result at the input size and DPI.
+
+See [Processing](https://jasongellis.github.io/lithic-editor/user-guide/processing/) for the full list of stages and debug images.
+
+## Configuration
+
+Every size threshold of the pipeline is in `lithic_editor/config/config.yaml`. Copy the file, change a value, and give the copy with `--config PATH`, with `config=` in Python, or with the environment variable `LITHIC_EDITOR_CONFIG`. See [Configuration](https://jasongellis.github.io/lithic-editor/user-guide/configuration/).
+
+## Scale bars and measurement
+
+Scan the scale bar as a separate image at the same DPI as the drawing. By default the result has the pixel size and the DPI of the input. The scale bar and the result keep one pixel scale. With **Keep the upscaled size**, load the scale image and the software saves it scaled by the same factor. The software never writes a guessed DPI tag.
+
+## For developers
+
+```bash
+git clone https://github.com/JasonGellis/lithic-editor.git
+cd lithic-editor
+pip install -e ".[dev]"
+
+pytest                            # Run the tests
+ruff check lithic_editor tests    # Run the linter
+python -m tools.dpi_eval.run --quick   # Evaluate the pipeline across resolutions
+```
+
+The evaluation harness runs the pipeline on the example drawings at 600, 300, 150 and 75 DPI. It writes a report with montages to `results/dpi_eval/`. See the [Developer Guide](https://jasongellis.github.io/lithic-editor/developer/contributing/) and the [Testing Guide](https://jasongellis.github.io/lithic-editor/developer/testing/).
 
 ## License
 
@@ -196,4 +127,4 @@ The ripple removal algorithm uses a multi-step approach:
 
 ## Acknowledgements
 
-- Special thanks to The British Academemy for funding
+The British Academy funded the development of Lithic Editor.

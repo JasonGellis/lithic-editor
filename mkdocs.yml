@@ -111,16 +111,23 @@ nav:
     - Features: features.md
 
   - Installation:
+    - Requirements: getting-started/requirements.md
     - Installation: getting-started/installation.md
 
   - User Guide:
     - Overview: user-guide/overview.md
+    - Images: user-guide/images.md
     - Interface: user-guide/interface.md
     - Processing: user-guide/processing.md
+    - Arrows: user-guide/arrows.md
     - Output: user-guide/output.md
+    - Configuration: user-guide/configuration.md
+    - Command Line: user-guide/CLI.md
+    - Troubleshooting: user-guide/troubleshooting.md
 
   - API Reference:
     - Overview: api-reference/overview.md
+    - Introduction: api-reference/introduction.md
     - Python API: api-reference/python-api.md
     - CLI Reference: api-reference/cli-reference.md
 

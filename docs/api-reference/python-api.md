@@ -1,356 +1,288 @@
 # Python API
 
-Complete reference for the Lithic Editor Python API.
+This page describes the public Python functions of the Lithic Editor.
 
-## Core Functions
+## process_lithic_drawing
 
-### process_lithic_drawing
-
-The main processing function for removing ripple lines from lithic drawings.
+`process_lithic_drawing` removes the ripple lines from one lithic drawing. It keeps the scar contours, the outlines and the cortex stipple.
 
 ```python
+from lithic_editor.processing import process_lithic_drawing
+
 process_lithic_drawing(
-    image_path: str,
-    output_folder: str = "image_debug",
-    dpi_info: Optional[Tuple[int, int]] = None,
-    format_info: Optional[str] = None,
-    output_dpi: Optional[int] = None,
-    save_debug: bool = False,
-    upscale_low_dpi: bool = False,
-    default_dpi: Optional[int] = None,
-    upscale_model: str = 'espcn',
-    target_dpi: int = 300,
-    scale_image_path: Optional[str] = None,
-    return_scale_factor: bool = False,
-    debug_filename: Optional[str] = None,
-    preserve_cortex: bool = True
-) -> np.ndarray
+    image_path,
+    output_folder="image_debug",
+    dpi_info=None,
+    format_info=None,
+    output_dpi=None,
+    save_debug=False,
+    upscale_low_dpi=False,
+    default_dpi=None,
+    upscale_model="espcn",
+    scale_image_path=None,
+    return_scale_factor=False,
+    debug_filename=None,
+    preserve_cortex=True,
+    max_upscale_factor=4,
+    restore_original_size=True,
+    smooth_lines=None,
+    config=None,
+)
 ```
 
-#### Parameters
+The function does not write the result to a file. It returns the result as a numpy array. The function prints progress messages to standard output.
+
+### Parameters
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `image_path` | `str` | *required* | Path to the input image file |
-| `output_folder` | `str` | `"image_debug"` | Directory for output files |
-| `dpi_info` | `tuple` | `None` | Override DPI as (x_dpi, y_dpi) |
-| `format_info` | `str` | `None` | Override output format (png, jpg, tiff) |
-| `output_dpi` | `int` | `None` | Set specific output DPI |
-| `save_debug` | `bool` | `False` | Save intermediate processing steps to disk |
-| `upscale_low_dpi` | `bool` | `False` | Enable neural network upscaling for low-DPI images |
-| `default_dpi` | `int` | `None` | DPI to assume if metadata missing |
-| `upscale_model` | `str` | `'espcn'` | Model to use: 'espcn' or 'fsrcnn' |
-| `target_dpi` | `int` | `300` | Target DPI for upscaling |
-| `scale_image_path` | `str` | `None` | Scale image to process with same factor |
-| `return_scale_factor` | `bool` | `False` | Return upscaling details in result |
-| `debug_filename` | `str` | `None` | Custom filename for debug images |
-| `preserve_cortex` | `bool` | `True` | Preserve cortex stippling (default: enabled) |
+| `image_path` | `str` or `numpy.ndarray` | required | The path of the input image, or a grayscale array with two dimensions. |
+| `output_folder` | `str` | `"image_debug"` | The directory for the debug images. The function makes the directory only when `save_debug` is `True`. |
+| `dpi_info` | `tuple` or `int` | `None` | The DPI of the input, as `(x_dpi, y_dpi)` or one integer. If `None`, the function reads the DPI tag of the file. An array has no DPI tag. |
+| `format_info` | `str` | `None` | The file format for the debug images. If `None`, the function uses the format of the input file. |
+| `output_dpi` | `int` | `None` | The DPI tag written to the debug images. If `None`, the function writes the input DPI. |
+| `save_debug` | `bool` | `False` | Write the debug images to `output_folder`. |
+| `upscale_low_dpi` | `bool` | `False` | Permit upscaling for processing when the lines are too thin or too close. See [Upscaling](#upscaling). |
+| `default_dpi` | `int` | `None` | The DPI to use when the input has no DPI tag. The pipeline uses the DPI to scale its size thresholds. |
+| `upscale_model` | `str` | configuration (`"espcn"`) | The neural model for upscaling: `"espcn"` or `"fsrcnn"`. Both models come with the package. |
+| `scale_image_path` | `str` | `None` | The path of the scale bar image scanned with the drawing. See [Scale image](#scale-image). |
+| `return_scale_factor` | `bool` | `False` | Return a dictionary with the image and the scale data. See [Return value](#return-value). |
+| `debug_filename` | `str` | `None` | The base name of the debug images. If `None`, the function uses the stem of the input file, or `image` for an array. |
+| `preserve_cortex` | `bool` | `True` | Separate the cortex stipple from the lines and keep it. If `False`, the pipeline processes the stipple as lines. |
+| `max_upscale_factor` | `int` | configuration (`4`) | The largest permitted upscale factor. |
+| `restore_original_size` | `bool` | `True` | Return the result at the pixel size of the input. If `False`, keep the upscaled working size. |
+| `smooth_lines` | `bool` | configuration (`True`) | Apply a Gaussian blur before the threshold. The sigma is a fraction of the measured line width. |
+| `config` | `Config`, `str` or path | `None` | The configuration. `None` reads the file named by `LITHIC_EDITOR_CONFIG`, or the shipped file. See [Configuration](../user-guide/configuration.md). |
 
-#### Returns
+### Configuration
 
-**Basic mode:** Returns `numpy.ndarray` containing the processed image.
-
-**Extended mode** (when `return_scale_factor=True` or `scale_image_path` provided): Returns dictionary containing:
-- `processed_image` (np.ndarray): The processed image array
-- `scale_factor` (float): Upscaling factor applied (1.0 if no scaling)
-- `original_dpi` (int): Original image DPI
-- `final_dpi` (int): Final image DPI after processing
-- `processed_scale` (np.ndarray): Processed scale image (if provided)
-
-#### Algorithm Features
-
-The function automatically adapts processing parameters based on image DPI:
-
-**DPI-Aware Y-tip Removal:**
-- **600+ DPI:** 8-pixel threshold for Y-tip junction detection
-- **300-599 DPI:** 5-pixel threshold
-- **150-299 DPI:** 3-pixel threshold
-- **<150 DPI:** 2-pixel threshold (conservative to preserve structural details)
-
-**DPI-Aware Thickness Reconstruction:**
-- **300+ DPI:** 4-6 pixel thickness preservation
-- **150-299 DPI:** 3-4 pixel thickness preservation
-- **<150 DPI:** 1-2 pixel thickness preservation
-
-**DPI-Adaptive Cortex Filtering:**
-- Minimum/maximum thresholds scale quadratically with DPI
-- Filters noise while preserving legitimate cortex stippling
-
-#### Example Usage
+Every size threshold comes from the configuration file. The parameters `upscale_model`, `max_upscale_factor` and `smooth_lines` take their default from it. An explicit argument replaces the configuration value.
 
 ```python
+from lithic_editor.config import load_config
 from lithic_editor.processing import process_lithic_drawing
 
-# Basic usage
-result = process_lithic_drawing("artifact.png")
+config = load_config("my_config.yaml")
+result = process_lithic_drawing("drawing.png", config=config)
+```
 
-# With all options including upscaling
+### DPI
+
+The pipeline does not guess a DPI. The DPI comes from one of these sources, in this order:
+
+1. `dpi_info`.
+2. The DPI tag of the input file.
+3. `default_dpi`.
+
+If no source gives a DPI, the pipeline uses fixed size thresholds. The returned `original_dpi` and `final_dpi` are then `None`.
+
+### Upscaling
+
+The pipeline measures the line width and the hatch gap of the drawing in pixels. The floors for processing are a line width of 6 px and a hatch gap of 12 px.
+
+When `upscale_low_dpi` is `True` and a measured value is below its floor, the pipeline upscales the image for processing. The factor is the smallest of 2, 3 or 4 that lifts both values above their floors. The factor is never more than `max_upscale_factor`. The pipeline never downscales.
+
+By default the pipeline returns the result at the input pixel size and DPI. Set `restore_original_size=False` to keep the upscaled size. The DPI of the result is then the input DPI multiplied by the factor.
+
+### Scale image
+
+Give `scale_image_path` when a scale bar was scanned with the drawing. The function reads the scale image as grayscale and returns it in the `processed_scale` key of the result.
+
+- With `restore_original_size=True` (the default), the scale image is not changed.
+- With `restore_original_size=False`, the scale image is upscaled by the same factor as the drawing. The drawing and the scale bar keep one pixel scale.
+
+If the scale image cannot be read, the function prints a message and the result has no `processed_scale` key.
+
+### Return value
+
+**Default mode.** The function returns a `numpy.ndarray` of type `uint8`. Black pixels (0) are lines. White pixels (255) are background. The array has the shape of the input when `restore_original_size` is `True`.
+
+**Dictionary mode.** When `return_scale_factor` is `True` or `scale_image_path` is given, the function returns a dictionary:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `processed_image` | `numpy.ndarray` | The cleaned drawing, black lines on white. |
+| `scale_factor` | `int` | The size of the returned image relative to the input. The value is 1 when the result is at the input size. |
+| `working_scale_factor` | `int` | The factor used for processing. The value is 1 when the pipeline did not upscale. |
+| `original_dpi` | `int` or `None` | The DPI of the input. |
+| `final_dpi` | `int` or `None` | The DPI of the returned image. The value equals `original_dpi` multiplied by `scale_factor`. |
+| `processed_scale` | `numpy.ndarray` | The scale bar image. The key is present only when `scale_image_path` was given and read. |
+
+### Debug images
+
+When `save_debug` is `True`, the function writes one PNG file for each step to `output_folder`. `<name>` is the value of `debug_filename` or the stem of the input file.
+
+| File | Content |
+|------|---------|
+| `0_<name>_input.png` | The input. Written only when the pipeline upscaled. |
+| `0a_<name>_upscaled.png` | The upscaled input. Written only when the pipeline upscaled. |
+| `0b_<name>_upscaled_scale.png` | The upscaled scale image. Written only with a scale image and `restore_original_size=False`. |
+| `1_<name>_original_image.png` | The grayscale image at the working size. |
+| `1b_<name>_smoothed.png` | The image after the Gaussian blur. |
+| `1c_<name>_binary_thresholded.png` | The binary image after the Sauvola threshold. |
+| `2a_<name>_structural_only.png` | The lines without the cortex stipple. |
+| `2b_<name>_cortex_mask.png` | The cortex stipple. |
+| `3_<name>_skeleton.png` | The skeleton of the lines. |
+| `4_<name>_endpoints_junctions.png` | The endpoints and junctions of the skeleton. |
+| `5_<name>_labeled_segments.png` | The skeleton segments, each with a label. |
+| `6_<name>_ripple_identification.png` | Red = ripple, white = structural, green dots = junctions. |
+| `7_<name>_skeleton_cleaned.png` | The skeleton without the ripple segments. |
+| `7a_<name>_endpoint_filtering.png` | The skeleton after the endpoint filter. |
+| `8_<name>_final_cleaned.png` | The cleaned drawing at the working size. |
+| `9_<name>_restored.png` | The cleaned drawing at the input size. Written only when the pipeline upscaled and restored the size. |
+
+### Errors
+
+| Exception | Cause |
+|-----------|-------|
+| `ValueError` | The input file cannot be read. This includes a file that does not exist. |
+
+## Examples
+
+### Basic
+
+```python
+from PIL import Image
+from lithic_editor.processing import process_lithic_drawing
+
+cleaned = process_lithic_drawing("drawing.png")
+Image.fromarray(cleaned).save("drawing_cleaned.png")
+```
+
+### With upscaling
+
+Permit upscaling and read the scale data from the result. The result is at the input size and DPI.
+
+```python
+from PIL import Image
+from lithic_editor.processing import process_lithic_drawing
+
 result = process_lithic_drawing(
-    image_path="drawing.png",
-    output_folder="results",
-    dpi_info=(300, 300),
-    format_info="png",
-    output_dpi=300,
-    save_debug=True,
+    "drawing_150dpi.png",
     upscale_low_dpi=True,
     default_dpi=150,
-    upscale_model='fsrcnn',
-    target_dpi=300,
-    preserve_cortex=True
+    return_scale_factor=True,
 )
 
-# Check results
-if result['success']:
-    print(f"Output: {result['output_path']}")
-    print(f"Processing time: {result['processing_time']:.2f}s")
+print(f"Processed at {result['working_scale_factor']}x")
+print(f"Returned at {result['scale_factor']}x, {result['final_dpi']} DPI")
+
+image = Image.fromarray(result["processed_image"])
+dpi = result["final_dpi"]
+if dpi:
+    image.save("drawing_cleaned.png", dpi=(dpi, dpi))
+else:
+    image.save("drawing_cleaned.png")
 ```
 
-## Annotation Classes
+### Keep the upscaled size with a scale image
 
-### Arrow
-
-Class for managing directional arrows in lithic drawings.
+Keep the working size and scale the scale bar by the same factor. Write the same DPI tag to both files.
 
 ```python
-from lithic_editor.annotations import Arrow
-
-# Create an arrow
-arrow = Arrow(
-    start_point=(100, 100),
-    end_point=(200, 150),
-    color='black',
-    width=2
-)
-
-# Add to image
-arrow.draw(image)
-```
-
-#### Methods
-
-##### `__init__(start_point, end_point, color='black', width=2)`
-Initialize an arrow annotation.
-
-##### `draw(image) -> np.ndarray`
-Draw the arrow on an image.
-
-##### `rotate(angle: float, center: tuple) -> None`
-Rotate the arrow around a center point.
-
-##### `scale(factor: float) -> None`
-Scale the arrow size.
-
-## Image Processing Utilities
-
-### load_image
-
-Load and validate an image file.
-
-```python
-from lithic_editor.utils import load_image
-
-image, metadata = load_image("drawing.png")
-print(f"Image shape: {image.shape}")
-print(f"DPI: {metadata.get('dpi', 'Not set')}")
-```
-
-### save_with_metadata
-
-Save an image preserving metadata.
-
-```python
-from lithic_editor.utils import save_with_metadata
-
-save_with_metadata(
-    image_array,
-    output_path="result.png",
-    dpi=(300, 300),
-    format="PNG"
-)
-```
-
-## Advanced Usage
-
-### Custom Processing Pipeline
-
-```python
-from lithic_editor.processing import (
-    process_lithic_drawing,
-    apply_skeleton,
-    detect_ripples
-)
-from lithic_editor.utils import load_image, save_with_metadata
-
-def custom_pipeline(image_path):
-    """Custom processing with intermediate steps."""
-    
-    # Load image
-    image, metadata = load_image(image_path)
-    
-    # Step 1: Create skeleton
-    skeleton = apply_skeleton(image)
-    
-    # Step 2: Detect ripple patterns
-    ripples = detect_ripples(skeleton)
-    
-    # Step 3: Process with custom parameters
-    result = process_lithic_drawing(
-        image_path,
-        save_debug=True,
-        output_dpi=metadata.get('dpi', [300, 300])[0]
-    )
-    
-    return result
-```
-
-### Batch Processing with Progress
-
-```python
-from pathlib import Path
+from PIL import Image
 from lithic_editor.processing import process_lithic_drawing
-from tqdm import tqdm  # Optional: for progress bar
 
-def batch_process(input_dir, output_dir):
-    """Process all images in a directory."""
-    
-    input_path = Path(input_dir)
-    output_path = Path(output_dir)
-    output_path.mkdir(exist_ok=True)
-    
-    # Get all image files
-    image_files = list(input_path.glob("*.png"))
-    image_files.extend(input_path.glob("*.jpg"))
-    
-    results = []
-    for image_file in tqdm(image_files, desc="Processing"):
-        try:
-            result = process_lithic_drawing(
-                str(image_file),
-                output_folder=str(output_path / image_file.stem)
-            )
-            results.append({
-                'file': image_file.name,
-                'success': result['success'],
-                'time': result['processing_time']
-            })
-        except Exception as e:
-            results.append({
-                'file': image_file.name,
-                'success': False,
-                'error': str(e)
-            })
-    
-    return results
+result = process_lithic_drawing(
+    "drawing.png",
+    upscale_low_dpi=True,
+    restore_original_size=False,
+    scale_image_path="scale_bar.png",
+)
 
-# Usage
-results = batch_process("drawings/", "processed/")
-print(f"Processed {sum(r['success'] for r in results)}/{len(results)} images")
+dpi = result["final_dpi"]
+tag = {"dpi": (dpi, dpi)} if dpi else {}
+Image.fromarray(result["processed_image"]).save("drawing_cleaned.png", **tag)
+if "processed_scale" in result:
+    Image.fromarray(result["processed_scale"]).save("drawing_scale.png", **tag)
 ```
 
-### Integration with NumPy/PIL
+### Numpy array input
+
+Give a grayscale array instead of a path. An array has no DPI tag, so give `dpi_info`.
 
 ```python
 import numpy as np
 from PIL import Image
 from lithic_editor.processing import process_lithic_drawing
 
-def process_from_array(image_array: np.ndarray) -> np.ndarray:
-    """Process a NumPy array."""
-    
-    # Save array as temporary image
-    temp_path = "temp_image.png"
-    Image.fromarray(image_array).save(temp_path)
-    
-    # Process
-    result = process_lithic_drawing(temp_path)
-    
-    # Load result as array
-    if result['success']:
-        processed = np.array(Image.open(result['output_path']))
-        return processed
-    return image_array
+gray = np.array(Image.open("drawing.png").convert("L"))
 
-# Example with PIL
-pil_image = Image.open("drawing.png")
-array = np.array(pil_image)
-processed_array = process_from_array(array)
-result_image = Image.fromarray(processed_array)
+cleaned = process_lithic_drawing(
+    gray,
+    dpi_info=300,
+    debug_filename="drawing",
+)
 ```
 
-## Error Handling
+### Batch loop
 
-### Common Exceptions
+Process each PNG file in a directory. Write each result to an output directory.
 
 ```python
+from pathlib import Path
+from PIL import Image
 from lithic_editor.processing import process_lithic_drawing
 
-try:
-    result = process_lithic_drawing("image.png")
-except FileNotFoundError:
-    print("Image file not found")
-except ValueError as e:
-    print(f"Invalid parameter: {e}")
-except PermissionError:
-    print("Cannot write to output directory")
-except Exception as e:
-    print(f"Unexpected error: {e}")
+input_dir = Path("drawings")
+output_dir = Path("processed")
+output_dir.mkdir(exist_ok=True)
+
+for path in sorted(input_dir.glob("*.png")):
+    result = process_lithic_drawing(
+        str(path),
+        upscale_low_dpi=True,
+        return_scale_factor=True,
+    )
+    dpi = result["final_dpi"]
+    tag = {"dpi": (dpi, dpi)} if dpi else {}
+    Image.fromarray(result["processed_image"]).save(
+        output_dir / f"{path.stem}_cleaned.png", **tag
+    )
+    print(f"{path.name}: processed at {result['working_scale_factor']}x")
 ```
 
-### Validation
+## Resolution helpers
+
+The module `lithic_editor.processing.resolution` has the functions that measure the drawing and choose the upscale factor.
+
+### measure_line_geometry
 
 ```python
-from pathlib import Path
+from lithic_editor.processing.resolution import measure_line_geometry
 
-def validate_and_process(image_path):
-    """Validate before processing."""
-    
-    path = Path(image_path)
-    
-    # Check file exists
-    if not path.exists():
-        raise FileNotFoundError(f"File not found: {image_path}")
-    
-    # Check file type
-    valid_extensions = {'.png', '.jpg', '.jpeg', '.tiff', '.tif'}
-    if path.suffix.lower() not in valid_extensions:
-        raise ValueError(f"Unsupported format: {path.suffix}")
-    
-    # Check file size
-    size_mb = path.stat().st_size / (1024 * 1024)
-    if size_mb > 100:
-        raise ValueError(f"File too large: {size_mb:.1f}MB")
-    
-    # Process
-    return process_lithic_drawing(str(path))
+measure_line_geometry(gray) -> LineGeometry
 ```
 
-## Performance Tips
+`gray` is a grayscale numpy array. The function returns a `LineGeometry` object.
 
-1. **Memory Management**: For large images, process in batches
-2. **Parallel Processing**: Use multiprocessing for batch operations
-3. **Cache Results**: Store processed images to avoid reprocessing
-4. **Optimize Input**: Resize very large images before processing
+### LineGeometry
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `line_width` | `float` | The typical line width in pixels. `NaN` when the function cannot measure it. |
+| `hatch_gap` | `float` | The typical gap between lines in pixels. `NaN` when the function cannot measure it. |
+| `ink_fraction` | `float` | The fraction of pixels that are ink, from 0.0 to 1.0. |
+
+`LineGeometry.describe()` returns a text such as `line width 4.7 px, hatch gap 9.0 px`.
+
+### choose_upscale_factor
 
 ```python
-from concurrent.futures import ProcessPoolExecutor
-from pathlib import Path
+from lithic_editor.processing.resolution import choose_upscale_factor
 
-def parallel_batch_process(image_files, max_workers=4):
-    """Process multiple images in parallel."""
-    
-    with ProcessPoolExecutor(max_workers=max_workers) as executor:
-        futures = []
-        for image_file in image_files:
-            future = executor.submit(process_lithic_drawing, str(image_file))
-            futures.append((image_file, future))
-        
-        results = []
-        for image_file, future in futures:
-            try:
-                result = future.result(timeout=60)
-                results.append((image_file, result))
-            except Exception as e:
-                print(f"Failed to process {image_file}: {e}")
-                
-    return results
+choose_upscale_factor(geometry, max_factor=4) -> int
+```
+
+The function returns the smallest factor of 1, 2, 3 or 4 that lifts both values to their floors. The floors are a line width of 6 px and a hatch gap of 12 px. The factor is never more than `max_factor`. The function returns 1 when no upscaling is necessary or when nothing was measured.
+
+```python
+import numpy as np
+from PIL import Image
+from lithic_editor.processing.resolution import measure_line_geometry, choose_upscale_factor
+
+gray = np.array(Image.open("drawing.png").convert("L"))
+geometry = measure_line_geometry(gray)
+factor = choose_upscale_factor(geometry)
+print(f"{geometry.describe()}: factor {factor}x")
 ```

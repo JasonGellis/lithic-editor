@@ -2,38 +2,39 @@
 
 ## Project Background
 
-This project originated from practical challenges encountered in preparing lithic illustrations for metric analysis using computer vision tools and archaeological software packages such as [PyLithics](https://github.com/alan-turing-institute/Palaeoanalytics) ([Gellis et al., 2022](https://doi.org/10.21105/joss.03738)). The initial development focused on automating ripple removal, but quickly expanded to include:
+This project started with a practical problem. Lithic drawings had to be prepared for metric analysis with computer vision tools such as [PyLithics](https://github.com/alan-turing-institute/Palaeoanalytics) ([Gellis et al., 2022](https://doi.org/10.21105/joss.03738)). The ripple lines in the drawings had to be removed by hand.
 
-- Neural network-based image upscaling for low-resolution scans
-- DPI-adaptive processing for varied input qualities
-- Intelligent cortex preservation algorithms
-- Interactive annotation tools for technological analysis
+The first goal was to remove the ripple lines automatically. The project then grew to include:
+
+- Upscaling of drawings with thin lines or narrow hatch gaps
+- Processing limits that scale with the DPI of the drawing
+- Separation and preservation of cortex stipple
+- Arrow tools to show the striking direction
 
 ## Author
 
 **Jason J. Gellis**
 
-Jason Gellis is a Biological Anthropologist specializing in the intersection of computational methods and archaeological analysis. With a combined background in biological anthropology, archaeology and computer science, he focuses on developing innovative tools that enhance archaeological research workflows while maintaining scientific rigor and disciplinary standards.
+Jason Gellis is a biological anthropologist. He has a background in biological anthropology, archaeology and computer science. He develops software tools for archaeological research.
 
-His work on Lithic Editor combines expertise in:
+His work on Lithic Editor uses:
 
 - Computer vision and image processing
-- Archaeological illustration conventions
-- Machine learning applications in cultural heritage
+- Conventions of archaeological illustration
+- Machine learning for cultural heritage
 - Open-source scientific software development
-
 
 ## Acknowledgements
 
-This project would not have been possible without the support and contributions of many individuals and institutions:
+Many people and institutions supported this project.
 
-**Funding Support**
+**Funding**
 
 - **The British Academy** - Primary funding for the development of Lithic Editor
 
 **Academic and Institutional Support**
 
-- **Professors Robert A. Foley & Marta Mirazón Lahr** - For invaluable support, advice, and guidance throughout the project development
+- **Professors Robert A. Foley & Marta Mirazón Lahr** - For their support, advice and guidance during the project
 - [University of Cambridge Department of Archaeology](https://www.arch.cam.ac.uk/)
 
 ## Citation
@@ -42,15 +43,15 @@ This project would not have been possible without the support and contributions 
 
 ## Contact
 
-For questions, suggestions, or collaboration opportunities:
+For questions, suggestions or collaboration:
 
 - **GitHub Issues**: [https://github.com/JasonGellis/lithic-editor/issues](https://github.com/JasonGellis/lithic-editor/issues)
 - **Project Repository**: [https://github.com/JasonGellis/lithic-editor](https://github.com/JasonGellis/lithic-editor)
 
 ## License
 
-Lithic Editor is released under the MIT License, promoting open access and collaborative development in archaeological computing.
+Lithic Editor is released under the MIT License.
 
 ---
 
-*Lithic Editor continues to evolve through community feedback and contributions. I welcome input from archaeologists, illustrators, and developers to enhance its capabilities and expand its applications in archaeological research.*
+*Contributions are welcome. Archaeologists, illustrators and developers can open an issue or a pull request on GitHub.*

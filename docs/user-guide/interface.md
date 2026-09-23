@@ -1,75 +1,105 @@
-# User Guide Overview
+# Interface
 
 ## Introduction
 
-This section covers all aspects of the Lithic Editor and Annotator GUI.
+This page describes the controls of the Lithic Editor and Annotator GUI.
 
-## Launch Lithic Editor GUI
+## Start the GUI
 
-To launch the application GUI from your terminal:
+Run one of these commands in a terminal:
+
+```bash
+lithic-editor gui
+```
+
 ```bash
 lithic-editor --gui
 ```
 
-## Main Interface
+## Main window
 
 ![Lithic Editor GUI Interface](../assets/images/gui_blank.png)
 
-The Lithic Editor interface contains eight main sections:
+The main window has these areas.
 
-### 1. File Controls (Top Left)
-- **Load Image** - Select input file
-- **Process Image** - Start ripple removal
-- **Save Result** - Export processed image
-- **Exit** - Close application
+### File Controls (top left)
 
-### 2. Drawing Tools (Left, Below File Controls)
+| Button | Function |
+|--------|----------|
+| **Load Image** | Opens an image file. Accepted formats: PNG, JPEG, BMP and TIFF. The application crops the image to its content. |
+| **Process Image** | Starts ripple removal. Available after you load an image. |
+| **Save Result** | Saves the processed image with its arrows. Available after processing. |
+| **Exit** | Closes the application. |
 
-The brush tool is used to edit images in the **Input Image** window and will not affect your original image.
+### Drawing Tools (left, below File Controls)
 
-- **Activate Brush** - Enable/disable brush editing
-- **Color** - Choose brush color (White/Black)
-- **Size** - Adjust brush size (1-10)
-- **Clear Brush** - Reset brush settings and clear brush marks
+The brush draws on the copy of the input image in the **Input Image** panel. It does not change the file on disk. Processing uses the edited copy.
 
-### 3. Arrow Annotations (Left, Below Drawing Tools)
+- **Activate Brush**: turns the brush on or off. The button shows "Brush Active" when the brush is on.
+- **Color**: White or Black. White is the default.
+- **Size**: brush size in pixels, 1 to 20. The default is 5.
+- **Clear Brush**: removes all brush marks from the input image.
 
-After ripples are remove arrows can be added to indicate striking direction.
+### Arrow Annotation (left, below Drawing Tools)
 
-- **Add Arrow** - Create new arrow
-- **Arrow Color** - Change arrow color
-- **Delete Arrow** - Remove selected arrow
-- **Clear Arrows** - Remove all arrows
-- **Rotate** - Shift+drag to rotate
-- **Rresize** - Option+drag to resize
+These controls become available after processing. See [Arrow Annotations](arrows.md).
 
-### 4. Options and DPI Settings (Top Right)
-- **Debug Images** - View and save debug images (checkbox).
-    - Images load in **Processing Steps** window.
-    - Images automatically saved to image_debug directory.
-    - Unchecked by default
-- **Preserve Cortex Stippling** - Keep cortex texture (checkbox). Checked by default
-- **DPI Settings** - Leave unset or set custom DPI
+- **Add Arrow**: puts a new arrow at the center of the processed image.
+- **Arrow Color**: opens a color dialog. New arrows get this color.
+- **Delete Arrow**: removes the selected arrow.
+- **Clear Arrows**: removes all arrows.
 
-### 5. Input Image Window (Center Left)
-- Shows imported image copy of original drawing
+The panel also shows the mouse actions: Shift+drag to rotate, Option+drag (macOS) or Alt+drag (Windows, Linux) to resize.
 
-### 6. Processed Image / Arrow Annotations (Center)
-- Shows cleaned result after processing
-- Canvas for arrow annotation overlay
+### Options (top right)
 
-### 7. Processing Steps (Center Right when enabled)
-- Debug visualization window
-- Appears when debug images option is enabled (hidden by default)
+**Processing**
 
-### 8. Processing Log (Bottom)
-- Shows real-time processing information
-- Displays brush settings and status messages
+- **Keep the cortex stipple**: keeps the cortex stipple in the result. On by default.
 
-### 9. Processing Status (Bottom)
-- Shows current application state ("Ready", processing status)
+**Output**
 
-## Next Steps
+- **Keep the upscaled size**: keeps the result at the upscaled working size. Off by default. See [Output](output.md).
+- **Load Scale Image...**: selects an optional scale bar image scanned with the drawing. The label next to the button shows the file name.
 
-- Continue to [Processing Images](../user-guide/processing.md) for detailed processing instructions
-- Explore [Output and Saving Options](../user-guide/output.md) for export settings and saving images
+**Debug**
+
+- **Show and save the debug images**: shows the debug images in the **Processing Steps** panel and writes them to `image_debug/<name>/`. Off by default.
+
+**Configuration**
+
+- **Load Configuration...**: selects a configuration file. See [Configuration](configuration.md).
+- **Reset to default**: uses the configuration file shipped with the package.
+- The label shows the file in use. Point at the label to see its full path.
+
+**DPI**
+
+- Shows the DPI found in the loaded image. When the file has a DPI, that DPI is kept.
+- When the file has no DPI, two options appear:
+    - **No DPI value**: the saved file gets no DPI tag.
+    - **Set the DPI**: the saved file gets this DPI tag (72 to 1200).
+
+### Input Image (center left)
+
+Shows the loaded image after the crop to its content. Brush marks appear here.
+
+### Processed Image / Arrow Annotations (center)
+
+Shows the processed image. Arrows appear here.
+
+### Processing Steps (right)
+
+Shows the debug images. The panel is visible only when **Show and save the debug images** is on.
+
+### Processing Log (bottom)
+
+Shows messages from the application and the pipeline: DPI, image size, measured line width and hatch gap, upscale decisions and save paths.
+
+### Processing Status (bottom)
+
+Shows the current state, for example "Ready", "Processing..." or "Processing complete". A progress bar is visible during processing.
+
+## Next steps
+
+- [Processing Images](processing.md)
+- [Output](output.md)

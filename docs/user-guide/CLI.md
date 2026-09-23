@@ -1,46 +1,66 @@
-## Command Line Processing
+# Command Line
 
-### Basic Usage
+The `lithic-editor` command processes images without the GUI. This page shows the usual commands. For all options, see the [CLI Reference](../api-reference/cli-reference.md).
+
+## Process one image
 
 ```bash
-# Process single image
 lithic-editor process input.png
+```
 
-# Specify output directory
-lithic-editor process input.png --output results/
+The result is written to `image_debug/input_cleaned.png`. The DPI tag is the input DPI.
 
-# Enable debug mode
+## Set the output directory
+
+```bash
+lithic-editor process input.png -o results/
+```
+
+## Write the debug images
+
+```bash
 lithic-editor process input.png --debug
 ```
 
-### Batch Processing
+See [Debug images](processing.md#debug-images) for the file names.
+
+## Allow upscaling
 
 ```bash
-# Process all PNG files
-for file in *.png; do
-    lithic-editor process "$file" --output processed/
-done
-
-# Process with parallel jobs
-find . -name "*.png" | parallel lithic-editor process {} --quiet
+lithic-editor process scan_150dpi.png --auto-upscale --default-dpi 150
 ```
 
-### Advanced Options
+`--auto-upscale` allows upscaling for processing when the lines are too thin or too close together. The factor is measured from the drawing. `--default-dpi` gives the DPI to assume when the file has no DPI tag. Add `--upscale-model fsrcnn` to use the FSRCNN model instead of ESPCN.
+
+## Keep the upscaled size with a scale image
 
 ```bash
-# Neural network upscaling with debug output
-lithic-editor process low_res.png \
-    --auto-upscale \
-    --default-dpi 150 \
-    --upscale-model fsrcnn \
-    --upscale-threshold 300 \
-    --debug
+lithic-editor process input.png --auto-upscale --keep-upscaled --scale-image scale.png
+```
 
-# Batch processing with upscaling
+The result keeps the working size. The scale image is written as `input_scale.png`, scaled by the same factor. See [Output](output.md).
+
+## Process the cortex stipple as lines
+
+```bash
+lithic-editor process input.png --no-preserve-cortex
+```
+
+## Process many images
+
+```bash
 for file in *.png; do
-    lithic-editor process "$file" \
-        --auto-upscale \
-        --default-dpi 200 \
-        --output "processed/${file%.png}/"
+    lithic-editor process "$file" -o processed/ -q
 done
 ```
+
+`-q` stops the processing messages.
+
+## Other commands
+
+| Command | Function |
+|---------|----------|
+| `lithic-editor gui` | Starts the GUI. |
+| `lithic-editor help` | Shows the help. `lithic-editor help api` shows the Python API help. |
+| `lithic-editor docs` | Opens the documentation in the browser. `--offline` serves it locally. |
+| `lithic-editor --version` | Shows the version. |

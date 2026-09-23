@@ -1,411 +1,209 @@
 # CLI Reference
 
-Complete command-line interface reference for Lithic Editor.
+This page describes each command and each flag of the `lithic-editor` command.
 
-## Global Options
+## Synopsis
 
 ```bash
-lithic-editor [OPTIONS] COMMAND [ARGS]
+lithic-editor [--version] [--gui] [-h] COMMAND [ARGS]
 ```
 
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--version` | | Show version and exit |
-| `--help` | `-h` | Show help message |
-| `--gui` | | Launch GUI directly |
+`lithic-editor` with no arguments shows the full help and exits with code 0.
+
+## Global options
+
+| Option | Description |
+|--------|-------------|
+| `--version` | Show the version and exit. |
+| `--gui` | Start the graphical interface. This is the same as `lithic-editor gui`. |
+| `-h`, `--help` | Show the usage and exit. |
 
 ## Commands
 
 ### gui
 
-Launch the graphical user interface.
+Start the graphical interface.
 
 ```bash
 lithic-editor gui
 ```
 
-**Examples:**
-```bash
-# Launch GUI
-lithic-editor gui
-
-# Alternative: use global flag
-lithic-editor --gui
-```
+The command returns the exit code of the interface. If the interface does not start, the command prints a message and exits with code 1.
 
 ### process
 
-Process lithic drawings from the command line.
+Remove the ripple lines from one drawing and write the result to a directory.
 
 ```bash
-lithic-editor process IMAGE_PATH [OPTIONS]
+lithic-editor process INPUT [-o DIR] [--debug] [-q] [--auto-upscale] [--default-dpi DPI]
+                      [--upscale-model {espcn,fsrcnn}] [--keep-upscaled] [--scale-image PATH]
+                      [--no-preserve-cortex]
 ```
 
-**Arguments:**
-- `IMAGE_PATH` - Path to input lithic drawing image (required)
+**Argument**
 
-**Options:**
+| Argument | Description |
+|----------|-------------|
+| `INPUT` | The path of the drawing. Permitted extensions: `.png`, `.jpg`, `.jpeg`, `.tif`, `.tiff`, `.bmp`. |
 
-| Option | Short | Default | Description |
-|--------|-------|---------|-------------|
-| `--output` | `-o` | `image_debug` | Output directory |
-| `--debug` | | `False` | Save debug images and processing steps |
-| `--quiet` | `-q` | `False` | Suppress output |
-| `--auto-upscale` | | `False` | Automatically upscale images below target DPI |
-| `--default-dpi` | | `None` | Default DPI to assume for images without metadata |
-| `--upscale-model` | | `espcn` | Model to use for upscaling (espcn, fsrcnn) |
-| `--upscale-threshold` | | `300` | DPI threshold for upscaling |
-| `--no-preserve-cortex` | | `False` | Disable cortex stippling preservation |
+**Options**
 
-**Examples:**
+| Option | Default | Description |
+|--------|---------|-------------|
+| `-o DIR`, `--output DIR` | `image_debug` | The output directory. The command makes the directory when it does not exist. |
+| `--debug` | off | Write the debug images to the output directory. |
+| `-q`, `--quiet` | off | Do not print the processing messages. Error messages are still printed. |
+| `--auto-upscale` | off | Permit upscaling for processing when the lines are too thin or too close. The factor is 2, 3 or 4, measured from the drawing. |
+| `--default-dpi DPI` | none | The DPI to use when the input file has no DPI tag. |
+| `--upscale-model {espcn,fsrcnn}` | `espcn` | The neural model for upscaling. |
+| `--keep-upscaled` | off | Keep the result at the upscaled working size. The DPI tag is the input DPI multiplied by the factor. |
+| `--config PATH` | the shipped file | A configuration file. See [Configuration](../user-guide/configuration.md). |
+| `--scale-image PATH` | none | The scale bar image scanned with the drawing. See [Output files](#output-files). |
+| `--no-preserve-cortex` | off | Process the cortex stipple as lines. By default the pipeline keeps the stipple. |
 
-```bash
-# Basic processing
-lithic-editor process drawing.png
+The pipeline does not guess a DPI. When the file has no DPI tag and you give no `--default-dpi`, the pipeline uses fixed size thresholds. The result then has no DPI tag.
 
-# Specify output directory
-lithic-editor process drawing.png --output results/
+Without `--auto-upscale`, the pipeline processes the drawing at its input size. Without `--keep-upscaled`, the pipeline returns the result at the input size and DPI, also when it upscaled for processing.
 
-# Save debug images and processing steps
-lithic-editor process drawing.png --debug
+#### Output files
 
-# Quiet mode (no output)
-lithic-editor process drawing.png --quiet
+The command writes these files to the output directory. `<stem>` is the file name of the input without its extension.
 
-# Combine options
-lithic-editor process artifact.png -o output/ --debug --quiet
+| File | When written | Content |
+|------|--------------|---------|
+| `<stem>_cleaned.png` | always | The cleaned drawing, black lines on white. The DPI tag is the input DPI. With `--keep-upscaled`, the DPI tag is the input DPI multiplied by the factor. No DPI tag is written when the input has none. |
+| `<stem>_scale.png` | with `--scale-image` and `--keep-upscaled`, when the factor is more than 1 | The scale bar image, scaled by the same factor, with the same DPI tag as the result. |
+| debug images | with `--debug` | One PNG file for each processing step. See the [debug image list](python-api.md#debug-images). |
 
-# Neural network upscaling for low-DPI images
-lithic-editor process low_dpi.png --auto-upscale --default-dpi 150
+With `--scale-image` and no `--keep-upscaled`, the command does not write a scale file. The result is at the input size, so the scale bar image is correct as scanned.
 
-# Use FSRCNN model with custom threshold
-lithic-editor process drawing.png --upscale-model fsrcnn --upscale-threshold 250
+**Messages**
 
-# Disable cortex preservation for specific images
-lithic-editor process artifact.png --no-preserve-cortex --debug
-```
-
-### docs
-
-Access documentation.
-
-```bash
-lithic-editor docs [OPTIONS]
-```
-
-**Options:**
-
-| Option | Description |
-|--------|-------------|
-| `--offline` | Serve documentation locally |
-
-**Examples:**
-
-```bash
-# Open online documentation
-lithic-editor docs
-
-# Serve documentation locally
-lithic-editor docs --offline
-```
+Without `--quiet`, the command prints the input path, the output directory, the pipeline progress and the path of the result. When the result is larger than the input, the command prints the factor. When the result is larger and no scale image was given, the command prints a reminder. Scale the scale bar image by the same factor before you measure.
 
 ### help
 
-Show detailed help information.
+Show the full help.
 
 ```bash
-lithic-editor help [TOPIC]
+lithic-editor help [api]
 ```
 
-**Topics:**
-- `api` - Show Python API usage examples
+| Topic | Description |
+|-------|-------------|
+| none | Show the full help for all commands. |
+| `api` | Show the help for the Python API. |
 
-**Examples:**
+### docs
+
+Open the documentation.
 
 ```bash
-# Show general help
-lithic-editor help
-
-# Show API help
-lithic-editor help api
+lithic-editor docs [--offline]
 ```
 
-## Exit Codes
+| Option | Description |
+|--------|-------------|
+| none | Open the online documentation in the web browser. |
+| `--offline` | Serve the documentation that comes with the package at `http://127.0.0.1:8000` and open it in the web browser. Press Ctrl+C to stop the server. |
+
+With `--offline`, the command exits with code 1 when the documentation files are not found or when port 8000 is in use.
+
+## Exit codes
 
 | Code | Meaning |
 |------|---------|
-| 0 | Success |
-| 1 | General error |
-| 2 | Command line syntax error |
-| 3 | File not found |
-| 4 | Permission denied |
+| 0 | The command completed. |
+| 1 | The input file does not exist, the extension is not permitted, the processing failed, the interface did not start, or the user stopped the command. |
+| 2 | The command line is not valid. The argument parser prints the usage. |
 
-## Environment Variables
-
-### LITHIC_OUTPUT_DIR
-Default output directory for processed images.
+## Examples
 
 ```bash
-export LITHIC_OUTPUT_DIR=/path/to/output
-lithic-editor process image.png  # Uses LITHIC_OUTPUT_DIR
+# Clean one drawing. The result is image_debug/drawing_cleaned.png.
+lithic-editor process drawing.png
+
+# Write the result to a different directory.
+lithic-editor process drawing.png --output results/
+
+# Write the debug images.
+lithic-editor process drawing.png --debug
+
+# Print no processing messages.
+lithic-editor process drawing.png --quiet
+
+# Permit upscaling for a thin-lined scan with no DPI tag.
+lithic-editor process scan_150dpi.png --auto-upscale --default-dpi 150
+
+# Permit upscaling with the FSRCNN model.
+lithic-editor process drawing.png --auto-upscale --upscale-model fsrcnn
+
+# Keep the upscaled size and scale the scale bar by the same factor.
+lithic-editor process drawing.png --auto-upscale --keep-upscaled --scale-image scale_bar.png
+
+# Process the cortex stipple as lines.
+lithic-editor process drawing.png --no-preserve-cortex
+
+# Start the graphical interface.
+lithic-editor gui
+
+# Open the documentation without a network connection.
+lithic-editor docs --offline
 ```
 
-### LITHIC_DEBUG
-Enable debug mode by default.
+## Batch processing
+
+### Shell loop
+
+Process each PNG file in a directory. Write all results to one directory.
 
 ```bash
-export LITHIC_DEBUG=1
-lithic-editor process image.png  # Debug enabled
-```
-
-## Shell Completion
-
-### Bash
-
-Add to `~/.bashrc`:
-
-```bash
-eval "$(_LITHIC_EDITOR_COMPLETE=bash_source lithic-editor)"
-```
-
-### Zsh
-
-Add to `~/.zshrc`:
-
-```bash
-eval "$(_LITHIC_EDITOR_COMPLETE=zsh_source lithic-editor)"
-```
-
-### Fish
-
-Add to `~/.config/fish/completions/lithic-editor.fish`:
-
-```bash
-eval (env _LITHIC_EDITOR_COMPLETE=fish_source lithic-editor)
-```
-
-## Batch Processing
-
-### Using Shell Loops
-
-```bash
-# Process all PNG files
-for file in *.png; do
-    lithic-editor process "$file" --output "processed/${file%.png}/"
-done
-
-# Process with parallel
-find . -name "*.png" | parallel -j 4 lithic-editor process {} --output {.}/
-
-# Process and log results
 for file in drawings/*.png; do
-    echo "Processing $file..."
-    if lithic-editor process "$file" --quiet; then
-        echo "✓ $file" >> success.log
+    lithic-editor process "$file" --output processed/ --quiet
+done
+```
+
+Record the files that failed.
+
+```bash
+for file in drawings/*.png; do
+    if lithic-editor process "$file" --output processed/ --quiet; then
+        echo "$file" >> success.log
     else
-        echo "✗ $file" >> failed.log
+        echo "$file" >> failed.log
     fi
 done
 ```
 
-### Using Find and Xargs
+### find and xargs
+
+Process the PNG files in a directory tree. Run four processes at the same time.
 
 ```bash
-# Process all images recursively
-find . -type f \( -name "*.png" -o -name "*.jpg" \) \
-    -exec lithic-editor process {} --output {}_processed/ \;
-
-# Parallel processing with xargs
 find drawings/ -name "*.png" -print0 | \
-    xargs -0 -n 1 -P 4 -I {} lithic-editor process {} --quiet
+    xargs -0 -n 1 -P 4 -I {} lithic-editor process {} --output processed/ --quiet
 ```
 
-## Scripting Examples
-
-### Processing Script
+### GNU parallel
 
 ```bash
-#!/bin/bash
-# process_lithics.sh - Batch process lithic drawings
-
-INPUT_DIR="${1:-./drawings}"
-OUTPUT_DIR="${2:-./processed}"
-LOG_FILE="processing.log"
-
-# Create output directory
-mkdir -p "$OUTPUT_DIR"
-
-# Initialize log
-echo "Processing started: $(date)" > "$LOG_FILE"
-
-# Process counter
-SUCCESS=0
-FAILED=0
-
-# Process each image
-for image in "$INPUT_DIR"/*.{png,jpg,jpeg,tif,tiff} 2>/dev/null; do
-    [ -f "$image" ] || continue
-    
-    basename=$(basename "$image")
-    echo "Processing: $basename"
-    
-    if lithic-editor process "$image" \
-        --output "$OUTPUT_DIR/${basename%.*}" \
-        --debug --quiet; then
-        ((SUCCESS++))
-        echo "✓ $basename" >> "$LOG_FILE"
-    else
-        ((FAILED++))
-        echo "✗ $basename" >> "$LOG_FILE"
-    fi
-done
-
-# Summary
-echo "Completed: $SUCCESS successful, $FAILED failed" | tee -a "$LOG_FILE"
+parallel -j 4 lithic-editor process {} --output processed/ --quiet ::: drawings/*.png
 ```
-
-### Watch Folder Script
-
-```bash
-#!/bin/bash
-# watch_folder.sh - Auto-process new images
-
-WATCH_DIR="${1:-./incoming}"
-OUTPUT_DIR="${2:-./processed}"
-
-echo "Watching $WATCH_DIR for new images..."
-
-# Using inotify (Linux)
-inotifywait -m -e create -e moved_to "$WATCH_DIR" |
-while read -r directory event filename; do
-    if [[ "$filename" =~ \.(png|jpg|jpeg|tif|tiff)$ ]]; then
-        echo "Processing new file: $filename"
-        lithic-editor process "$WATCH_DIR/$filename" \
-            --output "$OUTPUT_DIR/${filename%.*}"
-    fi
-done
-
-# Using fswatch (macOS)
-fswatch -0 "$WATCH_DIR" | while read -d "" path; do
-    filename=$(basename "$path")
-    if [[ "$filename" =~ \.(png|jpg|jpeg|tif|tiff)$ ]]; then
-        echo "Processing: $filename"
-        lithic-editor process "$path" \
-            --output "$OUTPUT_DIR/${filename%.*}"
-    fi
-done
-```
-
-## Docker Usage
-
-```dockerfile
-# Dockerfile
-FROM python:3.9
-RUN pip install git+https://github.com/JasonGellis/lithic-editor.git
-ENTRYPOINT ["lithic-editor"]
-```
-
-```bash
-# Build image
-docker build -t lithic-editor .
-
-# Process image
-docker run -v $(pwd):/data lithic-editor \
-    process /data/drawing.png --output /data/output/
-
-# Run GUI (requires X11)
-docker run -e DISPLAY=$DISPLAY \
-    -v /tmp/.X11-unix:/tmp/.X11-unix \
-    -v $(pwd):/data \
-    lithic-editor gui
-```
-
-## Performance Optimization
-
-### Memory Management
-
-```bash
-# Limit memory usage
-ulimit -v 2097152  # 2GB limit
-lithic-editor process large_image.png
-
-# Nice level for background processing
-nice -n 19 lithic-editor process image.png
-```
-
-### Parallel Processing
-
-```bash
-# GNU Parallel
-parallel -j 4 lithic-editor process {} ::: *.png
-
-# Custom parallel script
-#!/bin/bash
-MAX_JOBS=4
-for file in *.png; do
-    while [ $(jobs -r | wc -l) -ge $MAX_JOBS ]; do
-        sleep 1
-    done
-    lithic-editor process "$file" &
-done
-wait
-```
-
-## Troubleshooting
-
-### Debug Mode
-
-```bash
-# Enable verbose output
-lithic-editor process image.png --debug
-
-# Check version and environment
-lithic-editor --version
-
-# Test with sample image
-lithic-editor process --help
-```
-
-### Common Issues
-
-**Permission Denied:**
-```bash
-# Check permissions
-ls -la image.png
-# Fix permissions
-chmod 644 image.png
-```
-
-**Output Directory Issues:**
-```bash
-# Create output directory first
-mkdir -p output/
-lithic-editor process image.png --output output/
-```
-
-**Large File Processing:**
-```bash
-# Increase timeout for large files
-timeout 300 lithic-editor process large_image.tiff
-```
-
-## Integration Examples
 
 ### Makefile
 
-```makefile
-# Makefile for lithic processing
+Make a `<stem>_cleaned.png` file for each PNG file in `drawings/`. `make` processes only the files with no result or with a newer input.
 
+```makefile
 INPUT_DIR = drawings
 OUTPUT_DIR = processed
 IMAGES = $(wildcard $(INPUT_DIR)/*.png)
-OUTPUTS = $(patsubst $(INPUT_DIR)/%.png,$(OUTPUT_DIR)/%/9_high_quality.png,$(IMAGES))
+OUTPUTS = $(patsubst $(INPUT_DIR)/%.png,$(OUTPUT_DIR)/%_cleaned.png,$(IMAGES))
 
 all: $(OUTPUTS)
 
-$(OUTPUT_DIR)/%/9_high_quality.png: $(INPUT_DIR)/%.png
-	@mkdir -p $(dir $@)
-	lithic-editor process $< --output $(OUTPUT_DIR)/$*
+$(OUTPUT_DIR)/%_cleaned.png: $(INPUT_DIR)/%.png
+	lithic-editor process $< --output $(OUTPUT_DIR) --quiet
 
 clean:
 	rm -rf $(OUTPUT_DIR)
@@ -413,18 +211,5 @@ clean:
 .PHONY: all clean
 ```
 
-### Git Hook
-
-```bash
-#!/bin/bash
-# .git/hooks/pre-commit
-# Process lithic images before commit
-
-for file in $(git diff --cached --name-only | grep -E '\.(png|jpg)$'); do
-    if [[ "$file" == drawings/* ]]; then
-        echo "Processing $file..."
-        lithic-editor process "$file" --output "processed/${file#drawings/}"
-        git add "processed/${file#drawings/}"
-    fi
-done
-```
+!!! note
+    A Makefile recipe line must start with a tab character, not with spaces.

@@ -1,185 +1,48 @@
-# Lithic Editor Test Suite
+# Test Suite
 
-## Overview
+Tests for the Lithic Editor and Annotator. The full description is in `docs/developer/testing.md`.
 
-This directory contains the comprehensive test suite for the Lithic Editor and Annotator application.
-
-## Test Structure
-
-```
-tests/
-├── conftest.py           # Pytest configuration and shared fixtures
-├── test_processing.py    # Tests for image processing algorithms
-├── test_annotations.py   # Tests for arrow annotation system
-├── test_cli.py          # Tests for command-line interface
-├── test_gui.py          # Tests for GUI components
-└── run_tests.py         # Convenience test runner script
-```
-
-## Running Tests
-
-### Quick Start
+## Run
 
 ```bash
-# Run all tests
-pytest
-
-# Run with verbose output
-pytest -v
-
-# Run specific test file
-pytest tests/test_processing.py
-
-# Run specific test class
-pytest tests/test_processing.py::TestProcessingModule
-
-# Run specific test
-pytest tests/test_processing.py::TestProcessingModule::test_process_image_from_file
-```
-
-### With Coverage
-
-```bash
-# Install coverage dependencies
-pip install pytest-cov
-
-# Run tests with coverage
-pytest --cov=lithic_editor --cov-report=html
-
-# View coverage report
-open htmlcov/index.html  # macOS
-xdg-open htmlcov/index.html  # Linux
-start htmlcov/index.html  # Windows
-```
-
-### Using the Test Runner
-
-```bash
-# Run the convenience script
-python tests/run_tests.py
-```
-
-## Test Categories
-
-### Unit Tests
-
-- **Processing Module** (`test_processing.py`)
-  - Image loading and format support
-  - Ripple removal algorithm
-  - Debug output generation
-  - DPI preservation
-  - Error handling
-
-- **Annotations Module** (`test_annotations.py`)
-  - Arrow creation and properties
-  - Detection status calculations
-  - Canvas widget functionality
-  - Coordinate mapping
-  - DPI-aware sizing
-
-### Integration Tests
-
-- **CLI Tests** (`test_cli.py`)
-  - Argument parsing
-  - Command dispatch
-  - File validation
-  - Process workflow
-  - Documentation commands
-
-- **GUI Tests** (`test_gui.py`)
-  - Window creation
-  - Widget initialization
-  - Button states
-  - Processing thread
-  - Canvas operations
-
-## Test Fixtures
-
-Common fixtures are defined in `conftest.py`:
-
-- `qapp`: PyQt5 QApplication instance
-- `temp_dir`: Temporary directory for test files
-- `sample_image`: Basic test image
-- `sample_image_with_dpi`: Test image with DPI metadata
-- `sample_numpy_array`: NumPy array test data
-- `sample_pixmap`: QPixmap for GUI tests
-
-## Writing New Tests
-
-### Test File Template
-
-```python
-"""
-Tests for [module name].
-"""
-
-import pytest
-from lithic_editor.module import Component
-
-class TestComponent:
-    """Test suite for Component."""
-    
-    def test_basic_functionality(self):
-        """Test basic component functionality."""
-        component = Component()
-        assert component is not None
-    
-    def test_with_fixture(self, sample_image):
-        """Test using fixture."""
-        result = process(sample_image)
-        assert result is not None
-```
-
-### Best Practices
-
-1. **Use descriptive names**: Test names should clearly indicate what they test
-2. **One assertion focus**: Each test should focus on one specific behavior
-3. **Use fixtures**: Reuse common setup through fixtures
-4. **Mock external dependencies**: Use `unittest.mock` for external services
-5. **Test edge cases**: Include tests for error conditions and boundaries
-
-## Continuous Integration
-
-Tests are automatically run on:
-- Every push to main branch
-- Every pull request
-- Can be run manually via GitHub Actions
-
-## Coverage Goals
-
-Target coverage: **80%+**
-
-Current focus areas for improvement:
-- GUI interaction tests
-- File I/O edge cases
-- Error recovery paths
-
-## Troubleshooting
-
-### Common Issues
-
-**PyQt5 import errors**
-```bash
-pip install PyQt5
-```
-
-**No display available (Linux CI)**
-```bash
-export QT_QPA_PLATFORM=offscreen
+pip install -e ".[test]"
 pytest
 ```
 
-**Slow test execution**
+On a Linux machine without a display, set `QT_QPA_PLATFORM=offscreen` first.
+
 ```bash
-# Run tests in parallel
-pip install pytest-xdist
-pytest -n auto
+pytest tests/test_processing.py          # one file
+pytest tests/test_cli.py::TestCLIParser  # one class
+pytest -k "arrow"                        # tests whose name contains "arrow"
+pytest --cov=lithic_editor --cov-report=html   # coverage report in htmlcov/
+python tests/run_tests.py                # pytest with coverage when pytest-cov is installed
 ```
 
-## Contributing
+## Layout
 
-When adding new features:
-1. Write tests first (TDD approach)
-2. Ensure all tests pass
-3. Maintain or improve coverage
-4. Update this README if adding new test categories
+| File | Covers |
+|---|---|
+| `conftest.py` | Shared fixtures: `qapp`, `temp_dir`, `sample_image`, `sample_image_with_dpi`, `sample_numpy_array`, `mock_processed_image`, `sample_pixmap`. |
+| `test_processing.py` | The processing pipeline: file and array input, debug images, DPI tag, cortex preservation, image formats. |
+| `test_resolution.py` | Line geometry measurement, upscale factor choice, and restore to the input grid. |
+| `test_upscaling.py` | DPI detection, upscale calculations, model loading, upscaling with fallback, validation. |
+| `test_annotations.py` | The `Arrow` class and the arrow canvas. |
+| `test_cli.py` | Argument parsing, input validation, the `process`, `help` and `docs` commands, `--keep-upscaled`. |
+| `test_docs_server.py` | The offline documentation server. |
+| `test_gui.py` | Window creation, widgets, the processing thread, the canvas, and the dialogs. |
+| `test_integration.py` | Upscaling with the pipeline, cortex with upscaling, CLI and GUI to processing, debug images, parameter combinations. |
+| `tools/test_dpi_eval_metrics.py` | The evaluation harness metrics. |
+| `tools/test_dpi_eval_smoke.py` | The `native` strategy of the harness, end to end. |
+
+## Continuous integration
+
+`.github/workflows/tests.yml` runs the suite on Ubuntu, Windows and macOS with Python 3.10, 3.11, 3.12 and 3.13. A separate job runs `ruff check lithic_editor tests`.
+
+## Write a test
+
+- Name files `test_*.py`, classes `Test*`, and functions `test_*`.
+- Test one behaviour in each function.
+- Use the fixtures in `conftest.py` for images and temporary directories.
+- Use the `qapp` fixture in each test that creates a widget.
+- Mock file dialogs and other external calls with `unittest.mock`.

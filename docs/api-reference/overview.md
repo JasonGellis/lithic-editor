@@ -1,112 +1,47 @@
 # API Reference
 
-The Lithic Editor provides multiple interfaces for integrating with your workflow:
+The Lithic Editor has two programmatic interfaces. Both interfaces use the same processing pipeline.
 
-## Available APIs
+## Interfaces
 
 ### ![](../assets/images/api.svg){: style="width:24px; height:24px; vertical-align:text-bottom; margin-right:8px"} [Python API](python-api.md)
-Programmatic access to all processing functions for integration into your Python scripts and applications.
+
+Call `process_lithic_drawing` from Python. The function reads a file path or a numpy array. It returns the cleaned drawing as a numpy array.
 
 ```python
 from lithic_editor.processing import process_lithic_drawing
-result = process_lithic_drawing("artifact.png")
+
+cleaned = process_lithic_drawing("drawing.png")
 ```
 
 ### ![](../assets/images/laptop_mac.svg){: style="width:24px; height:24px; vertical-align:text-bottom; margin-right:8px"} [Command Line Interface](cli-reference.md)
-Complete CLI for processing images, batch operations, and automation workflows.
+
+Run `lithic-editor process` from a shell. The command writes the cleaned drawing to a directory as `<stem>_cleaned.png`.
 
 ```bash
 lithic-editor process drawing.png --output results/
 ```
 
-## Quick Examples
+## What the pipeline does
 
-### Basic Processing
-```python
-from lithic_editor.processing import process_lithic_drawing
+The pipeline does these steps for each drawing:
 
-# Simple processing
-result = process_lithic_drawing("lithic_drawing.png")
+1. Read the image as grayscale. The DPI comes from the file tag or from you. The pipeline does not guess a DPI.
+2. Measure the line width and the hatch gap in pixels.
+3. Upscale for processing only when you permit it and the lines are too thin or too close. The factor is 2, 3 or 4. The pipeline never downscales.
+4. Remove the ripple lines. Keep the scar contours, the outlines and the cortex stipple.
+5. Return a black-on-white drawing at the input pixel size and DPI. You can keep the upscaled size instead.
 
-# With options
-result = process_lithic_drawing(
-    image_path="drawing.png",
-    output_folder="output",
-    save_debug=True,
-    output_dpi=300
-)
-```
+## Which interface to use
 
-### Batch Processing
-```python
-from pathlib import Path
-from lithic_editor.processing import process_lithic_drawing
+| Task | Interface |
+|------|-----------|
+| Clean one drawing and add arrows | GUI: `lithic-editor gui` |
+| Clean many drawings from a shell script or a Makefile | [CLI](cli-reference.md) |
+| Call the pipeline from Python code, or process a numpy array | [Python API](python-api.md) |
 
-# Process all images in a directory
-for image_file in Path("drawings").glob("*.png"):
-    result = process_lithic_drawing(str(image_file))
-    print(f"Processed: {image_file.name}")
-```
+## Next steps
 
-### Integration Example
-```python
-import numpy as np
-from PIL import Image
-from lithic_editor.processing import process_lithic_drawing
-
-def process_with_preprocessing(image_path):
-    """Custom preprocessing before lithic processing."""
-    # Load and preprocess
-    img = Image.open(image_path)
-    img = img.convert('L')  # Convert to grayscale
-
-    # Save preprocessed image
-    temp_path = "temp_preprocessed.png"
-    img.save(temp_path)
-
-    # Process with lithic editor
-    result = process_lithic_drawing(temp_path)
-    return result
-```
-
-## Return Values
-
-The `process_lithic_drawing` function returns a dictionary containing:
-
-```python
-{
-    'success': bool,           # Processing status
-    'output_path': str,        # Path to processed image
-    'debug_folder': str,       # Path to debug images (if save_debug=True)
-    'processing_time': float, # Time taken in seconds
-    'image_info': {
-        'width': int,
-        'height': int,
-        'dpi': tuple,          # (x_dpi, y_dpi)
-        'format': str          # Image format
-    }
-}
-```
-
-## Error Handling
-
-```python
-from lithic_editor.processing import process_lithic_drawing
-
-try:
-    result = process_lithic_drawing("drawing.png")
-    if result['success']:
-        print(f"Processed successfully: {result['output_path']}")
-    else:
-        print("Processing failed")
-except FileNotFoundError:
-    print("Image file not found")
-except Exception as e:
-    print(f"Error: {e}")
-```
-
-## Next Steps
-
-- Explore the [Python API](python-api.md) for detailed function documentation
-- Review the [CLI Reference](cli-reference.md) for command-line usage
-- See the [User Guide](../user-guide/processing.md) for processing workflows
+- [Python API](python-api.md): the full parameter table, return values and examples.
+- [CLI Reference](cli-reference.md): each command, each flag, output files and exit codes.
+- [User Guide](../user-guide/processing.md): the GUI procedure.

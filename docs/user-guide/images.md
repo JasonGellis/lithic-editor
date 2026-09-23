@@ -1,100 +1,57 @@
-# Lithic Illustrations - Image Types and Quality
+# Lithic Illustrations
 
 ## Introduction
 
-This section covers image types, formats, and quality requirements for optimal processing with Lithic Editor and Annotator. Understanding these requirements will ensure the best results when removing ripple lines from your lithic drawings.
+This page gives the image requirements for Lithic Editor and Annotator. A good input gives a good result.
 
-## Supported Image Formats
+## File formats
 
-### Recommended Formats
-- **PNG**: Lossless compression with transparency support. Best for line drawings and technical illustrations
-- **TIFF/TIF**: Professional quality, uncompressed format ideal for archival purposes
-- **JPEG/JPG**: Widely compatible with smaller file sizes, but may introduce compression artifacts
-- **BMP**: Simple uncompressed format, larger file sizes
+The GUI opens PNG, JPEG, BMP and TIFF files.
 
-## Image Quality Requirements
+- **PNG**: lossless. Recommended.
+- **TIFF**: lossless. Good for archives.
+- **JPEG**: lossy. Compression artifacts can break thin lines.
+- **BMP**: uncompressed. Large files.
+
+## Image quality
 
 <div style="float: right; margin-left: 20px; margin-bottom: 20px; max-width: 350px;">
   <img src="../assets/images/lithic_300dpi.png" alt="Example lithic flake at 300 DPI" style="width: 100%; border: 1px solid #ddd; padding: 10px; background: white;">
   <p style="font-size: 0.9em; font-style: italic; text-align: center; margin-top: 8px; color: #666;">
-    Example of a high-quality lithic flake illustration at 300 DPI showing ripple lines, cortex stippling, and clear structural boundaries suitable for processing
+    A lithic flake drawing at 300 DPI with ripple lines, cortex stipple and clear scar contours.
   </p>
 </div>
 
-For optimal processing results, your images should have:
+The best input is a clean black line drawing on a white background, scanned at 300 to 600 DPI and saved as PNG.
 
-- **High contrast**: Black lines on white background work best
-- **Resolution**: Minimum 300 DPI (dots per inch) recommended
-- **Clean lines**: Continuous, unbroken strokes for structural elements
-- **Visible ripples**: Ripple lines should extend from one edge of the scar but not meet the opposite edge
-- **Minimal noise**: Free from scanning artifacts or background texture
+- **Contrast**: black lines on white. Gray lines on an off-white background decrease the accuracy.
+- **Lines**: continuous strokes for the outline and the scar contours. The pipeline bridges only small breaks, about 1.5 times the line width.
+- **Ripple lines**: each ripple line starts at one edge of the scar and ends before the opposite edge. The pipeline identifies a ripple by its free end.
+- **Noise**: no scanner artifacts and no background texture.
+- **One drawing for each image**: the pipeline processes one lithic drawing at a time.
 
 ## Resolution and DPI
 
-### Automatic DPI Detection
-Lithic Editor automatically:
+The DPI comes from the file tag. If the file has no tag, the application asks you for the DPI. The pipeline does not guess a DPI. See [Output](output.md) for the DPI tag of the saved file.
 
-- Reads DPI metadata from image files
-- Prompts for manual DPI input when metadata is missing
-- Offers neural network upscaling for images below 300 DPI
+The pipeline measures the line width and the hatch gap in pixels. When the line width is below 6 px or the hatch gap is below 12 px, the application offers to upscale the image for processing. See [Processing Images](processing.md). A 75 DPI or 150 DPI scan is upscaled in this way. Scan at 300 to 600 DPI to avoid the upscale step.
 
-### DPI Requirements
-- **Optimal**: 300 DPI or higher
-- **Minimum tested**: 75 DPI
-- **Maximum tested**: 600 DPI
+## Scale bar
 
-## Low-Resolution Image Enhancement
+Keep the scale bar in a separate image. Scan it at the same DPI as the drawing. Load it with **Load Scale Image...** (GUI) or `--scale-image` (CLI). See [Output](output.md).
 
-### Neural Network Upscaling
-For images below 300 DPI, Lithic Editor provides options for automatic enhancement using deep learning models:
+## Preparation
 
-**ESPCN (Efficient Sub-Pixel CNN)**
+1. Scan in black and white or grayscale mode at 300 to 600 DPI.
+2. Save as PNG or TIFF with the DPI tag.
+3. Remove text, labels and the scale bar from the drawing image.
+4. Close large gaps in the outline and the scar contours. Use the brush in the GUI or an image editor.
+5. Keep one drawing in each image.
 
-- Faster processing speed
-- Suitable for most lithic drawings
-- 2x upscaling factor
+## Cortex stipple
 
-**FSRCNN (Fast Super-Resolution CNN)**
+The pipeline separates the cortex stipple from the lines by component area. It adds the stipple back at the end. **Keep the cortex stipple** is on by default. Turn it off to process the stipple as lines.
 
-- Higher quality results
-- Better edge preservation
-- Ideal for complex illustrations
+## Next steps
 
-For technical details about these super-resolution models, see [OpenCV Super Resolution Tutorial](https://learnopencv.com/super-resolution-in-opencv/#sec3).
-
-## Image Preparation Best Practices
-
-### Before Processing
-1. **Scan settings**: Use black and white or grayscale mode at 300+ DPI
-2. **File format**: Save as PNG or TIFF to avoid compression artifacts
-3. **Orientation**: Ensure drawings are properly aligned
-4. **Cropping**: Remove unnecessary borders or scale bars
-
-### Common Issues to Avoid
-Lithic Editor and Annotator provides options for cleaning and enhancing images.
-However, for the best and quickest experience try to avoid images with:
-
-- **Low contrast**: Gray lines on off-white backgrounds reduce accuracy
-- **Broken lines**: Gaps in structural elements may be misidentified
-- **Text overlays**: Remove labels or annotations before processing
-- **Multiple artifacts**: Process one lithic illustration per image
-
-## Special Considerations
-
-### Cortex Preservation
-Lithic Editor intelligently handles cortex stippling:
-
-- Automatically detects and preserves stippled areas
-- Maintains archaeological accuracy
-- Can be toggled on/off based on your needs
-
-### Complex Illustrations
-For drawings with intricate details:
-
-- Enable debug mode to review processing steps
-- Use the brush tool for manual pre-processing
-- Consider processing in sections for very large images
-
-## Next Steps
-
-Once you understand image requirements and have prepared your lithic drawings, continue to [Processing Images](processing.md) to learn how to remove ripple lines and clean your illustrations.
+Continue to [Processing Images](processing.md).
