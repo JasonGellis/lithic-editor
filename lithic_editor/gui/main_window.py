@@ -32,6 +32,26 @@ from lithic_editor.processing.resolution import choose_upscale_factor, measure_l
 from lithic_editor.config import load_config, default_config_path, ConfigError
 
 
+def upscaled_size_warning(factor=None):
+    """The warning shown when the user selects to keep the upscaled size."""
+    if factor:
+        size_line = (f"The saved result is {factor}x the pixel size of the input image. "
+                     f"The DPI value is {factor}x the input DPI.")
+    else:
+        size_line = ("The saved result has more pixels than the input image. "
+                     "The DPI value increases by the same factor.")
+    return (f"{size_line}\n\n"
+            "The result and the input image do not have the same pixel size. "
+            "A scale image scanned with the input does not match the result.\n\n"
+            "Load the scale image before you process. Lithic Editor then saves a copy "
+            "of the scale image, scaled by the same factor, with the result.\n\n"
+            "Clear this option to save the result at the pixel size and DPI of the input.")
+
+
+def warn_upscaled_size(parent, factor=None):
+    QMessageBox.warning(parent, "Keep the upscaled size", upscaled_size_warning(factor))
+
+
 class DPISelectionDialog(QDialog):
     """Dialog for selecting DPI when metadata is missing"""
 
@@ -128,6 +148,7 @@ class UpscalingDialog(QDialog):
         self.keep_checkbox = QCheckBox("Keep the upscaled size")
         self.keep_checkbox.setChecked(keep_upscaled)
         self.keep_checkbox.toggled.connect(self._update_size_text)
+        self.keep_checkbox.toggled.connect(self._warn_if_kept)
         layout.addWidget(self.keep_checkbox)
         self.size_label = QLabel()
         self.size_label.setWordWrap(True)
@@ -146,6 +167,10 @@ class UpscalingDialog(QDialog):
         layout.addLayout(button_layout)
 
         self.setLayout(layout)
+
+    def _warn_if_kept(self, keep):
+        if keep:
+            warn_upscaled_size(self, self.factor)
 
     def _update_size_text(self, keep):
         if keep:
@@ -620,6 +645,7 @@ class LithicProcessorGUI(QMainWindow):
         # lines but the scale image must then be scaled by the same factor.
         self.keep_upscaled_checkbox = QCheckBox('Keep the upscaled size')
         self.keep_upscaled_checkbox.setChecked(False)
+        self.keep_upscaled_checkbox.toggled.connect(self._warn_keep_upscaled)
         self.keep_upscaled_checkbox.setToolTip(
             'Off: the result has the pixel size and DPI of the input.\n'
             'On: the result keeps the upscaled size. The DPI value increases by the same factor.\n'
@@ -921,6 +947,11 @@ class LithicProcessorGUI(QMainWindow):
         scroll_bar = self.log_display.verticalScrollBar()
         scroll_bar.setValue(scroll_bar.maximum())
 
+    def _warn_keep_upscaled(self, checked):
+        """Warn about the size difference when the user selects to keep the upscaled size"""
+        if checked:
+            warn_upscaled_size(self)
+
     def apply_configuration(self, path):
         """Read a configuration file (None: environment variable or shipped default) and show it"""
         try:
@@ -1213,8 +1244,11 @@ class LithicProcessorGUI(QMainWindow):
             if upscale_dialog.exec_() == QDialog.Accepted and upscale_dialog.upscale_confirmed:
                 upscale_params['upscale_low_dpi'] = True
                 upscale_params['upscale_model'] = upscale_dialog.selected_model
-                # The dialog's choice becomes the panel's, so the processing thread reads it
+                # The dialog's choice becomes the panel's, so the processing thread reads it.
+                # The dialog already warned, so the panel does not warn again.
+                self.keep_upscaled_checkbox.blockSignals(True)
                 self.keep_upscaled_checkbox.setChecked(upscale_dialog.keep_upscaled)
+                self.keep_upscaled_checkbox.blockSignals(False)
                 size_note = "kept at the upscaled size" if upscale_dialog.keep_upscaled else "returned to the input size"
                 self.log(f"Upscale {factor}x for processing with {upscale_dialog.selected_model.upper()}; result {size_note}")
             else:

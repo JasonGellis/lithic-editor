@@ -167,7 +167,7 @@ python -m tools.dpi_eval.run --real-scans    # four real scans of one drawing
 | `--sources NAME ...` | all primary sources | Source images in `example_images/`, without extension. |
 | `--quick` | off | Only the quick subset, `369` and `371`. |
 | `--real-scans` | off | Evaluate `lithic_75dpi`, `lithic_150`, `lithic_300dpi` and `lithic_600dpi`, registered to the 600 DPI scan. |
-| `--strategies NAME ...` | all | One or more of `native`, `unsmoothed`, `resample`, `adaptive`, `adaptive_keep`, `develop`. |
+| `--strategies NAME ...` | all | One or more of `native`, `unsmoothed`, `resample`, `adaptive`, `adaptive_keep`, `legacy`. |
 | `--dpis N ...` | `600 300 150 75` | DPI variants to evaluate. The list must include 600. |
 | `--reference-strategy NAME` | `native` | The strategy whose 600 DPI output is the reference for every cell. |
 | `--tolerance PX` | `4` | Skeleton match tolerance in pixels at 600 DPI. |
@@ -183,9 +183,9 @@ python -m tools.dpi_eval.run --real-scans    # four real scans of one drawing
 | `adaptive` | The default pipeline: upscale when the measured lines are too thin or too close, then return the result at the input size. |
 | `adaptive_keep` | `adaptive`, but the result stays at the working size. |
 | `resample` | Resize to 300 DPI with plain interpolation, then process. |
-| `develop` | The `develop` branch's pipeline, run in a subprocess. |
+| `legacy` | The previous pipeline, with per-DPI parameter buckets, run in a subprocess from a separate checkout. |
 
-The `develop` strategy needs a checkout of the `develop` branch. Create one with `git worktree add ../lithic_editor_develop develop`, or set the `LITHIC_DEVELOP_WORKTREE` environment variable. Without a checkout, the harness skips the strategy and continues.
+The `legacy` strategy needs a checkout of the previous pipeline at commit `b9a9d75`. Create one with `git worktree add ../lithic_editor_legacy b9a9d75`, or set the `LITHIC_LEGACY_WORKTREE` environment variable. Without a checkout, the harness skips the strategy and continues.
 
 ### Sources and variants
 

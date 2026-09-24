@@ -28,6 +28,8 @@ With this option:
 
 If the pipeline does not upscale, this option has no effect.
 
+The option is off by default. When you set it, a warning tells you that the saved result and the input image do not have the same pixel size, and that a scale image scanned with the input does not match the result.
+
 ## Scale image
 
 Keep the scale bar in a separate image scanned at the same DPI as the drawing. Load it with **Load Scale Image...** (GUI) or `--scale-image PATH` (CLI).

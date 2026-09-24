@@ -27,8 +27,10 @@ from lithic_editor.processing import process_lithic_drawing
 from .sources import load_grayscale
 
 WORKING_DPI = 300
-DEVELOP_WORKTREE_ENV = "LITHIC_DEVELOP_WORKTREE"
-DEVELOP_WORKTREE_DIRNAME = "lithic_editor_develop"
+LEGACY_WORKTREE_ENV = "LITHIC_LEGACY_WORKTREE"
+LEGACY_WORKTREE_DIRNAME = "lithic_editor_legacy"
+# The last commit of the previous pipeline, with per-DPI parameter buckets
+LEGACY_COMMIT = "b9a9d75"
 
 
 class StrategyUnavailable(RuntimeError):
@@ -92,41 +94,41 @@ def adaptive_keep(variant_path: Path, dpi: int, workdir: Path) -> np.ndarray:
     )
 
 
-def find_develop_worktree() -> Path | None:
+def find_legacy_worktree() -> Path | None:
     """
-    Locate a checkout of the ``develop`` branch.
+    Locate a checkout of the previous pipeline (commit ``LEGACY_COMMIT``).
 
-    Looks at the ``LITHIC_DEVELOP_WORKTREE`` environment variable first, then at
-    ``../lithic_editor_develop`` beside this repository.
+    Looks at the ``LITHIC_LEGACY_WORKTREE`` environment variable first, then at
+    ``../lithic_editor_legacy`` beside this repository.
     """
     candidates = []
-    from_env = os.environ.get(DEVELOP_WORKTREE_ENV)
+    from_env = os.environ.get(LEGACY_WORKTREE_ENV)
     if from_env:
         candidates.append(Path(from_env))
     repo_root = Path(__file__).resolve().parents[2]
-    candidates.append(repo_root.parent / DEVELOP_WORKTREE_DIRNAME)
+    candidates.append(repo_root.parent / LEGACY_WORKTREE_DIRNAME)
     for candidate in candidates:
         if (candidate / "lithic_editor" / "processing" / "ripple_removal.py").is_file():
             return candidate
     return None
 
 
-def develop(variant_path: Path, dpi: int, workdir: Path) -> np.ndarray:
+def legacy(variant_path: Path, dpi: int, workdir: Path) -> np.ndarray:
     """
-    The ``develop`` branch's pipeline with its per-DPI parameter buckets.
+    The previous pipeline, with its per-DPI parameter buckets and no resolution handling.
 
     Runs in a subprocess so the two versions of ``lithic_editor`` never share a
     process. Raises ``StrategyUnavailable`` when no worktree is found.
     """
-    worktree = find_develop_worktree()
+    worktree = find_legacy_worktree()
     if worktree is None:
         raise StrategyUnavailable(
-            "No develop worktree found. Create one with "
-            "'git worktree add ../lithic_editor_develop develop' "
-            f"or set {DEVELOP_WORKTREE_ENV}."
+            "No legacy worktree found. Create one with "
+            f"'git worktree add ../{LEGACY_WORKTREE_DIRNAME} {LEGACY_COMMIT}' "
+            f"or set {LEGACY_WORKTREE_ENV}."
         )
-    output_path = workdir / "develop_output.png"
-    runner = Path(__file__).with_name("_develop_runner.py")
+    output_path = workdir / "legacy_output.png"
+    runner = Path(__file__).with_name("_legacy_runner.py")
     command = [
         sys.executable, str(runner),
         str(variant_path), str(dpi), str(workdir), str(output_path), str(worktree),
@@ -134,14 +136,14 @@ def develop(variant_path: Path, dpi: int, workdir: Path) -> np.ndarray:
     completed = subprocess.run(
         command, cwd=str(workdir), capture_output=True, text=True, check=False
     )
-    (workdir / "develop.log").write_text(completed.stdout, encoding="utf-8")
+    (workdir / "legacy.log").write_text(completed.stdout, encoding="utf-8")
     if completed.returncode != 0:
-        raise RuntimeError(f"develop pipeline failed:\n{completed.stderr[-2000:]}")
+        raise RuntimeError(f"legacy pipeline failed:\n{completed.stderr[-2000:]}")
     return load_grayscale(output_path)
 
 
 STRATEGIES = {
-    "develop": develop,
+    "legacy": legacy,
     "native": native,
     "unsmoothed": unsmoothed,
     "resample": resample,

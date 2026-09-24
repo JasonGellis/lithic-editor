@@ -59,7 +59,7 @@ The panel also shows the mouse actions: Shift+drag to rotate, Option+drag (macOS
 
 **Output**
 
-- **Keep the upscaled size**: keeps the result at the upscaled working size. Off by default. See [Output](output.md).
+- **Keep the upscaled size**: keeps the result at the upscaled working size. Off by default. A warning opens when you set it. See [Output](output.md).
 - **Load Scale Image...**: selects an optional scale bar image scanned with the drawing. The label next to the button shows the file name.
 
 **Debug**

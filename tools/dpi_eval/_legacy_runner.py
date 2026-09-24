@@ -1,7 +1,7 @@
 """
-Run the ``develop`` branch's pipeline in an isolated process.
+Run the previous pipeline (the legacy worktree) in an isolated process.
 
-Usage: python _develop_runner.py VARIANT_PNG DPI WORKDIR OUTPUT_PNG WORKTREE
+Usage: python _legacy_runner.py VARIANT_PNG DPI WORKDIR OUTPUT_PNG WORKTREE
 
 The worktree is put first on ``sys.path`` so its ``lithic_editor`` shadows the
 installed one, and the import is checked before anything runs.

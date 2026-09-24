@@ -3,11 +3,21 @@
 import os
 
 import numpy as np
+import pytest
 from PIL import Image
 
 from lithic_editor.config import Config
 from lithic_editor.processing import process_lithic_drawing
 from lithic_editor.processing.resolution import LineGeometry
+
+
+@pytest.fixture(autouse=True)
+def no_modal_warnings(monkeypatch):
+    """Ticking 'Keep the upscaled size' opens a modal warning; record it instead of blocking."""
+    from PyQt5.QtWidgets import QMessageBox
+    calls = []
+    monkeypatch.setattr(QMessageBox, "warning", lambda parent, title, text: calls.append((title, text)))
+    return calls
 
 
 class TestOptionsPanel:
@@ -167,3 +177,48 @@ class TestRebuiltPanel:
         window.apply_configuration(str(path))
         assert window.config is None
         assert "not read" in window.config_label.text()
+
+
+class TestKeepUpscaledWarning:
+    def test_panel_warns_when_ticked(self, qapp, no_modal_warnings):
+        from lithic_editor.gui.main_window import LithicProcessorGUI
+        calls = no_modal_warnings
+        window = LithicProcessorGUI()
+        assert not window.keep_upscaled_checkbox.isChecked()
+        window.keep_upscaled_checkbox.setChecked(True)
+        assert len(calls) == 1
+        assert calls[0][0] == "Keep the upscaled size"
+        assert "do not have the same pixel size" in calls[0][1]
+        window.keep_upscaled_checkbox.setChecked(False)
+        assert len(calls) == 1, "clearing the option must not warn"
+
+    def test_dialog_warns_with_the_factor(self, qapp, no_modal_warnings):
+        from lithic_editor.gui.main_window import UpscalingDialog
+        calls = no_modal_warnings
+        dialog = UpscalingDialog(LineGeometry(1.8, 9.8, 0.1), 4)
+        dialog.keep_checkbox.setChecked(True)
+        assert len(calls) == 1
+        assert "4x the pixel size" in calls[0][1]
+
+    def test_dialog_choice_copied_to_panel_does_not_warn_twice(self, qapp, tmp_path, monkeypatch, no_modal_warnings):
+        from PyQt5.QtWidgets import QDialog
+        from lithic_editor.gui.main_window import LithicProcessorGUI, UpscalingDialog
+        calls = no_modal_warnings
+        img = np.full((60, 60), 255, dtype=np.uint8)
+        img[5, 5:55] = img[54, 5:55] = 0
+        img[5:55, 5] = img[5:55, 54] = 0
+        for row in range(12, 48, 3):
+            img[row, 10:40] = 0
+        path = tmp_path / "thin.png"
+        Image.fromarray(img).save(path, dpi=(150, 150))
+
+        def fake_exec(self):
+            self.keep_checkbox.setChecked(True)
+            self.confirm_upscale()
+            return QDialog.Accepted
+        monkeypatch.setattr(UpscalingDialog, "exec_", fake_exec)
+        window = LithicProcessorGUI()
+        window.input_image_path = str(path)
+        window.check_and_prompt_upscaling((150, 150))
+        assert window.keep_upscaled_checkbox.isChecked()
+        assert len(calls) == 1
