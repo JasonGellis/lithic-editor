@@ -135,6 +135,7 @@ nav:
     - Contributing: developer/contributing.md
     - Testing Guide: developer/testing.md
 
+  - Glossary: glossary.md
   - About: about.md
 
 copyright: |

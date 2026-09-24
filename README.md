@@ -97,7 +97,7 @@ result = process_lithic_drawing("drawing.png", dpi_info=300, upscale_low_dpi=Tru
 7. Rebuild the lines at the pen width of the input. Add the cortex back.
 8. Return the result at the input size and DPI.
 
-See [Processing](https://jasongellis.github.io/lithic-editor/user-guide/processing/) for the full list of stages and debug images.
+See [Processing](https://jasongellis.github.io/lithic-editor/user-guide/processing/) for the full list of stages and debug images, and the [Glossary](https://jasongellis.github.io/lithic-editor/glossary/) for the terms.
 
 ## Configuration
 
