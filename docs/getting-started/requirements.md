@@ -9,16 +9,7 @@
 
 ### Operating Systems
 
-The test suite runs on Ubuntu, Windows and macOS.
-
-=== "Windows"
-    - Windows 10 or later (64-bit)
-
-=== "macOS"
-    - Apple Silicon and Intel Macs
-
-=== "Linux"
-    - Ubuntu and other distributions with Qt5 support
+Windows 10 or later (64-bit), macOS on Apple Silicon or Intel, and Linux distributions with Qt5 support. The test suite runs on Ubuntu, Windows and macOS. For the installation steps on each system, see [Installation](installation.md).
 
 ## Python Dependencies
 

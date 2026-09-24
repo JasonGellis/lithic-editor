@@ -1,111 +1,153 @@
 # Installation
 
-## System Requirements
+Lithic Editor runs on Windows, macOS and Linux with Python 3.10 to 3.13. The steps are the same on each system. Where a command is different, select the tab for your system.
 
-- **Python**: 3.10 to 3.13
-- **Operating system**: Windows, macOS or Linux
+## Step 1: Install Python and Git
 
-The test suite runs on Ubuntu, Windows and macOS for Python 3.10 to 3.13.
+=== "Windows"
+    1. Download Python 3.12 from [python.org](https://www.python.org/downloads/windows/) and start the installer.
+    2. Set **Add python.exe to PATH** on the first page of the installer. Then click **Install Now**.
+    3. Download Git from [git-scm.com](https://git-scm.com/download/win) and start the installer. Keep the default options.
+    4. Open **PowerShell** from the Start menu. Use PowerShell for all the commands on this page.
 
-## Step 1: Prerequisites
+    If you use `winget`, these two commands do the same:
+    ```powershell
+    winget install Python.Python.3.12
+    winget install Git.Git
+    ```
+    Then close and open PowerShell again.
 
-Before you install Lithic Editor, make sure that you have:
+=== "macOS"
+    1. Open **Terminal** from Applications > Utilities. Use Terminal for all the commands on this page.
+    2. Install the command line tools. This installs Git:
+       ```bash
+       xcode-select --install
+       ```
+    3. Install Python 3.12. With [Homebrew](https://brew.sh):
+       ```bash
+       brew install python@3.12
+       ```
+       Or download the installer from [python.org](https://www.python.org/downloads/macos/) and start it.
 
-- **Python 3.10 or later** ([Download Python](https://www.python.org/downloads/))
-- **Git**, to install from GitHub ([Download Git](https://git-scm.com/downloads))
-- **pip**, the Python package manager (included with Python)
+=== "Linux"
+    Open a terminal. Use it for all the commands on this page. Install Python, pip, venv and Git with your package manager:
 
-Check your setup:
-
-```bash
-python --version    # Shows 3.10 or later
-git --version       # Shows the git version
-pip --version       # Shows the pip version
-```
-
-## Step 2: Virtual Environment (Recommended)
-
-Create a separate environment for Lithic Editor.
-
-=== "venv"
     ```bash
-    # Create the virtual environment
-    python -m venv lithic-env
+    # Ubuntu / Debian
+    sudo apt-get update
+    sudo apt-get install python3 python3-pip python3-venv git
 
-    # Activate it
-    # Windows
+    # Fedora
+    sudo dnf install python3 python3-pip git
+
+    # Arch
+    sudo pacman -S python python-pip git
+    ```
+
+    The GUI needs the Qt system libraries:
+    ```bash
+    # Ubuntu / Debian
+    sudo apt-get install libxcb-xinerama0 libxcb-cursor0 libgl1 libegl1
+    ```
+
+Check the installation:
+
+=== "Windows"
+    ```powershell
+    python --version    # Shows 3.10 or later
+    git --version
+    ```
+    If `python` is not found, use `py -3 --version`.
+
+=== "macOS"
+    ```bash
+    python3 --version   # Shows 3.10 or later
+    git --version
+    ```
+
+=== "Linux"
+    ```bash
+    python3 --version   # Shows 3.10 or later
+    git --version
+    ```
+
+## Step 2: Make an environment
+
+An environment keeps the Lithic Editor packages separate from other Python programs. Make one and activate it. The prompt then shows the environment name.
+
+=== "Windows"
+    ```powershell
+    python -m venv lithic-env
     lithic-env\Scripts\activate
-    # macOS/Linux
+    ```
+    If PowerShell does not permit the activate script, run this once:
+    ```powershell
+    Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+    ```
+
+=== "macOS"
+    ```bash
+    python3 -m venv lithic-env
     source lithic-env/bin/activate
     ```
 
-=== "conda"
+=== "Linux"
     ```bash
-    # Create the conda environment
+    python3 -m venv lithic-env
+    source lithic-env/bin/activate
+    ```
+
+=== "conda (any system)"
+    ```bash
     conda create -n lithic python=3.12
     conda activate lithic
     ```
 
-## Step 3: Installation
+Activate the environment each time you open a new terminal before you use Lithic Editor.
 
-Choose one installation method.
+## Step 3: Install Lithic Editor
 
-### Method 1: Install from GitHub (Most Users)
+With the environment active, select one method.
 
-Activate your virtual environment. Then run:
+### Method 1: Install from GitHub
+
+For most users.
 
 ```bash
-# Install from GitHub
 pip install git+https://github.com/JasonGellis/lithic-editor.git
 ```
 
 To install a tagged release, add `@<tag>` to the end of the URL.
 
-### Method 2: Development Installation (Contributors)
+### Method 2: Development installation
 
-Use this method if you want to change the code.
+For users who change the code.
 
 ```bash
-# Clone the repository
 git clone https://github.com/JasonGellis/lithic-editor.git
 cd lithic-editor
 
-# Editable install
-pip install -e .
-
-# Editable install with the test tools
-pip install -e ".[test]"
-
-# Editable install with the test tools and ruff
-pip install -e ".[dev]"
-
-# Editable install with the documentation tools
-pip install -e ".[docs]"
-
-# Editable install with all tools
-pip install -e ".[dev,docs]"
+pip install -e .              # the package
+pip install -e ".[dev]"       # the package, the tests and ruff
+pip install -e ".[docs]"      # the package and the documentation tools
+pip install -e ".[dev,docs]"  # all tools
 ```
 
-## Step 4: Check the Installation
+pip installs all dependencies with the package. This includes `opencv-contrib-python`, which the neural upscaling models need.
 
-Run these commands:
+## Step 4: Check the installation
 
 ```bash
-# Show the version
-lithic-editor --version
-
-# Show the help
-lithic-editor --help
-
-# Start the GUI (opens a window)
-lithic-editor --gui
+lithic-editor --version   # Shows the version
+lithic-editor --help      # Shows the commands
+lithic-editor gui         # Starts the GUI
 ```
+
+On macOS, the first start of the GUI can open a Security & Privacy dialog. Give the permission.
 
 ## Dependencies
 
-### Core Dependencies
-
-pip installs all core dependencies with the package.
+### Core dependencies
 
 | Package | Purpose |
 |---------|---------|
@@ -116,11 +158,12 @@ pip installs all core dependencies with the package.
 | scikit-image | Thresholding and skeletonization |
 | networkx | Graph analysis |
 | scipy | Scientific computing |
+| PyYAML | The configuration file |
 
 !!! note "opencv-contrib-python"
     The neural upscaling models need the `contrib` build of OpenCV. The plain `opencv-python` package does not include them.
 
-### Optional Dependencies
+### Optional dependencies
 
 | Group | Purpose | Packages |
 |-------|---------|----------|
@@ -128,87 +171,59 @@ pip installs all core dependencies with the package.
 | `dev` | Run the tests and the linter | `test` packages and ruff |
 | `docs` | Build the documentation | mkdocs, mkdocs-material, mkdocs-material-extensions, pymdown-extensions |
 
-If the automatic installation fails, install the core dependencies by hand:
-
-```bash
-# Core dependencies
-pip install numpy opencv-contrib-python Pillow PyQt5 scikit-image networkx scipy
-```
-
 You do not need the `docs` packages to read the documentation. Run `lithic-editor docs` to open the online documentation.
 
 ## Troubleshooting
 
-### Common Problems
+??? failure "'lithic-editor' is not recognized / command not found"
+    The environment is not active, or the install went into another environment.
+    Activate the environment (Step 2) and run `pip install` again. Or start the program with `python -m lithic_editor`.
 
 ??? failure "ImportError: No module named 'PyQt5'"
-    **Solution**: Install PyQt5 by hand.
+    Install PyQt5 by hand:
     ```bash
     pip install PyQt5
     ```
 
-??? failure "OpenCV import error"
-    **Solution**: Remove all OpenCV packages. Then install `opencv-contrib-python`.
+??? failure "OpenCV import error, or no neural upscaling"
+    Remove all OpenCV packages. Then install `opencv-contrib-python`:
     ```bash
     pip uninstall opencv-python opencv-python-headless opencv-contrib-python
     pip install opencv-contrib-python
     ```
 
 ??? failure "The GUI does not start on Linux"
-    **Solution**: Install the system packages for Qt.
+    Install the Qt system libraries:
     ```bash
-    # Ubuntu/Debian
-    sudo apt-get install python3-pyqt5 libxcb-xinerama0
+    # Ubuntu / Debian
+    sudo apt-get install libxcb-xinerama0 libxcb-cursor0 libgl1 libegl1
 
     # Fedora
     sudo dnf install python3-qt5
     ```
 
 ??? failure "Permission denied"
-    **Solution**: Install in your user directory.
+    Install in your user directory:
     ```bash
     pip install --user git+https://github.com/JasonGellis/lithic-editor.git
     ```
 
-### Platform Notes
-
-=== "Windows"
-    Some systems need the Visual C++ redistributable:
-    - [Download from Microsoft](https://aka.ms/vs/17/release/vc_redist.x64.exe)
-
-=== "macOS"
-    The first time you start the GUI, macOS can ask for permission in Security & Privacy. Give the permission.
-
-=== "Linux"
-    Some distributions need more packages:
-    ```bash
-    # Ubuntu/Debian
-    sudo apt-get install python3-dev python3-pip python3-venv
-
-    # Fedora
-    sudo dnf install python3-devel
-
-    # Arch
-    sudo pacman -S python python-pip
-    ```
+??? failure "Windows: a DLL error when the GUI starts"
+    Install the [Visual C++ redistributable](https://aka.ms/vs/17/release/vc_redist.x64.exe) from Microsoft.
 
 ## Update
 
-To update to the latest version:
-
 ```bash
-# Update from GitHub
+# Installed from GitHub
 pip install --upgrade git+https://github.com/JasonGellis/lithic-editor.git
 
-# Update a development installation
+# Development installation
 cd lithic-editor
 git pull
 pip install -e . --upgrade
 ```
 
 ## Uninstall
-
-To remove Lithic Editor:
 
 ```bash
 pip uninstall lithic-editor
