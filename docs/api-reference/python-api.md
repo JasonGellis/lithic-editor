@@ -27,6 +27,7 @@ process_lithic_drawing(
     restore_original_size=True,
     smooth_lines=None,
     config=None,
+    measure_angles=False,
 )
 ```
 
@@ -53,6 +54,7 @@ The function does not write the result to a file. It returns the result as a num
 | `restore_original_size` | `bool` | `True` | Return the result at the pixel size of the input. If `False`, keep the upscaled working size. |
 | `smooth_lines` | `bool` | configuration (`True`) | Apply a Gaussian blur before the threshold. The sigma is a fraction of the measured line width. |
 | `config` | `Config`, `str` or path | `None` | The configuration. `None` reads the file named by `LITHIC_EDITOR_CONFIG`, or the shipped file. See [Configuration](../user-guide/configuration.md). |
+| `measure_angles` | `bool` | `False` | Measure the striking angle of each scar from its ripples. The function then returns a dictionary with a `striking_angles` list. See [Striking angles](../user-guide/striking-angles.md). |
 
 ### Configuration
 
@@ -97,7 +99,7 @@ If the scale image cannot be read, the function prints a message and the result 
 
 **Default mode.** The function returns a `numpy.ndarray` of type `uint8`. Black pixels (0) are lines. White pixels (255) are background. The array has the shape of the input when `restore_original_size` is `True`.
 
-**Dictionary mode.** When `return_scale_factor` is `True` or `scale_image_path` is given, the function returns a dictionary:
+**Dictionary mode.** When `return_scale_factor` is `True`, `scale_image_path` is given, or `measure_angles` is `True`, the function returns a dictionary:
 
 | Key | Type | Description |
 |-----|------|-------------|
@@ -107,6 +109,7 @@ If the scale image cannot be read, the function prints a message and the result 
 | `original_dpi` | `int` or `None` | The DPI of the input. |
 | `final_dpi` | `int` or `None` | The DPI of the returned image. The value equals `original_dpi` multiplied by `scale_factor`. |
 | `processed_scale` | `numpy.ndarray` | The scale bar image. The key is present only when `scale_image_path` was given and read. |
+| `striking_angles` | `list` of `dict` | One dictionary for each scar with enough ripples. The key is present only with `measure_angles=True`. The keys of each dictionary are in [Striking angles](../user-guide/striking-angles.md#the-csv-file). |
 
 ### Debug images
 
@@ -126,10 +129,12 @@ When `save_debug` is `True`, the function writes one PNG file for each step to `
 | `4_<name>_endpoints_junctions.png` | The endpoints and junctions of the skeleton. |
 | `5_<name>_labeled_segments.png` | The skeleton segments, each with a label. |
 | `6_<name>_ripple_identification.png` | Red = ripple, white = structural, green dots = junctions. |
+| `6a_<name>_striking_angles.png` | The striking line and direction of each scar. Written only with `measure_angles=True`. |
 | `7_<name>_skeleton_cleaned.png` | The skeleton without the ripple segments. |
 | `7a_<name>_endpoint_filtering.png` | The skeleton after the endpoint filter. |
 | `8_<name>_final_cleaned.png` | The cleaned drawing at the working size. |
 | `9_<name>_restored.png` | The cleaned drawing at the input size. Written only when the pipeline upscaled and restored the size. |
+| `10_<name>_striking_arrows.png` | The cleaned drawing with a filled arrow for each measured scar. Written only with `measure_angles=True`. |
 
 ### Errors
 

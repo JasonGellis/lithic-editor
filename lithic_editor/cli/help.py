@@ -27,29 +27,20 @@ Install from the repository:
 
 Python 3.10 or later is necessary.
 
-COMMANDS
---------
-Start the graphical interface:
-  lithic-editor gui
-  lithic-editor --gui
+USAGE
+-----
+  lithic-editor --gui                      Start the graphical interface
+  lithic-editor INPUT [options]            Process one drawing
+  lithic-editor --docs                     Open the documentation in the web browser
+  lithic-editor --docs --offline           Serve the documentation on this computer
+  lithic-editor --help                     Show this help
+  lithic-editor --help-api                 Show the Python API help
+  lithic-editor --version                  Show the version
 
-Process one image from the command line:
-  lithic-editor process INPUT [options]
+  Online documentation: https://jasongellis.github.io/lithic-editor/
 
-Read the documentation:
-  lithic-editor docs              Open the documentation in the web browser
-  lithic-editor docs --offline    Serve the documentation on this computer
-  Online: https://jasongellis.github.io/lithic-editor/
-
-Show the version:
-  lithic-editor --version
-
-Show this help:
-  lithic-editor help
-  lithic-editor help api          Show the Python API help
-
-PROCESS OPTIONS
----------------
+OPTIONS
+-------
   -o, --output DIR      Output directory (default: image_debug). The result is
                         written there as <name>_cleaned.png.
   --debug               Write the debug images for each processing step.
@@ -70,16 +61,28 @@ PROCESS OPTIONS
   --scale-image PATH    The scale bar image scanned with the drawing. With
                         --keep-upscaled it is scaled by the same factor and
                         written as <name>_scale.png.
+  --angles              Measure the striking angle of each scar from its
+                        ripples. The angles are written as <name>_angles.csv.
+                        See the documentation page Striking angles.
+  --min-ripples N       A scar with fewer ripples than N gets no angle
+                        (default: the configuration value, 4).
+  --min-arc-depth PX    When the mean arc depth of the ripples of a scar is
+                        less than PX pixels, the direction is marked uncertain
+                        (default: the configuration value, 2.0).
+  --max-cortex-dots N   A face with more than N cortex dots is cortex and gets
+                        no angle (default: the configuration value, 2).
   --no-preserve-cortex  Process the cortex stipple as lines.
 
 EXAMPLES
 --------
-  lithic-editor process lithic.png --output results --debug
-  lithic-editor process image.jpg --quiet
-  lithic-editor process scan_75dpi.png --auto-upscale
-  lithic-editor process scan.png --auto-upscale --keep-upscaled --scale-image bar.png
-  lithic-editor process drawing.png --auto-upscale --upscale-model fsrcnn
-  lithic-editor process drawing.png --no-preserve-cortex
+  lithic-editor lithic.png --output results --debug
+  lithic-editor image.jpg --quiet
+  lithic-editor scan_75dpi.png --auto-upscale
+  lithic-editor scan.png --auto-upscale --keep-upscaled --scale-image bar.png
+  lithic-editor drawing.png --auto-upscale --upscale-model fsrcnn
+  lithic-editor drawing.png --no-preserve-cortex
+  lithic-editor drawing.png --angles
+  lithic-editor drawing.png --angles --min-ripples 3
 
 PYTHON API
 ----------
@@ -87,7 +90,7 @@ PYTHON API
 
   result = process_lithic_drawing("lithic.png", output_folder="results", save_debug=True)
 
-Type `lithic-editor help api` for the full parameter list.
+Type `lithic-editor --help-api` for the full parameter list.
 
 DEVELOPMENT
 -----------
@@ -107,11 +110,6 @@ Python: {sys.version}
 Platform: {sys.platform}
 """
     print(help_text)
-
-
-def show_version():
-    """Print the version."""
-    print(f"Lithic Editor and Annotator v{__version__}")
 
 
 def show_api_help():
@@ -142,17 +140,22 @@ process_lithic_drawing(
     restore_original_size=True,   # Return the result at the input size
     smooth_lines=None,            # Smooth before the threshold (default: configuration value)
     config=None,                  # Config object, YAML path, or None for the default file
+    measure_angles=False,         # Measure the striking angle of each scar
 )
 
 Returns a numpy array: black lines on a white background, uint8.
 
-With return_scale_factor=True or scale_image_path, returns a dict:
+With return_scale_factor=True, scale_image_path or measure_angles=True, returns a dict:
     processed_image        The result
     scale_factor           Size of the result relative to the input (1 when restored)
     working_scale_factor   The factor used for processing
     original_dpi           DPI of the input
     final_dpi              DPI of the result
     processed_scale        The scale image, scaled with the result (with scale_image_path)
+    striking_angles        One dict per scar (with measure_angles): scar, x, y, compass,
+                           ripples, spread, direction_certain, extent. compass is the direction of
+                           the force in the PyLithics arrow_angle frame:
+                           down 0, left 90, up 180, right 270.
 
 CONFIGURATION
 -------------

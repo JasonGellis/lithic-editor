@@ -74,3 +74,17 @@ lines:
   # the pen weight of the input.
   radius_in_line_widths: 0.5
   radius_max_in_line_widths: 0.75
+
+angles:
+  # The striking angle of a scar is measured from its ripples. A scar with fewer
+  # ripples than this gets no angle.
+  min_ripples: 4
+  # Each ripple is an arc. Its arc depth is the distance from the straight line
+  # between its two ends to the point farthest from that line. The ripples curve
+  # in the direction of the force. When the mean arc depth, in pixels, is smaller
+  # than this, the ripples are too straight to tell the direction, and the record
+  # says so.
+  min_arc_depth_px: 2.0
+  # A face with more cortex dots than this is cortex, not a scar, and gets no
+  # angle. Applies when the cortex stipple is kept.
+  max_cortex_dots: 2

@@ -99,7 +99,7 @@ tests/
 
 ### `test_cli.py`
 
-- Parser: `--version`, `gui`, `--gui`, `process` with its options, `help`, `help api`, `docs`, `docs --offline`.
+- Parser: `--version`, `--gui`, the positional drawing with its options, `--help`, `--help-api`, `--docs`, `--docs --offline`.
 - Input validation: missing file, directory, unsupported format, and the supported extensions `.png`, `.jpg`, `.jpeg`, `.tiff`, `.tif`, `.bmp`.
 - `process`: success, quiet mode, missing file, cortex parameter.
 - `--keep-upscaled`: by default the result has the input size and DPI. With the option, the result and the scale image are scaled by the same factor.
@@ -155,8 +155,7 @@ The harness in `tools/dpi_eval/` measures how the pipeline output changes with i
 Run it from the repository root.
 
 ```bash
-python -m tools.dpi_eval.run --quick         # two crops: 369 and 371
-python -m tools.dpi_eval.run                 # crops 365 to 374 plus lithic_600dpi
+python -m tools.dpi_eval.run                 # lithic_600dpi at 600, 300, 150 and 75 DPI
 python -m tools.dpi_eval.run --real-scans    # four real scans of one drawing
 ```
 
@@ -164,8 +163,7 @@ python -m tools.dpi_eval.run --real-scans    # four real scans of one drawing
 
 | Option | Default | Effect |
 |---|---|---|
-| `--sources NAME ...` | all primary sources | Source images in `example_images/`, without extension. |
-| `--quick` | off | Only the quick subset, `369` and `371`. |
+| `--sources NAME ...` | `lithic_600dpi` | Source images in `example_images/`, without extension. |
 | `--real-scans` | off | Evaluate `lithic_75dpi`, `lithic_150`, `lithic_300dpi` and `lithic_600dpi`, registered to the 600 DPI scan. |
 | `--strategies NAME ...` | all | One or more of `native`, `unsmoothed`, `resample`, `adaptive`, `adaptive_keep`, `legacy`. |
 | `--dpis N ...` | `600 300 150 75` | DPI variants to evaluate. The list must include 600. |

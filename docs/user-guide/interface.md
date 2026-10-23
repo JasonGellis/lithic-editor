@@ -6,11 +6,7 @@ This page describes the controls of the Lithic Editor and Annotator GUI.
 
 ## Start the GUI
 
-Run one of these commands in a terminal:
-
-```bash
-lithic-editor gui
-```
+Run this command in a terminal:
 
 ```bash
 lithic-editor --gui
@@ -22,25 +18,24 @@ lithic-editor --gui
 
 The main window has these areas.
 
-### File Controls (top left)
+### File (left column, first pane)
 
 | Button | Function |
 |--------|----------|
 | **Load Image** | Opens an image file. Accepted formats: PNG, JPEG, BMP and TIFF. The application crops the image to its content. |
 | **Process Image** | Starts ripple removal. Available after you load an image. |
 | **Save Result** | Saves the processed image with its arrows. Available after processing. |
-| **Exit** | Closes the application. |
 
-### Drawing Tools (left, below File Controls)
+### Brush (left column, second pane)
 
 The brush draws on the copy of the input image in the **Input Image** panel. It does not change the file on disk. Processing uses the edited copy.
 
 - **Activate Brush**: turns the brush on or off. The button shows "Brush Active" when the brush is on.
-- **Color**: White or Black. White is the default.
-- **Size**: brush size in pixels, 1 to 20. The default is 5.
+- **Brush Color**: opens a color dialog. The swatch on the button shows the color. White erases, black draws. White is the default.
+- **Brush Size**: the brush size in pixels, 1 to 20. The default is 5.
 - **Clear Brush**: removes all brush marks from the input image.
 
-### Arrow Annotation (left, below Drawing Tools)
+### Arrows (left column, third pane)
 
 These controls become available after processing. See [Arrow Annotations](arrows.md).
 
@@ -49,13 +44,15 @@ These controls become available after processing. See [Arrow Annotations](arrows
 - **Delete Arrow**: removes the selected arrow.
 - **Clear Arrows**: removes all arrows.
 
-The panel also shows the mouse actions: Shift+drag to rotate, Option+drag (macOS) or Alt+drag (Windows, Linux) to resize.
+The pane also shows the mouse actions: Shift+drag to rotate, Option+drag (macOS) or Alt+drag (Windows, Linux) to resize.
 
-### Options (top right)
+### Options (left column, lowest pane)
 
 **Processing**
 
 - **Keep the cortex stipple**: keeps the cortex stipple in the result. On by default.
+- **Add striking angle arrows**: measures the direction of the blow from the ripples of each scar and adds an arrow. On by default. See [Striking angles](striking-angles.md).
+- **Minimum ripples**, **Minimum arc depth**, **Maximum cortex dots in a scar**: the three thresholds of the measurement. They start at the values of the configuration file and replace them for the next run. They are available only when the arrow option is on.
 
 **Output**
 
@@ -79,25 +76,23 @@ The panel also shows the mouse actions: Shift+drag to rotate, Option+drag (macOS
     - **No DPI value**: the saved file gets no DPI tag.
     - **Set the DPI**: the saved file gets this DPI tag (72 to 1200).
 
-### Input Image (center left)
+### Input Image (middle)
 
 Shows the loaded image after the crop to its content. Brush marks appear here.
 
-### Processed Image / Arrow Annotations (center)
+### Result (right)
 
 Shows the processed image. Arrows appear here.
 
-### Processing Steps (right)
+### Processing Steps (far right)
 
 Shows the debug images. The panel is visible only when **Show and save the debug images** is on.
 
-### Processing Log (bottom)
-
-Shows messages from the application and the pipeline: DPI, image size, measured line width and hatch gap, upscale decisions and save paths.
-
-### Processing Status (bottom)
+### Status row (bottom)
 
 Shows the current state, for example "Ready", "Processing..." or "Processing complete". A progress bar is visible during processing.
+
+**Show log** opens the processing log above the status row. The log shows messages from the application and the pipeline: DPI, image size, measured line width and hatch gap, upscale decisions, striking angles and save paths. Click **Hide log** to close it.
 
 ## Next steps
 

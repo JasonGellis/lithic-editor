@@ -15,6 +15,7 @@ from .resolution import (
     choose_upscale_factor, measure_line_geometry, restore_to_grid, smooth_for_threshold,
     upscale_by_factor
 )
+from .striking_angle import draw_arrows, draw_striking_angles, measure_striking_angles
 
 
 def exception_hook(exc_type, exc_value, exc_traceback):
@@ -412,7 +413,8 @@ def separate_cortex_and_structure(binary_image, preserve_cortex=True, cortex_siz
 def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=None, format_info=None, output_dpi=None, save_debug=False,
                           upscale_low_dpi=False, default_dpi=None, upscale_model=None,
                           scale_image_path=None, return_scale_factor=False, debug_filename=None, preserve_cortex=True,
-                          max_upscale_factor=None, restore_original_size=True, smooth_lines=None, config=None):
+                          max_upscale_factor=None, restore_original_size=True, smooth_lines=None, config=None,
+                          measure_angles=False):
     """
     Process lithic drawings to remove ripple artifacts while preserving structural elements.
 
@@ -468,6 +470,14 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
         Include upscaling metadata in return value (default: False).
     debug_filename : str, optional
         Custom base filename for debug output files. If None, derives from input filename.
+    measure_angles : bool, optional
+        Measure the striking angle of each scar from its ripples before they are
+        removed (default: False). The result is then a dict with a
+        ``striking_angles`` list: one record per scar with at least
+        ``config.angles.min_ripples`` ripples, holding ``scar``, ``x``, ``y`` (the
+        ripples' centroid on the output grid), ``compass`` (the direction of the force,
+        away from the point of percussion, in the PyLithics ``arrow_angle`` frame: down
+        0, left 90, up 180, right 270), ``ripples``, ``spread``, ``direction_certain`` and ``extent``.
     preserve_cortex : bool, optional
         Enable cortex stippling preservation during processing (default: True).
     max_upscale_factor : int, optional
@@ -1093,6 +1103,33 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
         save_debug_image(ripple_viz, os.path.join(output_folder, f'6_{base_filename}_ripple_identification.png'),
                         'Ripple vs Structural', dpi_info, format_info, output_dpi)
 
+    # Step 6a: Measure the striking angle of each scar from its ripples, before they go
+    striking_angles = []
+    if measure_angles:
+        print("Measuring the striking angle of each scar...")
+        structure = structural_pixels.copy()
+        for x, y in junctions:
+            structure[y, x] = True
+        striking_angles, skipped_scars = measure_striking_angles(
+            labeled_segments, ripple_segments, structure, cfg.angles,
+            cortex=cortex_mask if preserve_cortex else None)
+        for record in striking_angles:
+            note = "" if record.direction_certain else ", direction uncertain"
+            print(f"  Scar {record.scar}: {record.compass} degrees from {record.ripples} ripples, "
+                  f"spread {record.spread:.2f}{note}")
+        for scar, count, reason in skipped_scars:
+            if reason == "cortex":
+                print(f"  Scar {scar}: skipped, it holds cortex stipple")
+            else:
+                print(f"  Scar {scar}: skipped, {count} ripples, fewer than {cfg.angles.min_ripples}")
+        print(f"Measured {len(striking_angles)} striking angles")
+        if save_debug:
+            line_length = 6 * (geometry.hatch_gap * scale_factor if geometry is not None
+                               and not math.isnan(geometry.hatch_gap) else 20)
+            angle_viz = draw_striking_angles(ripple_viz, striking_angles, line_length)
+            save_debug_image(angle_viz, os.path.join(output_folder, f'6a_{base_filename}_striking_angles.png'),
+                            'Striking Angles', dpi_info, format_info, output_dpi)
+
     # Step 7: Create mask of structural elements (excluding ripple endpoints)
     print("Creating structural mask...")
 
@@ -1234,10 +1271,21 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
             save_debug_image(final_cleaned_inverted, os.path.join(output_folder, f'9_{base_filename}_restored.png'),
                             'Restored to input size', dpi_info, format_info, output_dpi if output_dpi else dpi_info)
 
+    if measure_angles:
+        grid_divisor = scale_factor / output_scale
+        striking_angles = [r.on_grid(grid_divisor) for r in striking_angles]
+        if save_debug and striking_angles:
+            # The arrows as the GUI places them: the minimum detectable size for the DPI
+            dpi_value = current_dpi if isinstance(current_dpi, (int, float)) and current_dpi else 300
+            arrow_size = 50 * max(1.0, 300.0 / dpi_value)
+            save_debug_image(draw_arrows(final_cleaned_inverted, striking_angles, arrow_size),
+                             os.path.join(output_folder, f'10_{base_filename}_striking_arrows.png'),
+                             'Striking Arrows', dpi_info, format_info, output_dpi if output_dpi else dpi_info)
+
     print("Processing complete!")
 
     # Return results based on requested format
-    if return_scale_factor or scale_image_path:
+    if return_scale_factor or scale_image_path or measure_angles:
         result = {
             'processed_image': final_cleaned_inverted,
             'scale_factor': output_scale,
@@ -1247,6 +1295,8 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
         }
         if processed_scale is not None:
             result['processed_scale'] = processed_scale
+        if measure_angles:
+            result['striking_angles'] = [r.to_dict() for r in striking_angles]
         return result
     return final_cleaned_inverted
 
@@ -1325,66 +1375,3 @@ def save_debug_image(image, output_path, title=None, dpi_info=None, format=None,
         pil_img.save(output_path, format=save_format, **save_kwargs)
 
     print(f"Debug image saved to {output_path}")
-
-def create_comparison_image(images, titles=None):
-    """Create a comparison image grid using pure OpenCV"""
-    # Check if all images are grayscale, convert to BGR if needed
-    processed_images = []
-    for img in images:
-        if len(img.shape) == 2:
-            # Convert grayscale to BGR
-            processed_img = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_GRAY2BGR)
-        else:
-            processed_img = img.copy()
-        processed_images.append(processed_img)
-
-    # Get the maximum dimensions
-    max_height = max(img.shape[0] for img in processed_images)
-    max_width = max(img.shape[1] for img in processed_images)
-
-    # Add padding and resize all images to the same size
-    padded_images = []
-    for img in processed_images:
-        # Create a white canvas of the maximum size
-        padded = np.ones((max_height, max_width, 3), dtype=np.uint8) * 255
-        # Place the image in the center
-        h, w = img.shape[:2]
-        y_offset = (max_height - h) // 2
-        x_offset = (max_width - w) // 2
-        padded[y_offset:y_offset+h, x_offset:x_offset+w] = img
-        padded_images.append(padded)
-
-    # Define the grid layout (here: 2 rows, 3 columns)
-    num_images = len(padded_images)
-    rows = 2
-    cols = 3
-
-    # Add title space if titles are provided
-    title_height = 30 if titles else 0
-
-    # Create the comparison grid
-    grid_height = rows * (max_height + title_height)
-    grid_width = cols * max_width
-    grid = np.ones((grid_height, grid_width, 3), dtype=np.uint8) * 255
-
-    # Place images in the grid
-    for i, img in enumerate(padded_images):
-        if i >= rows * cols:
-            break
-
-        row = i // cols
-        col = i % cols
-
-        y_start = row * (max_height + title_height)
-        x_start = col * max_width
-
-        # Add title if provided
-        if titles and i < len(titles):
-            cv2.putText(grid, titles[i], (x_start + 10, y_start + 20),
-                       cv2.FONT_HERSHEY_DUPLEX, 0.6, (0, 0, 0), 1, cv2.LINE_AA)
-
-        # Add image
-        grid[y_start + title_height:y_start + title_height + max_height,
-             x_start:x_start + max_width] = img
-
-    return grid

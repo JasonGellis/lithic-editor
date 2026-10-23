@@ -16,10 +16,10 @@ cleaned = process_lithic_drawing("drawing.png")
 
 ### ![](../assets/images/laptop_mac.svg){: style="width:24px; height:24px; vertical-align:text-bottom; margin-right:8px"} [Command Line Interface](cli-reference.md)
 
-Run `lithic-editor process` from a shell. The command writes the cleaned drawing to a directory as `<stem>_cleaned.png`.
+Run `lithic-editor` with the path of a drawing from a shell. The command writes the cleaned drawing to a directory as `<stem>_cleaned.png`.
 
 ```bash
-lithic-editor process drawing.png --output results/
+lithic-editor drawing.png --output results/
 ```
 
 ## What the pipeline does
@@ -36,7 +36,7 @@ The pipeline does these steps for each drawing:
 
 | Task | Interface |
 |------|-----------|
-| Clean one drawing and add arrows | GUI: `lithic-editor gui` |
+| Clean one drawing and add arrows | GUI: `lithic-editor --gui` |
 | Clean many drawings from a shell script or a Makefile | [CLI](cli-reference.md) |
 | Call the pipeline from Python code, or process a numpy array | [Python API](python-api.md) |
 

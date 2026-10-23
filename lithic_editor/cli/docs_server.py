@@ -62,8 +62,7 @@ def serve_docs(port=8000):
             
     except OSError as e:
         if "Address already in use" in str(e):
-            print(f"✗ Port {port} is already in use")
-            print(f"  Try a different port with: lithic-editor docs --offline --port {port+1}")
+            print(f"Port {port} is already in use. Stop the program that uses it, then run lithic-editor --docs --offline again.")
             return 1
         else:
             raise

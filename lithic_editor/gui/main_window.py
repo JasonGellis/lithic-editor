@@ -5,11 +5,12 @@ import numpy as np
 from PIL import Image
 
 from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QLabel, QPushButton,
+    QColorDialog, QApplication, QMainWindow, QLabel, QPushButton,
     QVBoxLayout, QHBoxLayout, QWidget, QFileDialog,
     QProgressBar, QMessageBox, QCheckBox, QSplitter,
     QTextEdit, QComboBox, QGroupBox, QScrollArea,
-    QRadioButton, QButtonGroup, QSpinBox, QDialog, QLineEdit
+    QRadioButton, QButtonGroup, QSpinBox, QDoubleSpinBox, QDialog, QLineEdit,
+    QGridLayout, QSizePolicy
 )
 from PyQt5.QtGui import (
     QPixmap, QImage, QPainter, QPen, QColor
@@ -29,7 +30,9 @@ from lithic_editor.annotations import integration as arrow_integration
 # Import processing function - handle potential circular import
 from lithic_editor.processing import process_lithic_drawing
 from lithic_editor.processing.resolution import choose_upscale_factor, measure_line_geometry
-from lithic_editor.config import load_config, default_config_path, ConfigError
+from lithic_editor.processing.striking_angle import arrow_size_for, widget_angle_from_compass
+from lithic_editor.config import AngleSettings, load_config, default_config_path, replace_values, ConfigError
+from lithic_editor.gui.theme import apply_theme
 
 
 def upscaled_size_warning(factor=None):
@@ -199,12 +202,15 @@ class ProcessingThread(QThread):
 
     def __init__(self, input_path, output_folder, dpi_info=None, format_info=None, output_dpi=None, save_debug=False,
                  upscale_low_dpi=False, default_dpi=None, upscale_model='espcn', debug_filename=None, preserve_cortex=True,
-                 keep_upscaled=False, scale_image_path=None, config=None):
+                 keep_upscaled=False, scale_image_path=None, config=None, measure_angles=False):
         super().__init__()
         self.input_path = input_path
         self.config = config
         self.keep_upscaled = keep_upscaled
         self.scale_image_path = scale_image_path
+        self.measure_angles = measure_angles
+        # One record per scar with enough ripples, on the pixel grid of the result
+        self.striking_angles = []
         # Filled in after a run: the factor the returned image is scaled by relative to
         # the input, and the scale image resampled by the same factor, if one was given.
         self.result_scale_factor = 1
@@ -249,6 +255,7 @@ class ProcessingThread(QThread):
                 scale_image_path=self.scale_image_path,
                 return_scale_factor=True,
                 config=self.config,
+                measure_angles=self.measure_angles,
             )
 
             # Restore the original print function
@@ -257,6 +264,7 @@ class ProcessingThread(QThread):
             result_image = result['processed_image']
             self.result_scale_factor = result['scale_factor']
             self.processed_scale_image = result.get('processed_scale')
+            self.striking_angles = result.get('striking_angles', [])
             # When the result is kept at the working size its DPI is the input DPI times
             # the factor, which keeps the physical size truthful.
             dpi_out = self.output_dpi or self.dpi_info
@@ -470,7 +478,7 @@ class CanvasWidget(QLabel):
 class LithicProcessorGUI(QMainWindow):
     def __init__(self):
         super().__init__()
-        QApplication.setStyle("Fusion")
+        apply_theme(QApplication.instance())
         self.input_image_path = None
         self.output_folder = None
         self.processed_image_path = None
@@ -498,7 +506,7 @@ class LithicProcessorGUI(QMainWindow):
         # Main window setup
         self.setWindowTitle('Lithic Editor and Annotator')
         self.setGeometry(100, 100, 1600, 900)
-        self.resize(1400, 800)
+        self.resize(1400, 900)
         self.setMinimumSize(1000, 700)
 
         # Main layout
@@ -507,62 +515,54 @@ class LithicProcessorGUI(QMainWindow):
         main_layout.setSpacing(5)
         main_layout.setContentsMargins(5, 5, 5, 5)
 
-        # Top section: Two columns - Left column (stacked controls) + Right column (options)
-        top_controls = QHBoxLayout()
-        top_controls.setSpacing(10)
+        # Left column: every control pane, one under the other. The images take the rest.
+        left_column = QWidget()
+        left_layout = QVBoxLayout(left_column)
+        left_layout.setSpacing(10)
+        left_layout.setContentsMargins(0, 0, 0, 0)
 
-        # LEFT COLUMN: Stacked control panels
-        left_controls_widget = QWidget()
-        left_controls_layout = QVBoxLayout(left_controls_widget)
-        left_controls_layout.setSpacing(5)
-        left_controls_layout.setContentsMargins(0, 0, 0, 0)
-
-        # File controls group
-        file_controls = QGroupBox("File Controls")
+        # File pane: one row of buttons
+        file_controls = QGroupBox("File")
         file_layout = QHBoxLayout(file_controls)
-        file_layout.setSpacing(5)
-        file_layout.setContentsMargins(5, 5, 5, 5)
+        file_layout.setSpacing(6)
+        file_layout.setContentsMargins(4, 2, 4, 4)
 
         self.load_button = QPushButton('Load Image')
         self.process_button = QPushButton('Process Image')
+        self.process_button.setObjectName('primary')  # the accent button of the theme
         self.process_button.setEnabled(False)
         self.save_button = QPushButton('Save Result')
         self.save_button.setEnabled(False)
-        self.exit_button = QPushButton('Exit')
 
         # Connect signals
         self.load_button.clicked.connect(self.load_image)
         self.process_button.clicked.connect(self.process_image)
         self.save_button.clicked.connect(self.save_result)
-        self.exit_button.clicked.connect(self.close)
 
-        file_layout.addWidget(self.load_button)
-        file_layout.addWidget(self.process_button)
-        file_layout.addWidget(self.save_button)
-        file_layout.addWidget(self.exit_button)
+        for button in (self.load_button, self.process_button, self.save_button):
+            file_layout.addWidget(button, 1)  # three buttons of equal width
 
-        # Drawing tools section
-        drawing_tools = QGroupBox("Drawing Tools")
-        drawing_layout = QHBoxLayout(drawing_tools)
-        drawing_layout.setSpacing(5)
-        drawing_layout.setContentsMargins(5, 5, 5, 5)
+        # Brush pane: two rows
+        drawing_tools = QGroupBox("Brush")
+        drawing_layout = QGridLayout(drawing_tools)
+        drawing_layout.setSpacing(6)
+        drawing_layout.setContentsMargins(4, 2, 4, 4)
 
         self.brush_button = QPushButton("Activate Brush")
         self.brush_button.setCheckable(True)
         self.brush_button.setChecked(False)
         self.brush_button.clicked.connect(self.toggle_brush)
 
-        # Brush color selection
-        color_group = QButtonGroup(self)
-        self.white_brush = QRadioButton("White")
-        self.white_brush.setChecked(True)
-        self.black_brush = QRadioButton("Black")
-        color_group.addButton(self.white_brush)
-        color_group.addButton(self.black_brush)
-        color_group.buttonClicked.connect(self.update_brush)
+        # Brush colour: a button with a swatch, like the arrow colour button.
+        # White erases, black draws. White is the default.
+        self.brush_color = QColor(Qt.white)
+        self.brush_color_button = QPushButton("Brush Color")
+        self.brush_color_button.setToolTip('The colour of the brush. White erases, black draws.')
+        arrow_integration.show_color_swatch(self.brush_color_button, self.brush_color)
+        self.brush_color_button.clicked.connect(self.select_brush_color)
 
         # Brush size
-        size_label = QLabel("Size:")
+        size_label = QLabel("Brush Size:")
         self.brush_size_spin = QSpinBox()
         self.brush_size_spin.setMinimum(1)
         self.brush_size_spin.setMaximum(20)
@@ -573,26 +573,30 @@ class LithicProcessorGUI(QMainWindow):
         self.clear_annotations_button.clicked.connect(self.clear_annotations)
         self.clear_annotations_button.setEnabled(False)
 
-        drawing_layout.addWidget(self.brush_button)
-        drawing_layout.addWidget(QLabel("Color:"))
-        drawing_layout.addWidget(self.white_brush)
-        drawing_layout.addWidget(self.black_brush)
-        drawing_layout.addWidget(size_label)
-        drawing_layout.addWidget(self.brush_size_spin)
-        drawing_layout.addWidget(self.clear_annotations_button)
+        size_row = QHBoxLayout()
+        size_row.setSpacing(4)
+        size_row.addWidget(size_label)
+        size_row.addWidget(self.brush_size_spin, 1)
 
-        # Arrow annotation controls
-        arrow_tools = QGroupBox("Arrow Annotation")
-        arrow_layout = QHBoxLayout(arrow_tools)
-        arrow_layout.setSpacing(5)
-        arrow_layout.setContentsMargins(5, 5, 5, 5)
+        drawing_layout.addWidget(self.brush_button, 0, 0)
+        drawing_layout.addWidget(self.brush_color_button, 0, 1)
+        drawing_layout.addLayout(size_row, 1, 0)
+        drawing_layout.addWidget(self.clear_annotations_button, 1, 1)
+        drawing_layout.setColumnStretch(0, 1)  # two columns of equal width
+        drawing_layout.setColumnStretch(1, 1)
+
+        # Arrows pane: two rows and the mouse hint
+        arrow_tools = QGroupBox("Arrows")
+        arrow_layout = QGridLayout(arrow_tools)
+        arrow_layout.setSpacing(6)
+        arrow_layout.setContentsMargins(4, 2, 4, 4)
 
         self.add_arrow_button = QPushButton("Add Arrow")
         self.add_arrow_button.clicked.connect(lambda: arrow_integration.add_arrow(self))
         self.add_arrow_button.setEnabled(False)
 
         self.arrow_color_button = QPushButton("Arrow Color")
-        self.arrow_color_button.setStyleSheet("background-color: black;")
+        arrow_integration.show_color_swatch(self.arrow_color_button, QColor(Qt.black))
         self.arrow_color_button.clicked.connect(lambda: arrow_integration.select_arrow_color(self))
         self.arrow_color = QColor(Qt.black)
 
@@ -610,34 +614,87 @@ class LithicProcessorGUI(QMainWindow):
             interaction_hint = QLabel("Shift+drag to rotate, Option+drag to resize")
         else:  # Windows, Linux, etc.
             interaction_hint = QLabel("Shift+drag to rotate, Alt+drag to resize")
-        interaction_hint.setStyleSheet("font-style: italic; color: gray; font-size: 10px;")
+        interaction_hint.setObjectName("hint")  # the colour comes from the theme
+        interaction_hint.setStyleSheet("font-style: italic; font-size: 10px;")
 
-        arrow_layout.addWidget(self.add_arrow_button)
-        arrow_layout.addWidget(self.arrow_color_button)
-        arrow_layout.addWidget(self.delete_arrow_button)
-        arrow_layout.addWidget(self.clear_arrows_button)
-        arrow_layout.addWidget(interaction_hint)
+        arrow_layout.addWidget(self.add_arrow_button, 0, 0)
+        arrow_layout.addWidget(self.arrow_color_button, 0, 1)
+        arrow_layout.addWidget(self.clear_arrows_button, 1, 0)
+        arrow_layout.addWidget(self.delete_arrow_button, 1, 1)
+        interaction_hint.setWordWrap(True)
+        arrow_layout.addWidget(interaction_hint, 2, 0, 1, 2)
+        arrow_layout.setColumnStretch(0, 1)  # two columns of equal width
+        arrow_layout.setColumnStretch(1, 1)
 
         # Add the three control groups to left column (stacked)
-        left_controls_layout.addWidget(file_controls)
-        left_controls_layout.addWidget(drawing_tools)
-        left_controls_layout.addWidget(arrow_tools)
+        for group in (file_controls, drawing_tools, arrow_tools):
+            group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
+        left_layout.addWidget(file_controls)
+        left_layout.addWidget(drawing_tools)
+        left_layout.addWidget(arrow_tools)
 
         # RIGHT COLUMN: Options & DPI settings (single tall panel)
         options_group = QGroupBox("Options")
         options_layout = QVBoxLayout(options_group)
         options_layout.setSpacing(6)
+        options_layout.setContentsMargins(4, 4, 4, 4)
+        options_layout.setSpacing(6)
         options_layout.setContentsMargins(10, 10, 10, 10)
 
         def heading(text):
             label = QLabel(text)
-            label.setStyleSheet("font-weight: bold; font-size: 11px; margin-top: 4px;")
+            label.setStyleSheet("font-weight: bold; font-size: 11px; margin-top: 10px;")
             return label
 
         # --- Processing ---
         self.preserve_cortex_checkbox = QCheckBox('Keep the cortex stipple')
         self.preserve_cortex_checkbox.setChecked(True)  # Default ON
         self.preserve_cortex_checkbox.setToolTip('Keep the small cortex dots when the lines are processed.')
+
+        # The striking angle of a scar is measured from its ripples before they are removed
+        self.measure_angles_checkbox = QCheckBox('Add striking angle arrows')
+        self.measure_angles_checkbox.setChecked(True)
+        self.measure_angles_checkbox.setToolTip(
+            'Measure the direction of the blow from the ripples of each scar.\n'
+            'An arrow is added at the centre of the ripples. Move, turn or delete it as necessary.\n'
+            'A scar with fewer ripples than the minimum gets no arrow.')
+        self.measure_angles_checkbox.toggled.connect(self.update_angle_options_state)
+
+        # The three thresholds of the measurement. They start at the configuration
+        # values and replace them for the next run.
+        self.min_ripples_spin = QSpinBox()
+        self.min_ripples_spin.setRange(1, 99)
+        self.min_ripples_spin.setToolTip('A scar with fewer ripples than this gets no arrow.')
+        self.min_arc_depth_spin = QDoubleSpinBox()
+        self.min_arc_depth_spin.setRange(0.0, 100.0)
+        self.min_arc_depth_spin.setDecimals(1)
+        self.min_arc_depth_spin.setSingleStep(0.5)
+        self.min_arc_depth_spin.setSuffix(' px')
+        self.min_arc_depth_spin.setToolTip(
+            'The arc depth of a ripple is the distance from the straight line between its two ends\n'
+            'to its farthest point. The ripples curve in the direction of the force. When the mean\n'
+            'arc depth is less than this,\n'
+            'the direction is not certain and the log says so.')
+        self.max_cortex_dots_spin = QSpinBox()
+        self.max_cortex_dots_spin.setRange(0, 999)
+        self.max_cortex_dots_spin.setToolTip(
+            'A face with more cortex dots than this is cortex, not a scar, and gets no arrow.')
+        for spin in (self.min_ripples_spin, self.min_arc_depth_spin, self.max_cortex_dots_spin):
+            spin.setMaximumWidth(90)
+        self.set_angle_options(AngleSettings())
+
+        self.angle_options_widget = QWidget()
+        angle_options_layout = QVBoxLayout(self.angle_options_widget)
+        angle_options_layout.setContentsMargins(20, 0, 0, 0)
+        angle_options_layout.setSpacing(2)
+        for text, spin in (('Minimum ripples:', self.min_ripples_spin),
+                           ('Minimum arc depth:', self.min_arc_depth_spin),
+                           ('Maximum cortex dots in a scar:', self.max_cortex_dots_spin)):
+            row = QHBoxLayout()
+            row.addWidget(QLabel(text))
+            row.addWidget(spin)
+            row.addStretch()
+            angle_options_layout.addLayout(row)
 
         # --- Output ---
         # The default returns the result at the input's pixel size so a separately
@@ -723,6 +780,8 @@ class LithicProcessorGUI(QMainWindow):
         # Assemble the panel
         options_layout.addWidget(heading("Processing"))
         options_layout.addWidget(self.preserve_cortex_checkbox)
+        options_layout.addWidget(self.measure_angles_checkbox)
+        options_layout.addWidget(self.angle_options_widget)
         options_layout.addWidget(heading("Output"))
         options_layout.addWidget(self.keep_upscaled_checkbox)
         options_layout.addLayout(scale_layout)
@@ -737,14 +796,18 @@ class LithicProcessorGUI(QMainWindow):
         options_layout.addWidget(self.dpi_choice_widget)
         options_layout.addStretch()  # Push everything to top
 
-        # Add left column and right column to top layout
-        top_controls.addWidget(left_controls_widget, 2)  # Left column gets 2/3 of space
-        top_controls.addWidget(options_group, 1)         # Right column gets 1/3 of space
+        # The Options pane scrolls when the column is shorter than its content
+        options_scroll = QScrollArea()
+        options_scroll.setWidgetResizable(True)
+        options_scroll.setFrameShape(QScrollArea.NoFrame)
+        options_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        options_scroll.setWidget(options_group)
+        left_layout.addWidget(options_scroll, 1)
+        left_column.setMinimumWidth(320)
+        left_column.setMaximumWidth(420)
+        self.left_column = left_column
 
-        # Add top controls to main layout (compact, don't expand)
-        main_layout.addLayout(top_controls, 0)
-
-        # Main content area: Images and debug panel
+        # Main content area: the control column, the two images, and the Processing Steps panel
         content_splitter = QSplitter(Qt.Horizontal)
 
         # Left side: Image panels (side by side)
@@ -763,8 +826,7 @@ class LithicProcessorGUI(QMainWindow):
         self.input_image_display = CanvasWidget()
         self.input_image_display.setObjectName("input_image_display")
         self.input_image_display.setText("No image loaded")
-        self.input_image_display.setStyleSheet("border: 1px solid #cccccc; background-color: #f5f5f5;")
-        self.input_image_display.setMinimumSize(400, 400)
+        self.input_image_display.setMinimumSize(200, 200)
 
         input_layout.addWidget(input_title, 0)
         input_scroll = QScrollArea()
@@ -778,14 +840,14 @@ class LithicProcessorGUI(QMainWindow):
         output_layout.setContentsMargins(2, 2, 2, 2)
         output_layout.setSpacing(2)
 
-        output_title = QLabel('Processed Image / Arrow Annotations')
+        output_title = QLabel('Result')
         output_title.setAlignment(Qt.AlignCenter)
         output_title.setStyleSheet("font-weight: bold; font-size: 12px; padding: 2px;")
 
         self.canvas = arrow_integration.create_arrow_canvas()
         self.canvas.setObjectName("output_canvas")
         self.canvas.setText("No processed image")
-        self.canvas.setMinimumSize(400, 400)
+        self.canvas.setMinimumSize(200, 200)
 
         output_layout.addWidget(output_title, 0)
         output_scroll = QScrollArea()
@@ -815,7 +877,6 @@ class LithicProcessorGUI(QMainWindow):
         debug_scroll.setWidgetResizable(True)
         debug_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         debug_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        debug_scroll.setMaximumWidth(400)
 
         self.debug_content = QWidget()
         self.debug_layout = QVBoxLayout(self.debug_content)
@@ -823,54 +884,54 @@ class LithicProcessorGUI(QMainWindow):
         debug_scroll.setWidget(self.debug_content)
         debug_outer_layout.addWidget(debug_scroll, 1)
 
+        self.debug_panel.setMaximumWidth(420)
+
         # Add to main content splitter
+        content_splitter.addWidget(left_column)
         content_splitter.addWidget(images_splitter)
         content_splitter.addWidget(self.debug_panel)
-        content_splitter.setSizes([1000, 400])
-        content_splitter.setStretchFactor(0, 3)
+        content_splitter.setCollapsible(0, False)
+        content_splitter.setCollapsible(1, False)
+        content_splitter.setSizes([340, 1060, 360])
+        content_splitter.setStretchFactor(0, 0)
         content_splitter.setStretchFactor(1, 1)
+        content_splitter.setStretchFactor(2, 0)
 
         # Add content splitter to main layout (gets most space)
         main_layout.addWidget(content_splitter, 1)
 
-        # Bottom section: Compact log and status
-        bottom_section = QSplitter(Qt.Vertical)
-
-        # Processing log
-        log_group = QGroupBox("Processing Log")
-        log_layout = QVBoxLayout(log_group)
-        log_layout.setContentsMargins(5, 2, 5, 2)
-
+        # Bottom section: the log, hidden until the user asks for it, and one status row
         self.log_display = QTextEdit()
         self.log_display.setReadOnly(True)
-        self.log_display.setMaximumHeight(80)
+        self.log_display.setMaximumHeight(140)
         self.log_display.setStyleSheet("font-family: 'Monaco', 'Courier New', monospace; font-size: 10px;")
-        log_layout.addWidget(self.log_display)
+        self.log_display.setVisible(False)
 
-        # Progress area
-        progress_group = QGroupBox("Processing Status")
-        progress_layout = QVBoxLayout(progress_group)
-        progress_layout.setContentsMargins(5, 2, 5, 2)
+        self.status_label = QLabel('Ready')
+        self.status_label.setStyleSheet("font-weight: bold; font-size: 11px;")
 
         self.progress_bar = QProgressBar()
         self.progress_bar.setTextVisible(False)
         self.progress_bar.setRange(0, 0)
         self.progress_bar.hide()
-        self.progress_bar.setMaximumHeight(15)
+        self.progress_bar.setMaximumHeight(8)
+        self.progress_bar.setMaximumWidth(240)
 
-        self.status_label = QLabel('Ready')
-        self.status_label.setStyleSheet("font-weight: bold; font-size: 11px;")
+        self.log_toggle = QPushButton('Show log')
+        self.log_toggle.setCheckable(True)
+        self.log_toggle.setObjectName('log_toggle')  # a neutral checked state in the theme
+        self.log_toggle.setToolTip('Show or hide the messages from the application and the pipeline.')
+        self.log_toggle.toggled.connect(self.toggle_log)
 
-        progress_layout.addWidget(self.status_label)
-        progress_layout.addWidget(self.progress_bar)
+        status_row = QHBoxLayout()
+        status_row.setContentsMargins(4, 0, 4, 0)
+        status_row.setSpacing(10)
+        status_row.addWidget(self.status_label, 1)
+        status_row.addWidget(self.progress_bar, 0)
+        status_row.addWidget(self.log_toggle, 0)
 
-        bottom_section.addWidget(log_group)
-        bottom_section.addWidget(progress_group)
-        bottom_section.setSizes([60, 30])
-        bottom_section.setMaximumHeight(120)
-
-        # Add bottom section to main layout
-        main_layout.addWidget(bottom_section, 0)
+        main_layout.addWidget(self.log_display, 0)
+        main_layout.addLayout(status_row, 0)
 
         # Set central widget
         self.setCentralWidget(central_widget)
@@ -890,15 +951,17 @@ class LithicProcessorGUI(QMainWindow):
         # Get brush size
         size = self.brush_size_spin.value()
 
-        # Get brush color
-        color = Qt.black if self.black_brush.isChecked() else Qt.white
-
-        # Update input canvas brush
+        color = QColor(self.brush_color)
         self.input_image_display.set_brush_properties(size, color)
+        self.log(f"Brush settings: Color = {color.name()}, Size = {size}")
 
-        # Log the change
-        color_name = "Black" if color == Qt.black else "White"
-        self.log(f"Brush settings: Color = {color_name}, Size = {size}")
+    def select_brush_color(self):
+        """Open a colour dialog for the brush"""
+        color = QColorDialog.getColor(self.brush_color, self, 'Brush Color')
+        if color.isValid():
+            self.brush_color = color
+            arrow_integration.show_color_swatch(self.brush_color_button, color)
+            self.update_brush()
 
     def clear_annotations(self):
         """Clear all annotations from the input canvas"""
@@ -920,12 +983,10 @@ class LithicProcessorGUI(QMainWindow):
 
         if is_active:
             self.brush_button.setText("Brush Active")
-            self.brush_button.setStyleSheet("background-color: #aaffaa;")
             self.input_image_display.set_brush_active(True)
             self.log("Brush tool activated")
         else:
             self.brush_button.setText("Activate Brush")
-            self.brush_button.setStyleSheet("")
             self.input_image_display.set_brush_active(False)
             self.log("Brush tool deactivated")
 
@@ -935,6 +996,11 @@ class LithicProcessorGUI(QMainWindow):
     #     style_name = GUI_STYLES[index]
     #     QApplication.setStyle(style_name)
     #     self.log(f"Changed GUI style to {style_name}")
+
+    def toggle_log(self, checked):
+        """Show or hide the processing log"""
+        self.log_display.setVisible(checked)
+        self.log_toggle.setText('Hide log' if checked else 'Show log')
 
     def toggle_debug_images(self, state):
         """Show or hide debug images panel"""
@@ -952,6 +1018,30 @@ class LithicProcessorGUI(QMainWindow):
         if checked:
             warn_upscaled_size(self)
 
+    def update_angle_options_state(self, checked):
+        """The angle thresholds apply only when the angles are measured"""
+        self.angle_options_widget.setEnabled(bool(checked))
+
+    def set_angle_options(self, angles):
+        """Show the values of an ``AngleSettings`` in the three spin boxes"""
+        self.min_ripples_spin.setValue(angles.min_ripples)
+        self.min_arc_depth_spin.setValue(angles.min_arc_depth_px)
+        self.max_cortex_dots_spin.setValue(angles.max_cortex_dots)
+
+    def angle_options(self):
+        """The three angle thresholds from the panel, as configuration keys"""
+        return {
+            'min_ripples': self.min_ripples_spin.value(),
+            'min_arc_depth_px': self.min_arc_depth_spin.value(),
+            'max_cortex_dots': self.max_cortex_dots_spin.value(),
+        }
+
+    def processing_config(self):
+        """The configuration for the next run: the loaded file with the panel's angle values"""
+        base = getattr(self, 'config', None) or load_config(default_config_path())
+        return replace_values(base, 'angles', source=f"{base.source} with the panel values",
+                              **self.angle_options())
+
     def apply_configuration(self, path):
         """Read a configuration file (None: environment variable or shipped default) and show it"""
         try:
@@ -959,9 +1049,11 @@ class LithicProcessorGUI(QMainWindow):
         except ConfigError as e:
             self.config = None
             self.config_label.setText('Configuration: defaults (the file was not read)')
+            self.set_angle_options(AngleSettings())
             self.log(f"Warning: the configuration file was not read: {e}. The defaults are used.")
             QMessageBox.warning(self, 'Configuration', f'The configuration file was not read:\n{e}')
             return
+        self.set_angle_options(self.config.angles)
         source = self.config.source
         shown = 'default' if source == str(default_config_path()) else os.path.basename(source)
         self.config_label.setText(f'Configuration: {shown}')
@@ -1194,7 +1286,8 @@ class LithicProcessorGUI(QMainWindow):
                 preserve_cortex=self.preserve_cortex_checkbox.isChecked(),
                 keep_upscaled=self.keep_upscaled_checkbox.isChecked(),
                 scale_image_path=self.scale_image_path,
-                config=getattr(self, 'config', None),
+                config=self.processing_config(),
+                measure_angles=self.measure_angles_checkbox.isChecked(),
                 **upscale_params)
         self.processing_thread.progress_signal.connect(self.update_progress)
         self.processing_thread.finished_signal.connect(self.processing_finished)
@@ -1299,6 +1392,7 @@ class LithicProcessorGUI(QMainWindow):
             # Enable arrow tools
             arrow_integration.enable_arrow_controls(self)
             self.log("Add arrows to the result: drag to move, Shift+drag to rotate, Alt+drag to resize")
+            self.place_striking_arrows(getattr(thread, 'striking_angles', []))
 
             # Update DPI display if we have DPI info
             if dpi_info:
@@ -1320,6 +1414,23 @@ class LithicProcessorGUI(QMainWindow):
             self.log("Error: processing failed")
             QMessageBox.critical(self, 'Error', 'Processing failed. See the log.')
 
+    def place_striking_arrows(self, records):
+        """Add one arrow for each measured scar, at the centroid of its ripples."""
+        if not records:
+            return
+        for record in records:
+            self.canvas.add_arrow_at_pixel(
+                record['x'], record['y'], widget_angle_from_compass(record['compass']),
+                size=arrow_size_for(record['extent'], self.canvas.get_minimum_arrow_size()),
+                color=self.arrow_color)
+            note = "" if record['direction_certain'] else " The direction is not certain."
+            self.log(f"Scar {record['scar']}: striking angle {record['compass']} degrees "
+                     f"from {record['ripples']} ripples.{note}")
+        self.delete_arrow_button.setEnabled(True)
+        self.clear_arrows_button.setEnabled(True)
+        self.log(f"{len(records)} arrows added for the striking angles. "
+                 "Move, turn or delete them as necessary.")
+
     def load_debug_images(self):
         """Load all debug images from the output folder into the debug panel"""
         # Get original filename for pattern matching
@@ -1338,10 +1449,12 @@ class LithicProcessorGUI(QMainWindow):
             f'4_{original_filename}_endpoints_junctions.png',
             f'5_{original_filename}_labeled_segments.png',
             f'6_{original_filename}_ripple_identification.png',
+            f'6a_{original_filename}_striking_angles.png',
             f'7_{original_filename}_skeleton_cleaned.png',
             f'7a_{original_filename}_endpoint_filtering.png',
             f'8_{original_filename}_final_cleaned.png',
-            f'9_{original_filename}_restored.png'
+            f'9_{original_filename}_restored.png',
+            f'10_{original_filename}_striking_arrows.png',
         ]
 
         for debug_file in debug_patterns:
@@ -1400,7 +1513,7 @@ class LithicProcessorGUI(QMainWindow):
                 # Image display
                 image_label = QLabel()
                 image_label.setAlignment(Qt.AlignCenter)
-                image_label.setStyleSheet("border: 1px solid #dddddd; background-color: white;")
+                image_label.setObjectName("debug_image")  # the border comes from the theme
 
                 # Load and display the image
                 self.display_debug_image(file_path, image_label)

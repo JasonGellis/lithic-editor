@@ -222,3 +222,78 @@ class TestKeepUpscaledWarning:
         window.check_and_prompt_upscaling((150, 150))
         assert window.keep_upscaled_checkbox.isChecked()
         assert len(calls) == 1
+
+
+class TestStrikingAngleArrows:
+    def test_checkbox_exists_and_is_on_by_default(self, qapp):
+        from lithic_editor.gui.main_window import LithicProcessorGUI
+        window = LithicProcessorGUI()
+        assert window.measure_angles_checkbox.isChecked() is True
+
+    def test_threshold_spin_boxes_start_at_the_configuration_values(self, qapp):
+        from lithic_editor.gui.main_window import LithicProcessorGUI
+        window = LithicProcessorGUI()
+        assert window.min_ripples_spin.value() == 4
+        assert window.min_arc_depth_spin.value() == 2.0
+        assert window.max_cortex_dots_spin.value() == 2
+        assert window.angle_options_widget.isEnabled()
+        window.measure_angles_checkbox.setChecked(False)
+        assert not window.angle_options_widget.isEnabled()
+
+    def test_a_loaded_configuration_fills_the_spin_boxes(self, qapp, tmp_path):
+        from lithic_editor.gui.main_window import LithicProcessorGUI
+        window = LithicProcessorGUI()
+        path = tmp_path / "angles.yaml"
+        path.write_text("angles:\n  min_ripples: 3\n  min_arc_depth_px: 1.5\n  max_cortex_dots: 0\n")
+        window.apply_configuration(str(path))
+        assert (window.min_ripples_spin.value(), window.min_arc_depth_spin.value(),
+                window.max_cortex_dots_spin.value()) == (3, 1.5, 0)
+        window.reset_configuration()
+        assert window.min_ripples_spin.value() == 4
+
+    def test_spin_box_values_reach_the_processing_configuration(self, qapp):
+        from lithic_editor.gui.main_window import LithicProcessorGUI
+        window = LithicProcessorGUI()
+        window.min_ripples_spin.setValue(6)
+        window.max_cortex_dots_spin.setValue(5)
+        config = window.processing_config()
+        assert isinstance(config, Config)
+        assert config.angles.min_ripples == 6
+        assert config.angles.max_cortex_dots == 5
+        assert config.angles.min_arc_depth_px == 2.0
+        assert config.resolution == window.config.resolution
+        assert "panel" in config.source
+
+    def test_thread_accepts_the_option(self, qapp):
+        from lithic_editor.gui.main_window import ProcessingThread
+        thread = ProcessingThread("in.png", "out", measure_angles=True)
+        assert thread.measure_angles is True and thread.striking_angles == []
+
+    def test_records_become_arrows_at_their_centroids(self, qapp):
+        from PyQt5.QtGui import QPixmap
+        from lithic_editor.gui.main_window import LithicProcessorGUI
+        from lithic_editor.processing.striking_angle import widget_angle_from_compass
+        window = LithicProcessorGUI()
+        window.canvas.set_base_image(QPixmap(400, 300))
+        records = [
+            {'scar': 1, 'x': 100.0, 'y': 50.0, 'compass': 90.0, 'ripples': 6, 'spread': 0.01,
+             'direction_certain': True, 'extent': 600.0},
+            {'scar': 2, 'x': 300.0, 'y': 200.0, 'compass': 0.0, 'ripples': 4, 'spread': 0.2,
+             'direction_certain': False, 'extent': 10.0},
+        ]
+        window.place_striking_arrows(records)
+        arrows = window.canvas.arrows
+        assert [a.position for a in arrows] == [(100.0, 50.0), (300.0, 200.0)]
+        assert [a.angle for a in arrows] == [widget_angle_from_compass(90.0), widget_angle_from_compass(0.0)]
+        minimum = window.canvas.get_minimum_arrow_size()
+        assert arrows[0].size == 120 and arrows[1].size == minimum  # a fifth of the extent, or the minimum
+        assert window.delete_arrow_button.isEnabled() and window.clear_arrows_button.isEnabled()
+        log = window.log_display.toPlainText()
+        assert "Scar 1: striking angle 90.0 degrees from 6 ripples." in log
+        assert "Scar 2" in log and "not certain" in log
+
+    def test_no_records_adds_nothing(self, qapp):
+        from lithic_editor.gui.main_window import LithicProcessorGUI
+        window = LithicProcessorGUI()
+        window.place_striking_arrows([])
+        assert window.canvas.arrows == []

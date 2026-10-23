@@ -18,8 +18,8 @@ If the image has no DPI, select **No DPI value** or **Set the DPI** in the DPI s
 Use the brush to remove marks or to close gaps before processing.
 
 1. Click **Activate Brush**.
-2. Select **White** to erase or **Black** to draw.
-3. Set the **Size**.
+2. Click **Brush Color** and select a color if necessary. White erases, black draws. White is the default.
+3. Set the **Brush Size**.
 4. Drag on the **Input Image** panel.
 5. Click **Clear Brush** to remove all brush marks.
 
@@ -29,6 +29,7 @@ The brush does not change the file on disk. Processing uses the edited image.
 
 - Set **Show and save the debug images** to examine each stage. See [Debug images](#debug-images).
 - Keep **Keep the cortex stipple** on for drawings with cortex stipple. Turn it off to process the stipple as lines.
+- Keep **Add striking angle arrows** on to get an arrow at each scar that has enough ripples. The three spin boxes below it set the thresholds. See [Striking angles](striking-angles.md).
 - Set **Keep the upscaled size** and load a scale image if you want the result at the upscaled working size. See [Output](output.md).
 
 ### Process the image
@@ -61,15 +62,16 @@ The pipeline does these steps in this order.
 2. Measures the line width and the hatch gap in pixels.
 3. Upscales for processing only when necessary. The factor is the smallest of 2, 3 or 4 that makes the line width at least 6 px and the hatch gap at least 12 px. The model is ESPCN (default) or FSRCNN. Both models are included in the package. The pipeline never downscales.
 4. Smooths the image with a Gaussian blur. The sigma is 0.25 times the line width. This separates the tips of the hatch lines from the contours they touch.
-5. Thresholds the image to a binary image with the Sauvola method. The pipeline also keeps an unsmoothed threshold for step 12.
+5. Thresholds the image to a binary image with the Sauvola method. The pipeline also keeps an unsmoothed threshold for step 13.
 6. Separates the cortex stipple from the structural lines by component area. The area thresholds scale with the DPI.
 7. Skeletonizes the structural lines (Lee method), closes small gaps, thins again and removes short spurs.
 8. Bridges free skeleton ends that are closer than about 1.5 times the line width, and never more than half a hatch gap. A contour with a small break stays closed.
 9. Finds endpoints (one neighbour) and junctions (three or more neighbours). Converts junctions very near an endpoint (Y-tips) to endpoints.
 10. Splits the skeleton at the endpoints and junctions into segments and builds a graph.
 11. Classifies a segment that touches a free endpoint as a ripple. All other segments are structural.
-12. Rebuilds the structural lines from the unsmoothed ink at a radius of half the line width. The lines keep the original pen weight. Adds the cortex back. Inverts the image to black on white.
-13. Returns the result at the input pixel size and DPI. With the keep-upscaled option, returns the working size instead. See [Output](output.md).
+12. Measures the striking angle of each scar from its ripples, when the option is set. See [Striking angles](striking-angles.md).
+13. Rebuilds the structural lines from the unsmoothed ink at a radius of half the line width. The lines keep the original pen weight. Adds the cortex back. Inverts the image to black on white.
+14. Returns the result at the input pixel size and DPI. With the keep-upscaled option, returns the working size instead. See [Output](output.md).
 
 ## Debug images
 
@@ -89,10 +91,12 @@ Set **Show and save the debug images** to write the debug images. The GUI writes
 | `4_<name>_endpoints_junctions.png` | The endpoints and the junctions. |
 | `5_<name>_labeled_segments.png` | The segments, each in a different color. |
 | `6_<name>_ripple_identification.png` | Red = ripple, white = structural, green dots = junctions. |
+| `6a_<name>_striking_angles.png` | The ripple image with the striking line and the direction of each scar. Yellow = direction certain, orange = direction not certain. Written only with the striking angle option. |
 | `7_<name>_skeleton_cleaned.png` | The skeleton without the ripple segments. |
 | `7a_<name>_endpoint_filtering.png` | Gray = skeleton, white = structural, green = junctions, blue = kept endpoints, red = removed endpoints. |
 | `8_<name>_final_cleaned.png` | The rebuilt lines with the cortex, black on white. |
 | `9_<name>_restored.png` | The result at the input size. Written only when the image was upscaled and returned to the input size. |
+| `10_<name>_striking_arrows.png` | The result with a filled arrow for each measured scar, as the GUI places them. Written only with the striking angle option. |
 
 !!! tip "Find the cause of a problem"
     Examine `6_<name>_ripple_identification.png` first. A red segment is removed. A white segment is kept.

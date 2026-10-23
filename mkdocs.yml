@@ -120,6 +120,7 @@ nav:
     - Interface: user-guide/interface.md
     - Processing: user-guide/processing.md
     - Arrows: user-guide/arrows.md
+    - Striking Angles: user-guide/striking-angles.md
     - Output: user-guide/output.md
     - Configuration: user-guide/configuration.md
     - Command Line: user-guide/CLI.md

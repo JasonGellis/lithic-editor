@@ -189,7 +189,7 @@ lithic-editor --help
 Start the graphical interface:
 
 ```bash
-lithic-editor gui
+lithic-editor --gui
 ```
 
 A window with the title **Lithic Editor and Annotator** opens. If the
@@ -205,10 +205,10 @@ The repository has example drawings in `example_images/`. Process one
 from the command line:
 
 ```bash
-lithic-editor process example_images/369.png --output results --auto-upscale --debug
+lithic-editor example_images/lithic_150.png --output results --auto-upscale --debug
 ```
 
-The result is in `results/369_cleaned.png`. The debug images show each
+The result is in `results/lithic_150_cleaned.png`. The debug images show each
 processing step. If there are no errors, the full pipeline operates.
 
 ### Full help
@@ -217,11 +217,8 @@ processing step. If there are no errors, the full pipeline operates.
 # All commands
 lithic-editor --help
 
-# All options of the process command
-lithic-editor process --help
-
-# The full help text
-lithic-editor help
+# The full help text, with all options
+lithic-editor --help
 ```
 
 ## Update Lithic Editor
@@ -245,7 +242,7 @@ To read the documentation without an internet connection:
 
 ```bash
 # Serve the documentation at http://127.0.0.1:8000
-lithic-editor docs --offline
+lithic-editor --docs --offline
 ```
 
 To edit and build the documentation, install the documentation tools
@@ -257,7 +254,7 @@ mkdocs serve
 ```
 
 !!! tip "Online documentation"
-    `lithic-editor docs` opens the online documentation in your browser.
+    `lithic-editor --docs` opens the online documentation in your browser.
 
 ## Installation problems
 

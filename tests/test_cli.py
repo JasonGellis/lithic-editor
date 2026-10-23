@@ -2,6 +2,8 @@
 Tests for the command-line interface.
 """
 
+import sys
+
 import numpy as np
 import pytest
 from unittest.mock import patch, MagicMock
@@ -9,9 +11,14 @@ from lithic_editor.cli.main import (
     create_parser, 
     validate_input_file,
     process_image_cli,
-    show_help_cli,
     open_docs
 )
+
+
+def mock_args(**values):
+    """Parsed-argument stand-in with the angle options unset, as argparse leaves them."""
+    defaults = {'min_ripples': None, 'min_arc_depth': None, 'max_cortex_dots': None}
+    return MagicMock(**{**defaults, **values})
 
 
 class TestCLIParser:
@@ -33,96 +40,55 @@ class TestCLIParser:
         # Version flag should exit with 0
         assert exc_info.value.code == 0
     
-    def test_gui_command(self):
-        """Test GUI command parsing."""
-        parser = create_parser()
-        args = parser.parse_args(['gui'])
-        
-        assert args.command == 'gui'
-    
     def test_gui_flag(self):
-        """Test --gui flag."""
         parser = create_parser()
         args = parser.parse_args(['--gui'])
-        
-        assert args.gui == True
-    
-    def test_process_command(self):
-        """Test process command parsing."""
+        assert args.gui is True and args.input_image is None
+
+    def test_drawing_is_the_positional_argument(self):
         parser = create_parser()
-        args = parser.parse_args(['process', 'image.png'])
-        
-        assert args.command == 'process'
+        args = parser.parse_args(['image.png'])
         assert args.input_image == 'image.png'
         assert args.output == 'image_debug'  # default
-        assert args.debug == False  # default
-        assert args.quiet == False  # default
-    
-    def test_process_with_options(self):
-        """Test process command with all options."""
+        assert args.debug is False and args.quiet is False
+        assert args.gui is False and args.docs is False
+
+    def test_processing_options(self):
         parser = create_parser()
-        args = parser.parse_args([
-            'process', 'image.png',
-            '--output', 'results/',
-            '--debug',
-            '--quiet'
-        ])
-        
+        args = parser.parse_args(['image.png', '--output', 'results/', '--debug', '--quiet'])
         assert args.input_image == 'image.png'
         assert args.output == 'results/'
-        assert args.debug == True
-        assert args.quiet == True
-    
-    def test_process_with_cortex_preservation(self):
-        """Test process command with cortex preservation flag."""
+        assert args.debug is True and args.quiet is True
+
+    def test_cortex_flag(self):
         parser = create_parser()
-        args = parser.parse_args([
-            'process', 'image.png',
-            '--no-preserve-cortex'
-        ])
-        
-        assert args.input_image == 'image.png'
-        assert args.no_preserve_cortex == True
-    
-    def test_process_cortex_default(self):
-        """Test that cortex preservation is enabled by default."""
+        assert parser.parse_args(['image.png', '--no-preserve-cortex']).no_preserve_cortex is True
+        assert parser.parse_args(['image.png']).no_preserve_cortex is False
+
+    def test_no_subcommands_remain(self):
         parser = create_parser()
-        args = parser.parse_args(['process', 'image.png'])
-        
-        # no_preserve_cortex should be False by default (cortex preserved)
-        assert args.no_preserve_cortex == False
-    
-    def test_help_command(self):
-        """Test help command parsing."""
+        args = parser.parse_args(['process'])
+        assert args.input_image == 'process'  # 'process' is a file name now, not a command
+        with pytest.raises(SystemExit):
+            parser.parse_args(['help', 'api'])
+
+    def test_help_flags_print_the_full_text_and_exit(self, capsys):
         parser = create_parser()
-        args = parser.parse_args(['help'])
-        
-        assert args.command == 'help'
-        assert args.topic is None
-    
-    def test_help_api_topic(self):
-        """Test help command with API topic."""
+        for flag, marker in (('--help', 'USAGE'), ('-h', 'USAGE'), ('--help-api', 'LITHIC EDITOR API')):
+            with pytest.raises(SystemExit) as exc_info:
+                parser.parse_args([flag])
+            assert exc_info.value.code == 0
+            assert marker in capsys.readouterr().out
+
+    def test_docs_flag(self):
         parser = create_parser()
-        args = parser.parse_args(['help', 'api'])
-        
-        assert args.command == 'help'
-        assert args.topic == 'api'
-    
-    def test_docs_command(self):
-        """Test docs command parsing."""
-        parser = create_parser()
-        args = parser.parse_args(['docs'])
-        
-        assert args.command == 'docs'
-        assert args.offline == False  # default
-    
+        args = parser.parse_args(['--docs'])
+        assert args.docs is True and args.offline is False and args.input_image is None
+
     def test_docs_offline(self):
-        """Test docs command with offline flag."""
         parser = create_parser()
-        args = parser.parse_args(['docs', '--offline'])
-        
-        assert args.command == 'docs'
-        assert args.offline == True
+        args = parser.parse_args(['--docs', '--offline'])
+        assert args.docs is True and args.offline is True
 
 
 class TestInputValidation:
@@ -170,7 +136,7 @@ class TestProcessImageCLI:
     
     def test_process_success(self, sample_image, tmp_path):
         """Test successful image processing."""
-        args = MagicMock()
+        args = mock_args()
         args.input_image = str(sample_image)
         args.output = str(tmp_path / "out")
         args.debug = False
@@ -186,7 +152,7 @@ class TestProcessImageCLI:
     
     def test_process_quiet_mode(self, sample_image, capsys, tmp_path):
         """Test quiet mode suppresses output."""
-        args = MagicMock()
+        args = mock_args()
         args.input_image = str(sample_image)
         args.output = str(tmp_path / "out")
         args.debug = False
@@ -203,7 +169,7 @@ class TestProcessImageCLI:
     
     def test_process_file_not_found(self, tmp_path):
         """Test handling of missing file."""
-        args = MagicMock()
+        args = mock_args()
         args.input_image = "nonexistent.png"
         args.output = str(tmp_path / "out")
         args.debug = False
@@ -214,7 +180,7 @@ class TestProcessImageCLI:
     
     def test_process_with_cortex_parameter(self, sample_image, tmp_path):
         """Test processing with cortex preservation parameter."""
-        args = MagicMock()
+        args = mock_args()
         args.input_image = str(sample_image)
         args.output = str(tmp_path / "out")
         args.debug = False
@@ -233,26 +199,33 @@ class TestProcessImageCLI:
             assert call_kwargs['preserve_cortex'] == False
 
 
-class TestHelpCLI:
-    """Test help command functionality."""
-    
-    def test_show_help_default(self):
-        """Test default help display."""
-        args = MagicMock()
-        args.topic = None
-        
+class TestMainDispatch:
+    """main() routes each flag to its function."""
+
+    def _run(self, argv, monkeypatch):
+        from lithic_editor.cli import main as cli
+        monkeypatch.setattr(sys, 'argv', ['lithic-editor'] + argv)
+        return cli.main()
+
+    def test_no_arguments_shows_the_full_help(self, monkeypatch):
         with patch('lithic_editor.cli.main.show_help') as mock_help:
-            show_help_cli(args)
+            assert self._run([], monkeypatch) == 0
             mock_help.assert_called_once()
-    
-    def test_show_api_help(self):
-        """Test API help display."""
-        args = MagicMock()
-        args.topic = 'api'
-        
-        with patch('lithic_editor.cli.main.show_api_help') as mock_api_help:
-            show_help_cli(args)
-            mock_api_help.assert_called_once()
+
+    def test_gui_flag_starts_the_interface(self, monkeypatch):
+        with patch('lithic_editor.cli.main.launch_gui_cli', return_value=0) as mock_gui:
+            assert self._run(['--gui'], monkeypatch) == 0
+            mock_gui.assert_called_once()
+
+    def test_docs_flag_opens_the_documentation(self, monkeypatch):
+        with patch('lithic_editor.cli.main.open_docs', return_value=0) as mock_docs:
+            assert self._run(['--docs'], monkeypatch) == 0
+            mock_docs.assert_called_once()
+
+    def test_a_drawing_is_processed(self, monkeypatch):
+        with patch('lithic_editor.cli.main.process_image_cli', return_value=0) as mock_process:
+            assert self._run(['drawing.png', '--quiet'], monkeypatch) == 0
+            assert mock_process.call_args[0][0].input_image == 'drawing.png'
 
 
 class TestDocsCLI:
@@ -260,7 +233,7 @@ class TestDocsCLI:
     
     def test_open_docs_online(self):
         """Test opening online documentation."""
-        args = MagicMock()
+        args = mock_args()
         args.offline = False
         
         with patch('webbrowser.open') as mock_open:
@@ -271,7 +244,7 @@ class TestDocsCLI:
     
     def test_open_docs_offline(self):
         """Test opening offline documentation."""
-        args = MagicMock()
+        args = mock_args()
         args.offline = True
         
         with patch('lithic_editor.cli.docs_server.serve_docs') as mock_serve:
@@ -295,8 +268,7 @@ class TestKeepUpscaledOutput:
         return img
 
     def _args(self, image_path, out_dir, **overrides):
-        from unittest.mock import MagicMock
-        args = MagicMock()
+        args = mock_args()
         args.input_image = str(image_path)
         args.output = str(out_dir)
         args.debug = False
@@ -349,7 +321,7 @@ class TestKeepUpscaledOutput:
 class TestParserOptions:
     def test_process_options_parse(self):
         parser = create_parser()
-        args = parser.parse_args(["process", "in.png", "--auto-upscale", "--keep-upscaled",
+        args = parser.parse_args(["in.png", "--auto-upscale", "--keep-upscaled",
                                   "--scale-image", "bar.png", "--config", "c.yaml",
                                   "--upscale-model", "fsrcnn", "--default-dpi", "150"])
         assert args.auto_upscale and args.keep_upscaled
@@ -357,17 +329,17 @@ class TestParserOptions:
         assert args.upscale_model == "fsrcnn" and args.default_dpi == 150
 
     def test_upscale_model_defaults_to_configuration(self):
-        args = create_parser().parse_args(["process", "in.png"])
+        args = create_parser().parse_args(["in.png"])
         assert args.upscale_model is None and args.config is None
 
     def test_removed_option_is_rejected(self):
         import pytest
         with pytest.raises(SystemExit):
-            create_parser().parse_args(["process", "in.png", "--upscale-threshold", "300"])
+            create_parser().parse_args(["in.png", "--upscale-threshold", "300"])
 
     def test_config_path_reaches_the_pipeline(self, sample_image, tmp_path):
-        from unittest.mock import MagicMock, patch
-        args = MagicMock()
+        from unittest.mock import patch
+        args = mock_args()
         args.input_image = str(sample_image)
         args.output = str(tmp_path / "out")
         args.debug = False
@@ -384,3 +356,89 @@ class TestParserOptions:
             assert process_image_cli(args) == 0
             assert mock_process.call_args[1]["config"] == "my.yaml"
             assert mock_process.call_args[1]["restore_original_size"] is True
+
+
+class TestStrikingAnglesCLI:
+    """The --angles option and its CSV file."""
+
+    def test_angles_flag_parses(self):
+        parser = create_parser()
+        args = parser.parse_args(['in.png', '--angles'])
+        assert args.angles is True
+        assert parser.parse_args(['in.png']).angles is False
+
+    def test_angles_are_written_as_csv(self, sample_image, tmp_path, capsys):
+        import csv
+        args = mock_args()
+        args.input_image = str(sample_image)
+        args.output = str(tmp_path / "out")
+        args.debug = False
+        args.quiet = False
+        args.config = None
+        args.angles = True
+        record = {'scar': 1, 'x': 12.5, 'y': 30.0, 'compass': 45.0, 'ripples': 5,
+                  'spread': 0.02, 'direction_certain': True, 'extent': 80.0}
+        with patch('lithic_editor.cli.main.process_lithic_drawing') as mock_process:
+            mock_process.return_value = {
+                'processed_image': np.full((20, 20), 255, dtype=np.uint8),
+                'scale_factor': 1, 'working_scale_factor': 1,
+                'original_dpi': None, 'final_dpi': None,
+                'striking_angles': [record],
+            }
+            assert process_image_cli(args) == 0
+            assert mock_process.call_args[1]['measure_angles'] is True
+        angles_file = tmp_path / "out" / f"{sample_image.stem}_angles.csv"
+        with open(angles_file, newline='') as handle:
+            rows = list(csv.DictReader(handle))
+        assert rows == [{'scar': '1', 'x': '12.5', 'y': '30.0', 'compass': '45.0', 'ripples': '5',
+                         'spread': '0.02', 'direction_certain': 'True', 'extent': '80.0'}]
+        out = capsys.readouterr().out
+        assert "Scar 1: 45.0 degrees from 5 ripples" in out
+        assert "Striking angles written to" in out
+
+    def test_angle_options_parse(self):
+        parser = create_parser()
+        args = parser.parse_args(['in.png', '--angles', '--min-ripples', '3',
+                                  '--min-arc-depth', '1.5', '--max-cortex-dots', '0'])
+        assert (args.min_ripples, args.min_arc_depth, args.max_cortex_dots) == (3, 1.5, 0)
+        args = parser.parse_args(['in.png'])
+        assert args.min_ripples is None and args.min_arc_depth is None and args.max_cortex_dots is None
+
+    def test_angle_options_replace_the_configuration_values(self):
+        from lithic_editor.cli.main import config_with_angle_options
+        from lithic_editor.config import Config
+        args = MagicMock(config=None, min_ripples=3, min_arc_depth=None, max_cortex_dots=0)
+        config = config_with_angle_options(args)
+        assert isinstance(config, Config)
+        assert config.angles.min_ripples == 3
+        assert config.angles.max_cortex_dots == 0
+        assert config.angles.min_arc_depth_px == 2.0
+        assert "command line" in config.source
+
+    def test_without_angle_options_the_config_path_passes_through(self):
+        from lithic_editor.cli.main import config_with_angle_options
+        args = MagicMock(config='some.yaml', min_ripples=None, min_arc_depth=None, max_cortex_dots=None)
+        assert config_with_angle_options(args) == 'some.yaml'
+        args.config = None
+        assert config_with_angle_options(args) is None
+
+    def test_invalid_angle_option_is_reported(self, sample_image, tmp_path, capsys):
+        args = MagicMock(input_image=str(sample_image), output=str(tmp_path / "out"), debug=False,
+                         quiet=False, config=None, angles=True,
+                         min_ripples=0, min_arc_depth=None, max_cortex_dots=None)
+        assert process_image_cli(args) == 1
+        assert "angles.min_ripples must be at least 1" in capsys.readouterr().out
+
+    def test_no_csv_without_the_flag(self, sample_image, tmp_path):
+        args = mock_args()
+        args.input_image = str(sample_image)
+        args.output = str(tmp_path / "out")
+        args.debug = False
+        args.quiet = True
+        args.config = None
+        args.angles = False
+        with patch('lithic_editor.cli.main.process_lithic_drawing') as mock_process:
+            mock_process.return_value = np.full((20, 20), 255, dtype=np.uint8)
+            assert process_image_cli(args) == 0
+            assert mock_process.call_args[1]['measure_angles'] is False
+        assert not list((tmp_path / "out").glob("*_angles.csv"))

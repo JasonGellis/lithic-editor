@@ -1,8 +1,5 @@
 """
-GUI module that wraps the working lithic_GUI.py
-
-This module provides access to the proven working GUI implementation
-while maintaining a clean package structure, preserving exact functionality.
+The PyQt5 graphical interface: the main window, its processing thread and the theme.
 """
 
 from lithic_editor.gui.main_window import LithicProcessorGUI

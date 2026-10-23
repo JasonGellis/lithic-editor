@@ -129,6 +129,13 @@ class LineSettings:
 
 
 @dataclass(frozen=True)
+class AngleSettings:
+    min_ripples: int = 4
+    min_arc_depth_px: float = 2.0
+    max_cortex_dots: int = 2
+
+
+@dataclass(frozen=True)
 class Config:
     resolution: ResolutionSettings = field(default_factory=ResolutionSettings)
     smoothing: SmoothingSettings = field(default_factory=SmoothingSettings)
@@ -137,6 +144,7 @@ class Config:
     skeleton: SkeletonSettings = field(default_factory=SkeletonSettings)
     ripples: RippleSettings = field(default_factory=RippleSettings)
     lines: LineSettings = field(default_factory=LineSettings)
+    angles: AngleSettings = field(default_factory=AngleSettings)
     source: str = "defaults"
 
 
@@ -148,6 +156,7 @@ _SECTIONS = {
     "skeleton": SkeletonSettings,
     "ripples": RippleSettings,
     "lines": LineSettings,
+    "angles": AngleSettings,
 }
 
 
@@ -257,6 +266,9 @@ def _validate(config: Config, source: str) -> None:
         (config.lines.radius_in_line_widths > 0, "lines.radius_in_line_widths must be positive"),
         (config.lines.radius_max_in_line_widths >= config.lines.radius_in_line_widths,
          "lines.radius_max_in_line_widths must not be below radius_in_line_widths"),
+        (config.angles.min_ripples >= 1, "angles.min_ripples must be at least 1"),
+        (config.angles.min_arc_depth_px >= 0, "angles.min_arc_depth_px must not be negative"),
+        (config.angles.max_cortex_dots >= 0, "angles.max_cortex_dots must not be negative"),
     ]
     for ok, message in checks:
         if not ok:
@@ -270,6 +282,18 @@ def resolve_config(config: Config | str | os.PathLike | None) -> Config:
     return load_config(config)
 
 
+def replace_values(config: Config, section: str, source: str | None = None, **values) -> Config:
+    """A copy of ``config`` with the given keys of one section replaced, validated like a file."""
+    if section not in _SECTIONS:
+        raise ConfigError(f"unknown section: {section}")
+    data = to_mapping(config)
+    unknown = set(values) - set(data[section])
+    if unknown:
+        raise ConfigError(f"unknown key(s) in '{section}': {', '.join(sorted(unknown))}")
+    data[section].update(values)
+    return config_from_mapping(data, source=source or f"{config.source} with changes")
+
+
 def to_mapping(config: Config) -> dict:
     """The configuration as a nested dict, without the ``source`` entry."""
     data = dataclasses.asdict(config)
@@ -279,7 +303,7 @@ def to_mapping(config: Config) -> dict:
 
 __all__ = [
     "Config", "ConfigError", "ResolutionSettings", "SmoothingSettings", "ThresholdSettings",
-    "CortexSettings", "SkeletonSettings", "RippleSettings", "LineSettings",
+    "CortexSettings", "SkeletonSettings", "RippleSettings", "LineSettings", "AngleSettings",
     "load_config", "resolve_config", "config_from_mapping", "default_config_path",
-    "resolve_config_path", "to_mapping", "ENV_VAR",
+    "resolve_config_path", "to_mapping", "replace_values", "ENV_VAR",
 ]

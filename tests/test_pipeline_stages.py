@@ -180,7 +180,6 @@ class TestRealExampleImages:
 
     @pytest.mark.parametrize("name,expected_factor", [
         ("lithic_75dpi", 4), ("lithic_150", 2), ("lithic_300dpi", 1),
-        ("369", 2), ("371", 2), ("365", 2),
     ])
     def test_expected_upscale_factor(self, name, expected_factor):
         from pathlib import Path

@@ -89,9 +89,9 @@ A GitHub Actions workflow builds the documentation on each push to `main` and de
 ## Run the application
 
 ```bash
-lithic-editor gui
-lithic-editor process example_images/369.png --debug
-lithic-editor docs --offline
+lithic-editor --gui
+lithic-editor example_images/lithic_300dpi.png --debug
+lithic-editor --docs --offline
 ```
 
 ## Project layout

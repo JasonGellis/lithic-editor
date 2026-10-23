@@ -138,3 +138,19 @@ class TestConfigDrivesTheFunctions:
         result = process_lithic_drawing(img, output_folder=str(tmp_path), dpi_info=300,
                                         upscale_low_dpi=True, return_scale_factor=True, config=path)
         assert result["working_scale_factor"] == 1
+
+
+class TestReplaceValues:
+    def test_replaces_one_section_and_validates(self):
+        from lithic_editor.config import ConfigError, load_config, replace_values
+        base = load_config()
+        changed = replace_values(base, 'angles', min_ripples=3)
+        assert changed.angles.min_ripples == 3 and changed.angles.max_cortex_dots == 2
+        assert changed.resolution == base.resolution
+        assert changed.source.endswith("with changes")
+        with pytest.raises(ConfigError, match="at least 1"):
+            replace_values(base, 'angles', min_ripples=0)
+        with pytest.raises(ConfigError, match="unknown key"):
+            replace_values(base, 'angles', ripples=3)
+        with pytest.raises(ConfigError, match="unknown section"):
+            replace_values(base, 'nothing', min_ripples=3)

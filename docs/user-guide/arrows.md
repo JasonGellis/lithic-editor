@@ -4,6 +4,8 @@
 
 Arrows show a direction on the processed drawing. The arrow tools become available after processing. The saved image includes the arrows.
 
+When **Add striking angle arrows** is on, processing adds one arrow for each scar with enough ripples. These arrows are the same as the arrows you add by hand. See [Striking angles](striking-angles.md).
+
 ## Add an arrow
 
 1. Process the image.

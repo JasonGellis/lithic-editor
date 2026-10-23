@@ -92,6 +92,10 @@ Thin lines and narrow hatch gaps make ripple detection less accurate. The softwa
 
 The neural models ESPCN and FSRCNN are included in the package. No download is needed.
 
+## Striking Angle
+
+The ripples of a scar are arcs around the point of percussion. Before the software removes them, it can measure the direction of the blow for each scar. The GUI adds an arrow at the centre of the ripples. The CLI writes a CSV file. The angle is in the frame that PyLithics uses, so the two tools give the same number for the same arrow. See [Striking angles](user-guide/striking-angles.md).
+
 ## Arrow Annotation
 
 The GUI has tools to add direction arrows to the processed drawing.

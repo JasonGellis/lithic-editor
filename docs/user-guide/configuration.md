@@ -19,7 +19,7 @@ print(default_config_path())
 
 === "Command line"
     ```bash
-    lithic-editor process drawing.png --config my_config.yaml
+    lithic-editor drawing.png --config my_config.yaml
     ```
 
 === "Python"
@@ -32,7 +32,7 @@ print(default_config_path())
 === "Environment variable"
     ```bash
     export LITHIC_EDITOR_CONFIG=/path/to/my_config.yaml
-    lithic-editor gui
+    lithic-editor --gui
     ```
     The GUI and the command line read this variable when no file is given.
 
@@ -109,10 +109,20 @@ A junction closer than the Y-tip distance to a free end becomes a free end.
 | `radius_in_line_widths` | 0.5 | Lines are rebuilt from the original ink within this fraction of the line width around the skeleton. |
 | `radius_max_in_line_widths` | 0.75 | The largest rebuild radius, as a fraction of the line width. |
 
+### angles
+
+| Key | Default | Meaning |
+|-----|---------|---------|
+| `min_ripples` | 4 | A scar with fewer ripples than this gets no striking angle. |
+| `min_arc_depth_px` | 2.0 | The arc depth of a ripple is the distance from the straight line between its two ends to its farthest point. When the mean arc depth of a scar's ripples is smaller than this many pixels, the direction is not certain. |
+| `max_cortex_dots` | 2 | A face with more cortex dots than this is cortex, not a scar, and gets no angle. Applies when the cortex stipple is kept. |
+
+The GUI shows these three values as spin boxes under the arrow option, and the CLI has the options `--min-ripples`, `--min-arc-depth` and `--max-cortex-dots`. Both replace the file values for one run. A loaded file sets the spin boxes. See [Striking angles](striking-angles.md#the-thresholds).
+
 ## Compare configurations
 
 The evaluation harness accepts a configuration file. Run it once with the default and once with your file, then compare the two reports. See [Testing](../developer/testing.md#evaluation-harness).
 
 ```bash
-python -m tools.dpi_eval.run --quick --config my_config.yaml
+python -m tools.dpi_eval.run --config my_config.yaml
 ```

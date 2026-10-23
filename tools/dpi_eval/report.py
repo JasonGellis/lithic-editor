@@ -202,7 +202,7 @@ def write_report(
     sections.append("")
 
     if previous_rows:
-        # Compare only sources both runs evaluated, so a quick run and a full run
+        # Compare only sources both runs evaluated, so two runs with different source lists
         # are not set against each other.
         common_sources = {row["source"] for row in rows} & {row["source"] for row in previous_rows}
         previous = summarize([r for r in previous_rows if r["source"] in common_sources], "ref")

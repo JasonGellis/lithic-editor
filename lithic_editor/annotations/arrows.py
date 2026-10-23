@@ -311,6 +311,28 @@ class ArrowCanvasWidget(QLabel):
 
         return arrow
 
+    def add_arrow_at_pixel(self, x, y, angle, size=None, color=Qt.black):
+        """
+        Add an arrow at a pixel of the image, with its head at a given angle
+
+        Args:
+            x, y: Position in pixmap (image pixel) coordinates
+            angle: Arrow.angle in degrees, 0 pointing right, clockwise on screen
+            size: Arrow size in pixels; never below the minimum detectable size
+            color: Arrow color
+
+        Returns:
+            Arrow: The newly created arrow object
+        """
+        minimum = self.get_minimum_arrow_size()
+        arrow = Arrow(position=(float(x), float(y)), angle=float(angle) % 360,
+                      size=int(max(minimum, size or minimum)), color=color)
+        arrow.make_detectable(self.image_dpi)
+        self.arrows.append(arrow)
+        self.select_arrow(arrow)
+        self.update_display()
+        return arrow
+
     def select_arrow(self, arrow):
         """Select an arrow for manipulation"""
         # Deselect all arrows

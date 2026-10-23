@@ -1,43 +1,36 @@
 # CLI Reference
 
-This page describes each command and each flag of the `lithic-editor` command.
+This page describes each flag of the `lithic-editor` command. Every action is a flag. The drawing to process is the one positional argument.
 
 ## Synopsis
 
 ```bash
-lithic-editor [--version] [--gui] [-h] COMMAND [ARGS]
+lithic-editor [--help] [--help-api] [--version] [--gui] [--docs [--offline]]
+lithic-editor INPUT [options]
 ```
 
 `lithic-editor` with no arguments shows the full help and exits with code 0.
 
-## Global options
+## Actions
 
-| Option | Description |
-|--------|-------------|
+| Flag | Description |
+|------|-------------|
+| `-h`, `--help` | Show the full help and exit. |
+| `--help-api` | Show the help for the Python API and exit. |
 | `--version` | Show the version and exit. |
-| `--gui` | Start the graphical interface. This is the same as `lithic-editor gui`. |
-| `-h`, `--help` | Show the usage and exit. |
+| `--gui` | Start the graphical interface. The command returns the exit code of the interface. If the interface does not start, the command prints a message and exits with code 1. |
+| `--docs` | Open the online documentation in the web browser. |
+| `--docs --offline` | Serve the documentation that comes with the package at `http://127.0.0.1:8000` and open it in the web browser. Press Ctrl+C to stop the server. The command exits with code 1 when the documentation files are not found or when port 8000 is in use. |
 
-## Commands
-
-### gui
-
-Start the graphical interface.
-
-```bash
-lithic-editor gui
-```
-
-The command returns the exit code of the interface. If the interface does not start, the command prints a message and exits with code 1.
-
-### process
+## Process a drawing
 
 Remove the ripple lines from one drawing and write the result to a directory.
 
 ```bash
-lithic-editor process INPUT [-o DIR] [--debug] [-q] [--auto-upscale] [--default-dpi DPI]
-                      [--upscale-model {espcn,fsrcnn}] [--keep-upscaled] [--scale-image PATH]
-                      [--no-preserve-cortex]
+lithic-editor INPUT [-o DIR] [--debug] [-q] [--auto-upscale] [--default-dpi DPI]
+              [--upscale-model {espcn,fsrcnn}] [--config PATH] [--keep-upscaled]
+              [--scale-image PATH] [--angles] [--min-ripples N] [--min-arc-depth PX]
+              [--max-cortex-dots N] [--no-preserve-cortex]
 ```
 
 **Argument**
@@ -59,13 +52,17 @@ lithic-editor process INPUT [-o DIR] [--debug] [-q] [--auto-upscale] [--default-
 | `--keep-upscaled` | off | Keep the result at the upscaled working size. The DPI tag is the input DPI multiplied by the factor. |
 | `--config PATH` | the shipped file | A configuration file. See [Configuration](../user-guide/configuration.md). |
 | `--scale-image PATH` | none | The scale bar image scanned with the drawing. See [Output files](#output-files). |
+| `--angles` | off | Measure the striking angle of each scar from its ripples. See [Striking angles](../user-guide/striking-angles.md). |
+| `--min-ripples N` | 4 | A scar with fewer ripples than N gets no angle. |
+| `--min-arc-depth PX` | 2.0 | When the mean arc depth of the ripples of a scar is less than PX pixels, the direction is marked uncertain. |
+| `--max-cortex-dots N` | 2 | A face with more than N cortex dots is cortex and gets no angle. |
 | `--no-preserve-cortex` | off | Process the cortex stipple as lines. By default the pipeline keeps the stipple. |
 
 The pipeline does not guess a DPI. When the file has no DPI tag and you give no `--default-dpi`, the pipeline uses fixed size thresholds. The result then has no DPI tag.
 
 Without `--auto-upscale`, the pipeline processes the drawing at its input size. Without `--keep-upscaled`, the pipeline returns the result at the input size and DPI, also when it upscaled for processing.
 
-#### Output files
+### Output files
 
 The command writes these files to the output directory. `<stem>` is the file name of the input without its extension.
 
@@ -73,6 +70,7 @@ The command writes these files to the output directory. `<stem>` is the file nam
 |------|--------------|---------|
 | `<stem>_cleaned.png` | always | The cleaned drawing, black lines on white. The DPI tag is the input DPI. With `--keep-upscaled`, the DPI tag is the input DPI multiplied by the factor. No DPI tag is written when the input has none. |
 | `<stem>_scale.png` | with `--scale-image` and `--keep-upscaled`, when the factor is more than 1 | The scale bar image, scaled by the same factor, with the same DPI tag as the result. |
+| `<stem>_angles.csv` | with `--angles` | One row for each scar with enough ripples. See [Striking angles](../user-guide/striking-angles.md#the-csv-file). |
 | debug images | with `--debug` | One PNG file for each processing step. See the [debug image list](python-api.md#debug-images). |
 
 With `--scale-image` and no `--keep-upscaled`, the command does not write a scale file. The result is at the input size, so the scale bar image is correct as scanned.
@@ -80,34 +78,6 @@ With `--scale-image` and no `--keep-upscaled`, the command does not write a scal
 **Messages**
 
 Without `--quiet`, the command prints the input path, the output directory, the pipeline progress and the path of the result. When the result is larger than the input, the command prints the factor. When the result is larger and no scale image was given, the command prints a reminder. Scale the scale bar image by the same factor before you measure.
-
-### help
-
-Show the full help.
-
-```bash
-lithic-editor help [api]
-```
-
-| Topic | Description |
-|-------|-------------|
-| none | Show the full help for all commands. |
-| `api` | Show the help for the Python API. |
-
-### docs
-
-Open the documentation.
-
-```bash
-lithic-editor docs [--offline]
-```
-
-| Option | Description |
-|--------|-------------|
-| none | Open the online documentation in the web browser. |
-| `--offline` | Serve the documentation that comes with the package at `http://127.0.0.1:8000` and open it in the web browser. Press Ctrl+C to stop the server. |
-
-With `--offline`, the command exits with code 1 when the documentation files are not found or when port 8000 is in use.
 
 ## Exit codes
 
@@ -121,34 +91,40 @@ With `--offline`, the command exits with code 1 when the documentation files are
 
 ```bash
 # Clean one drawing. The result is image_debug/drawing_cleaned.png.
-lithic-editor process drawing.png
+lithic-editor drawing.png
 
 # Write the result to a different directory.
-lithic-editor process drawing.png --output results/
+lithic-editor drawing.png --output results/
 
 # Write the debug images.
-lithic-editor process drawing.png --debug
+lithic-editor drawing.png --debug
 
 # Print no processing messages.
-lithic-editor process drawing.png --quiet
+lithic-editor drawing.png --quiet
 
 # Permit upscaling for a thin-lined scan with no DPI tag.
-lithic-editor process scan_150dpi.png --auto-upscale --default-dpi 150
+lithic-editor scan_150dpi.png --auto-upscale --default-dpi 150
 
 # Permit upscaling with the FSRCNN model.
-lithic-editor process drawing.png --auto-upscale --upscale-model fsrcnn
+lithic-editor drawing.png --auto-upscale --upscale-model fsrcnn
 
 # Keep the upscaled size and scale the scale bar by the same factor.
-lithic-editor process drawing.png --auto-upscale --keep-upscaled --scale-image scale_bar.png
+lithic-editor drawing.png --auto-upscale --keep-upscaled --scale-image scale_bar.png
+
+# Measure the striking angle of each scar. The angles are written to drawing_angles.csv.
+lithic-editor drawing.png --angles
+
+# Measure the angle of each scar with three or more ripples.
+lithic-editor drawing.png --angles --min-ripples 3
 
 # Process the cortex stipple as lines.
-lithic-editor process drawing.png --no-preserve-cortex
+lithic-editor drawing.png --no-preserve-cortex
 
 # Start the graphical interface.
-lithic-editor gui
+lithic-editor --gui
 
 # Open the documentation without a network connection.
-lithic-editor docs --offline
+lithic-editor --docs --offline
 ```
 
 ## Batch processing
@@ -159,7 +135,7 @@ Process each PNG file in a directory. Write all results to one directory.
 
 ```bash
 for file in drawings/*.png; do
-    lithic-editor process "$file" --output processed/ --quiet
+    lithic-editor "$file" --output processed/ --quiet
 done
 ```
 
@@ -167,7 +143,7 @@ Record the files that failed.
 
 ```bash
 for file in drawings/*.png; do
-    if lithic-editor process "$file" --output processed/ --quiet; then
+    if lithic-editor "$file" --output processed/ --quiet; then
         echo "$file" >> success.log
     else
         echo "$file" >> failed.log
@@ -181,13 +157,13 @@ Process the PNG files in a directory tree. Run four processes at the same time.
 
 ```bash
 find drawings/ -name "*.png" -print0 | \
-    xargs -0 -n 1 -P 4 -I {} lithic-editor process {} --output processed/ --quiet
+    xargs -0 -n 1 -P 4 -I {} lithic-editor {} --output processed/ --quiet
 ```
 
 ### GNU parallel
 
 ```bash
-parallel -j 4 lithic-editor process {} --output processed/ --quiet ::: drawings/*.png
+parallel -j 4 lithic-editor {} --output processed/ --quiet ::: drawings/*.png
 ```
 
 ### Makefile
@@ -203,7 +179,7 @@ OUTPUTS = $(patsubst $(INPUT_DIR)/%.png,$(OUTPUT_DIR)/%_cleaned.png,$(IMAGES))
 all: $(OUTPUTS)
 
 $(OUTPUT_DIR)/%_cleaned.png: $(INPUT_DIR)/%.png
-	lithic-editor process $< --output $(OUTPUT_DIR) --quiet
+	lithic-editor $< --output $(OUTPUT_DIR) --quiet
 
 clean:
 	rm -rf $(OUTPUT_DIR)

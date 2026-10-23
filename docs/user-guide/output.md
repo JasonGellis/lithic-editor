@@ -55,6 +55,10 @@ The application adds the extension when it is missing. The saved image includes 
 
 The CLI writes the result to the output directory (`-o DIR`, default `image_debug`) as `<stem>_cleaned.png`. The DPI tag is the input DPI. No tag is written when the input has none. With `--keep-upscaled`, the tag is raised by the upscale factor.
 
+## Striking angles
+
+In the GUI, the arrows for the striking angles are part of the saved image, like all other arrows. In the CLI, `--angles` writes `<stem>_angles.csv` next to the result. See [Striking angles](striking-angles.md).
+
 ## Debug images
 
 Set **Show and save the debug images** (GUI) or `--debug` (CLI) to write the debug images. See [Debug images](processing.md#debug-images).

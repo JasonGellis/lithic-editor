@@ -17,9 +17,8 @@ from PIL import Image
 SOURCE_DPI = 600
 DPIS = (600, 300, 150, 75)
 
-# Plate crops 365 to 374 plus the full-page scan. All tagged and trusted at 600 DPI.
-PRIMARY_SOURCES = tuple(str(n) for n in range(365, 375)) + ("lithic_600dpi",)
-QUICK_SOURCES = ("369", "371")
+# The full-page scan, tagged and trusted at 600 DPI. The only 600 DPI source that ships.
+PRIMARY_SOURCES = ("lithic_600dpi",)
 
 # One drawing scanned four times at different resolutions. These are real scans, not
 # resamples, so they differ slightly in crop and rotation and must be registered to the

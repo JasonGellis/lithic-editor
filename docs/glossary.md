@@ -87,6 +87,26 @@ The terms are in the order the pipeline uses them.
 **Restore cortex**
 : The step that adds the cortex stipple back to the result.
 
+## Striking angle
+
+**Scar**
+: A face of the drawing that the structural lines enclose. The pipeline finds the scars from the structural skeleton. A missing contour joins two scars into one.
+
+**Striking line**
+: The line through the centre of the ripples of a scar, perpendicular to their mean orientation.
+
+**Striking angle**
+: The direction of the force along the striking line, away from the point of percussion. The ripples curve in that direction, so the pipeline takes the direction of the mean arc depth. This is the direction of the arrows in archaeological illustrations.
+
+**Arc depth**
+: The distance from the straight line between the two ends of a ripple to the point of the ripple farthest from that line. In geometry this is the sagitta of the arc. The pipeline uses the mean arc depth of a scar's ripples to find the direction of the force.
+
+**Compass angle**
+: The angle frame that PyLithics uses for `arrow_angle`: the direction the arrowhead points, clockwise, with down at 0°. Left is 90°, up is 180°, right is 270°.
+
+**Spread**
+: How much the orientations of the ripples of a scar differ. 0 means all ripples are parallel. A value near 1 means the orientations are spread over all directions, and the striking line has little meaning.
+
 ## Evaluation
 
 **Reference**

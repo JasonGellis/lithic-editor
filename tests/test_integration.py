@@ -139,7 +139,7 @@ class TestFullWorkflowIntegration:
         """Test CLI command integration with processing."""
         from lithic_editor.cli.main import process_image_cli
         
-        args = MagicMock()
+        args = MagicMock(min_ripples=None, min_arc_depth=None, max_cortex_dots=None)
         args.input_image = str(sample_image)
         args.output = str(temp_dir)
         args.debug = True

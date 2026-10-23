@@ -1,8 +1,8 @@
 """
 Run the DPI evaluation matrix.
 
-    python -m tools.dpi_eval.run --quick
-    python -m tools.dpi_eval.run --sources 369 371 --strategies native neural
+    python -m tools.dpi_eval.run
+    python -m tools.dpi_eval.run --strategies native adaptive
     python -m tools.dpi_eval.run --dpis 300 75
 
 Writes ``results/dpi_eval/<timestamp>/`` with a summary CSV, per-cell outputs,
@@ -32,8 +32,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--sources", nargs="+", default=list(sources.PRIMARY_SOURCES),
                         help="source image names without extension")
-    parser.add_argument("--quick", action="store_true",
-                        help=f"only the quick subset: {', '.join(sources.QUICK_SOURCES)}")
     parser.add_argument("--real-scans", action="store_true",
                         help="evaluate the four real scans of one drawing (lithic_75dpi to "
                              "lithic_600dpi), registered to the 600 DPI scan, instead of the crops")
@@ -51,8 +49,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     args = parser.parse_args(argv)
     if args.config is not None:
         os.environ["LITHIC_EDITOR_CONFIG"] = str(args.config.resolve())
-    if args.quick:
-        args.sources = list(sources.QUICK_SOURCES)
     args.dpis = sorted(set(args.dpis), reverse=True)
     if args.dpis[0] != sources.SOURCE_DPI:
         parser.error(f"--dpis must include the source DPI {sources.SOURCE_DPI}")

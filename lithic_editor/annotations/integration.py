@@ -1,68 +1,15 @@
 """
-Integration helpers for arrow annotations in the Lithic Editor and Annotator.
+Helper functions for the arrow tools of the main window.
 
-This file provides helper functions to integrate arrow annotations
-into the main application without cluttering the main code.
+The main window builds the Arrows pane and calls these functions from its buttons.
 """
-import sys
 from PyQt5.QtWidgets import (
-    QPushButton, QLabel, QHBoxLayout, QGroupBox,
     QColorDialog
 )
 from PyQt5.QtCore import Qt, QPoint
-from PyQt5.QtGui import QColor
+from PyQt5.QtGui import QColor, QIcon, QPainter, QPixmap
 
 from lithic_editor.annotations.arrows import ArrowCanvasWidget
-
-def setup_arrow_controls(parent):
-    # Create arrow annotation controls
-    arrow_tools = QGroupBox("Arrow Annotation")
-    arrow_layout = QHBoxLayout(arrow_tools)
-
-    # Add arrow button
-    parent.add_arrow_button = QPushButton("Add Arrow")
-    parent.add_arrow_button.clicked.connect(lambda: add_arrow(parent))
-    parent.add_arrow_button.setEnabled(False)
-
-    # Add tooltip for the button
-    if sys.platform == 'darwin':  # macOS
-        parent.add_arrow_button.setToolTip("Add an arrow to the center of the image\n"
-                                     "Drag to move, Option+drag to resize, Shift+drag to rotate")
-    else:  # Windows, Linux, etc.
-        parent.add_arrow_button.setToolTip("Add an arrow to the center of the image\n"
-                                     "Drag to move, Alt+drag to resize, Shift+drag to rotate")
-
-    # Arrow color
-    parent.arrow_color_button = QPushButton("Arrow Color")
-    parent.arrow_color_button.setStyleSheet("background-color: black;")
-    parent.arrow_color_button.clicked.connect(lambda: select_arrow_color(parent))
-    parent.arrow_color = QColor(Qt.black)
-
-    # Delete arrow button
-    parent.delete_arrow_button = QPushButton("Delete Arrow")
-    parent.delete_arrow_button.clicked.connect(lambda: delete_selected_arrow(parent))
-    parent.delete_arrow_button.setEnabled(False)
-
-    # Clear all arrows button
-    parent.clear_arrows_button = QPushButton("Clear Arrows")
-    parent.clear_arrows_button.clicked.connect(lambda: clear_arrows(parent))
-    parent.clear_arrows_button.setEnabled(False)
-
-    # Create a platform-aware hint message
-    if sys.platform == 'darwin':  # macOS
-        interaction_hint = QLabel("Shift+drag to rotate, Option+drag to resize")
-    else:  # Windows, Linux, etc.
-        interaction_hint = QLabel("Shift+drag to rotate, Alt+drag to resize")
-    interaction_hint.setStyleSheet("font-style: italic; color: gray;")
-
-    # Add widgets to arrow layout
-    arrow_layout.addWidget(parent.add_arrow_button)
-    arrow_layout.addWidget(parent.arrow_color_button)
-    arrow_layout.addWidget(parent.delete_arrow_button)
-    arrow_layout.addWidget(parent.clear_arrows_button)
-    arrow_layout.addWidget(interaction_hint)  # Add the interaction hint
-
-    return arrow_tools
 
 def create_arrow_canvas():
     """
@@ -111,12 +58,24 @@ def clear_arrows(parent):
         parent.delete_arrow_button.setEnabled(False)
         parent.clear_arrows_button.setEnabled(False)
 
+def show_color_swatch(button, color):
+    """Show a colour as a square swatch on the button, so the text stays readable."""
+    swatch = QPixmap(16, 16)
+    swatch.fill(color)
+    painter = QPainter(swatch)  # a thin grey border, so a white swatch is visible on a white button
+    painter.setPen(QColor("#9ca3af"))
+    painter.drawRect(0, 0, 15, 15)
+    painter.end()
+    button.setIcon(QIcon(swatch))
+    button.setToolTip(f"{button.text()}: {color.name()}")
+
+
 def select_arrow_color(parent):
     """Open a color dialog to select the arrow color"""
     color = QColorDialog.getColor(parent.arrow_color, parent)
     if color.isValid():
         parent.arrow_color = color
-        parent.arrow_color_button.setStyleSheet(f"background-color: {color.name()};")
+        show_color_swatch(parent.arrow_color_button, color)
 
 def enable_arrow_controls(parent):
     """Enable arrow controls after an image is processed"""

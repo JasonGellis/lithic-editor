@@ -80,10 +80,10 @@ class TestReport:
 
 class TestArguments:
     def test_reference_strategy_runs_first(self):
-        args = parse_args(["--quick", "--strategies", "adaptive", "resample", "--reference-strategy", "native"])
+        args = parse_args(["--strategies", "adaptive", "resample", "--reference-strategy", "native"])
         assert args.strategies[0] == "native"
         assert set(args.strategies) == {"native", "adaptive", "resample"}
-        assert args.sources == ["369", "371"]
+        assert args.sources == ["lithic_600dpi"]
 
     def test_dpis_are_sorted_descending_and_include_the_source(self):
         args = parse_args(["--dpis", "75", "600", "150"])
@@ -94,7 +94,7 @@ class TestArguments:
         monkeypatch.delenv("LITHIC_EDITOR_CONFIG", raising=False)
         path = tmp_path / "c.yaml"
         path.write_text("smoothing:\n  enabled: false\n")
-        parse_args(["--quick", "--config", str(path)])
+        parse_args(["--config", str(path)])
         assert os.environ["LITHIC_EDITOR_CONFIG"] == str(path.resolve())
 
     def test_all_strategies_share_the_signature(self):

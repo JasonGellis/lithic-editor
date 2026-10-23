@@ -1,5 +1,13 @@
 # Lithic Editor and Annotator
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/images/banner-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/assets/images/banner-light.svg">
+    <img src="docs/assets/images/banner-dark.svg" alt="Lithic Editor: ripple removal and arrow annotation for lithic drawings, with the commands to start with" width="800">
+  </picture>
+</p>
+
 [![Tests](https://github.com/JasonGellis/lithic-editor/workflows/Tests/badge.svg)](https://github.com/JasonGellis/lithic-editor/actions)
 [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://jasongellis.github.io/lithic-editor/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -20,6 +28,7 @@ Lithic Editor removes the ripple lines from a scanned lithic drawing. It keeps t
 - **Upscaling for thin lines.** The software measures the line width and the hatch gap. When they are too small, it upscales the drawing 2, 3 or 4 times for processing. The neural models ESPCN and FSRCNN are included in the package. The software never downscales.
 - **Line weight kept.** The output lines have the pen width of the input.
 - **Output at the input size.** By default the result has the pixel size and the DPI of the input. A scale bar scanned with the drawing keeps its meaning. You can keep the upscaled size instead, with the scale bar scaled by the same factor.
+- **Striking angles.** Measure the direction of the blow for each scar from its ripples, in the angle frame PyLithics uses. The GUI adds an arrow for each scar. The CLI writes a CSV file.
 - **Arrow annotation.** Add, move, rotate, resize and colour direction arrows in the GUI.
 - **Brush tools.** Edit the input image before processing.
 - **Debug images.** Examine the image after each processing step.
@@ -53,7 +62,7 @@ pip install -e .
 ### GUI
 
 ```bash
-lithic-editor gui
+lithic-editor --gui
 ```
 
 1. Click **Load Image** and select a drawing.
@@ -64,16 +73,15 @@ lithic-editor gui
 ### Command line
 
 ```bash
-lithic-editor process drawing.png -o output --auto-upscale
+lithic-editor drawing.png -o output --auto-upscale
 ```
 
-The result is written to `output/drawing_cleaned.png` with the DPI of the input. Add `--debug` to write the debug images. Add `--keep-upscaled --scale-image bar.png` to keep the upscaled size and to scale the scale bar with the drawing.
+The result is written to `output/drawing_cleaned.png` with the DPI of the input. Add `--debug` to write the debug images. Add `--keep-upscaled --scale-image bar.png` to keep the upscaled size and to scale the scale bar with the drawing. Add `--angles` to write the striking angle of each scar to `output/drawing_angles.csv`, and `--min-ripples 3` to measure scars with three or more ripples.
 
 ```bash
-lithic-editor process --help   # All options
-lithic-editor help             # Full help
-lithic-editor help api         # Python API help
-lithic-editor docs             # Open the documentation
+lithic-editor --help           # Full help, with all options
+lithic-editor --help-api       # Python API help
+lithic-editor --docs           # Open the documentation
 ```
 
 ### Python
@@ -116,7 +124,7 @@ pip install -e ".[dev]"
 
 pytest                            # Run the tests
 ruff check lithic_editor tests    # Run the linter
-python -m tools.dpi_eval.run --quick   # Evaluate the pipeline across resolutions
+python -m tools.dpi_eval.run   # Evaluate the pipeline across resolutions
 ```
 
 The evaluation harness runs the pipeline on the example drawings at 600, 300, 150 and 75 DPI. It writes a report with montages to `results/dpi_eval/`. See the [Developer Guide](https://jasongellis.github.io/lithic-editor/developer/contributing/) and the [Testing Guide](https://jasongellis.github.io/lithic-editor/developer/testing/).
