@@ -41,6 +41,7 @@ These controls become available after processing. See [Arrow Annotations](arrows
 
 - **Add Arrow**: puts a new arrow at the center of the processed image.
 - **Arrow Color**: opens a color dialog. New arrows get this color.
+- **Arrow Style**: the style of new arrows: Filled, Open, Dot, Crossed or Dashed. When an arrow is selected, the box shows its style and a new choice changes that arrow. See [Arrow styles](arrows.md#arrow-styles).
 - **Delete Arrow**: removes the selected arrow.
 - **Clear Arrows**: removes all arrows.
 

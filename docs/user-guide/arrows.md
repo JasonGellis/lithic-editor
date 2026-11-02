@@ -10,9 +10,29 @@ When **Add striking angle arrows** is on, processing adds one arrow for each sca
 
 1. Process the image.
 2. Click **Arrow Color** and select a color. The default is black. This step is optional.
-3. Click **Add Arrow**.
+3. Select a style in **Arrow Style**. The default is Filled. This step is optional.
+4. Click **Add Arrow**.
 
 The arrow appears at the center of the processed image and is selected. It points to the right.
+
+## Arrow styles
+
+Lithic illustrations use several arrow styles. Each style has a meaning. The styles follow Inizan et al. (1999, fig. 52), Raczynski-Henk (2017, fig. 7) and Martingell and Saville (1988, fig. 27). The terms are in the [glossary](../glossary.md#arrow-symbols).
+
+| Style | Shape | Meaning |
+|-------|-------|---------|
+| **Filled** | A filled head on a shaft. | The direction of the blow. The default. The striking angle arrows use this style. |
+| **Open** | An outline head on a shaft. | The bulb imprint is not visible in the scar. Used on burin facets. |
+| **Dot** | A filled arrow with a dot at the tail. | A bulb or a negative bulb is present at that end. |
+| **Crossed** | A filled arrow with a bar across the shaft. | The orientation and direction of debitage. |
+| **Dashed** | A filled head on a dashed shaft. | An earlier burin blow. |
+
+To change the style of an arrow:
+
+1. Click the arrow to select it. **Arrow Style** shows its style.
+2. Select the new style in **Arrow Style**.
+
+The style changes the shape only. The size, color, position and angle stay the same. Each part of the arrow is drawn in the arrow color and scales with the arrow size.
 
 ## Select an arrow
 

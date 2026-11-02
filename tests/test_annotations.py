@@ -232,3 +232,69 @@ class TestArrowCanvasWidget:
         canvas.image_dpi = 600
         min_size_high_dpi = canvas.get_minimum_arrow_size()
         assert min_size_high_dpi == 50  # Should stay at minimum for high DPI
+
+class TestArrowStyles:
+    """The arrow styles on the model and the canvas."""
+
+    def test_default_style_is_filled(self):
+        assert Arrow().style == "filled"
+
+    def test_unknown_style_is_rejected(self):
+        import pytest
+        with pytest.raises(ValueError):
+            Arrow(style="solid")
+
+    def test_every_style_draws_offscreen(self, qapp):
+        from PyQt5.QtGui import QPainter, QPixmap
+        from lithic_editor.annotations.arrow_shapes import STYLE_NAMES
+        pixmap = QPixmap(200, 200)
+        pixmap.fill(Qt.white)
+        painter = QPainter(pixmap)
+        for i, style in enumerate(STYLE_NAMES):
+            Arrow(position=(100, 100), angle=30 * i, size=60, style=style).draw(painter)
+        painter.end()
+        image = pixmap.toImage()
+        dark = sum(1 for x in range(200) for y in range(200) if image.pixelColor(x, y).lightness() < 128)
+        assert dark > 500
+
+    def test_styles_differ_in_the_drawing(self, qapp):
+        from PyQt5.QtGui import QPainter, QPixmap
+        from lithic_editor.annotations.arrow_shapes import STYLE_NAMES
+        renders = {}
+        for style in STYLE_NAMES:
+            pixmap = QPixmap(120, 60)
+            pixmap.fill(Qt.white)
+            painter = QPainter(pixmap)
+            Arrow(position=(60, 30), size=60, style=style).draw(painter)
+            painter.end()
+            image = pixmap.toImage()
+            renders[style] = tuple(image.pixelColor(x, y).lightness() < 128
+                                   for x in range(120) for y in range(60))
+        assert len(set(renders.values())) == len(STYLE_NAMES)
+
+    def test_add_arrow_takes_a_style(self, qapp, sample_pixmap):
+        canvas = ArrowCanvasWidget()
+        canvas.set_base_image(sample_pixmap)
+        arrow = canvas.add_arrow(QPoint(50, 50), style="dot")
+        assert arrow.style == "dot"
+        assert canvas.add_arrow(QPoint(50, 50)).style == "filled"
+
+    def test_set_selected_style_changes_only_the_selected_arrow(self, qapp, sample_pixmap):
+        canvas = ArrowCanvasWidget()
+        canvas.set_base_image(sample_pixmap)
+        first = canvas.add_arrow(QPoint(30, 30))
+        second = canvas.add_arrow(QPoint(70, 70))  # selected
+        canvas.set_selected_style("crossed")
+        assert (first.style, second.style) == ("filled", "crossed")
+        canvas.select_arrow(None)
+        canvas.set_selected_style("dashed")  # nothing selected: no change
+        assert (first.style, second.style) == ("filled", "crossed")
+
+    def test_selection_changed_reports_the_selected_arrow(self, qapp, sample_pixmap):
+        canvas = ArrowCanvasWidget()
+        canvas.set_base_image(sample_pixmap)
+        seen = []
+        canvas.selection_changed.connect(seen.append)
+        arrow = canvas.add_arrow(QPoint(50, 50))
+        canvas.select_arrow(None)
+        assert seen == [arrow, None]

@@ -29,7 +29,7 @@ Lithic Editor removes the ripple lines from a scanned lithic drawing. It keeps t
 - **Line weight kept.** The output lines have the pen width of the input.
 - **Output at the input size.** By default the result has the pixel size and the DPI of the input. A scale bar scanned with the drawing keeps its meaning. You can keep the upscaled size instead, with the scale bar scaled by the same factor.
 - **Striking angles.** Measure the direction of the blow for each scar from its ripples, in the angle frame PyLithics uses. The GUI adds an arrow for each scar. The CLI writes a CSV file.
-- **Arrow annotation.** Add, move, rotate, resize and colour direction arrows in the GUI.
+- **Arrow annotation.** Add, move, rotate, resize and colour direction arrows in the GUI, in the five arrow styles of lithic illustration.
 - **Brush tools.** Edit the input image before processing.
 - **Debug images.** Examine the image after each processing step.
 - **Three interfaces.** GUI, command line and Python API.

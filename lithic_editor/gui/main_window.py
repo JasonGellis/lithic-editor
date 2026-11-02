@@ -22,6 +22,7 @@ from PyQt5.QtCore import (
 # Import arrow annotation functionality
 from lithic_editor.annotations.arrows import ArrowCanvasWidget
 from lithic_editor.annotations import integration as arrow_integration
+from lithic_editor.annotations.arrow_shapes import STYLES as ARROW_STYLES
 
 # Available style options
 # GUI_STYLES = ['Fusion', 'Windows', 'WindowsVista', 'Macintosh']
@@ -617,12 +618,27 @@ class LithicProcessorGUI(QMainWindow):
         interaction_hint.setObjectName("hint")  # the colour comes from the theme
         interaction_hint.setStyleSheet("font-style: italic; font-size: 10px;")
 
+        # Arrow style: for new arrows and for the selected arrow
+        style_row = QHBoxLayout()
+        style_row.setSpacing(6)
+        style_label = QLabel("Arrow Style:")
+        self.arrow_style_combo = QComboBox()
+        for name, label in ARROW_STYLES:
+            self.arrow_style_combo.addItem(label, name)
+        self.arrow_style_combo.setToolTip("The style of new arrows. Select an arrow to change its style.")
+        self.arrow_style_combo.setEnabled(False)
+        self.arrow_style_combo.currentIndexChanged.connect(
+            lambda _index: arrow_integration.set_arrow_style(self))
+        style_row.addWidget(style_label)
+        style_row.addWidget(self.arrow_style_combo, 1)
+
         arrow_layout.addWidget(self.add_arrow_button, 0, 0)
         arrow_layout.addWidget(self.arrow_color_button, 0, 1)
         arrow_layout.addWidget(self.clear_arrows_button, 1, 0)
         arrow_layout.addWidget(self.delete_arrow_button, 1, 1)
+        arrow_layout.addLayout(style_row, 2, 0, 1, 2)
         interaction_hint.setWordWrap(True)
-        arrow_layout.addWidget(interaction_hint, 2, 0, 1, 2)
+        arrow_layout.addWidget(interaction_hint, 3, 0, 1, 2)
         arrow_layout.setColumnStretch(0, 1)  # two columns of equal width
         arrow_layout.setColumnStretch(1, 1)
 
@@ -845,6 +861,8 @@ class LithicProcessorGUI(QMainWindow):
         output_title.setStyleSheet("font-weight: bold; font-size: 12px; padding: 2px;")
 
         self.canvas = arrow_integration.create_arrow_canvas()
+        self.canvas.selection_changed.connect(
+            lambda arrow: arrow_integration.show_arrow_style(self, arrow))
         self.canvas.setObjectName("output_canvas")
         self.canvas.setText("No processed image")
         self.canvas.setMinimumSize(200, 200)

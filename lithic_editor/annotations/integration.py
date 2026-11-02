@@ -9,6 +9,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QPoint
 from PyQt5.QtGui import QColor, QIcon, QPainter, QPixmap
 
+from lithic_editor.annotations.arrow_shapes import DEFAULT_STYLE
 from lithic_editor.annotations.arrows import ArrowCanvasWidget
 
 def create_arrow_canvas():
@@ -34,8 +35,9 @@ def add_arrow(parent):
     center_x = parent.canvas.width() // 2
     center_y = parent.canvas.height() // 2
 
-    # Add the arrow with a larger default size (40px instead of 30px)
-    arrow = parent.canvas.add_arrow(QPoint(center_x, center_y), size=50, color=parent.arrow_color)
+    # Add the arrow in the style the Arrows pane shows
+    parent.canvas.add_arrow(QPoint(center_x, center_y), size=50, color=parent.arrow_color,
+                            style=current_arrow_style(parent))
 
     # Enable the delete buttons
     parent.delete_arrow_button.setEnabled(True)
@@ -77,9 +79,32 @@ def select_arrow_color(parent):
         parent.arrow_color = color
         show_color_swatch(parent.arrow_color_button, color)
 
+def current_arrow_style(parent):
+    """The style name the Arrow Style box shows, or the default when there is no box."""
+    combo = getattr(parent, 'arrow_style_combo', None)
+    return combo.currentData() if combo is not None else DEFAULT_STYLE
+
+
+def set_arrow_style(parent):
+    """Give the selected arrow the style the Arrow Style box shows."""
+    if hasattr(parent, 'canvas'):
+        parent.canvas.set_selected_style(current_arrow_style(parent))
+
+
+def show_arrow_style(parent, arrow):
+    """Make the Arrow Style box show the style of ``arrow``. ``None`` leaves the box as it is."""
+    if arrow is None:
+        return
+    combo = parent.arrow_style_combo
+    combo.blockSignals(True)
+    combo.setCurrentIndex(combo.findData(arrow.style))
+    combo.blockSignals(False)
+
+
 def enable_arrow_controls(parent):
     """Enable arrow controls after an image is processed"""
     parent.add_arrow_button.setEnabled(True)
+    parent.arrow_style_combo.setEnabled(True)
 
 def clear_arrows_on_new_image(parent):
     """Clear arrows when a new image is loaded"""

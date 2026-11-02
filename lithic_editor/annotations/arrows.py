@@ -7,16 +7,21 @@ arrow annotations on images.
 
 from PyQt5.QtWidgets import QLabel
 from PyQt5.QtGui import QPainter, QPen, QPixmap, QPolygon
-from PyQt5.QtCore import Qt, QPoint, QLineF
+from PyQt5.QtCore import Qt, QPoint, QLineF, pyqtSignal
+
+from lithic_editor.annotations.arrow_shapes import (
+    DEFAULT_STYLE, arrow_parts, check_style, filled_outline, shaft_width,
+)
 
 
 class Arrow:
     """Class representing an arrow annotation that can be placed and rotated"""
-    def __init__(self, position=(0, 0), angle=0, size=30, color=Qt.black):
+    def __init__(self, position=(0, 0), angle=0, size=30, color=Qt.black, style=DEFAULT_STYLE):
         self.position = position  # (x, y) center position
         self.angle = angle  # angle in degrees
         self.size = size  # size in pixels
         self.color = color  # color of the arrow
+        self.style = check_style(style)  # a name from arrow_shapes.STYLE_NAMES
         self.selected = False  # whether arrow is selected for manipulation
 
     def get_detection_status(self, image_dpi=None):
@@ -109,54 +114,28 @@ class Arrow:
         painter.translate(self.position[0], self.position[1])
         painter.rotate(self.angle)
 
-        # Calculate DPI-aware scaling (if provided)
-        dpi_factor = 1.0
-        if image_dpi and image_dpi > 0:
-            dpi_factor = 300.0 / image_dpi  # Scale relative to 300 DPI
-
-        # Calculate arrow dimensions based on size
-        # Head dimensions - make sure head is clearly triangular
-        head_length = self.size * 0.8 # Controls head length
-        head_width = self.size * 0.6   # Controls head width
-
-        # Shaft dimensions - make it more substantial but not too solid
-        shaft_length = self.size * 1.3
-
-        # Ensure minimum shaft width based on DPI (15-20px at 300 DPI)
-        min_shaft_width = 1 * dpi_factor
-        shaft_width = max(int(self.size * 0.05), int(min_shaft_width))
-
-        # Ensure shaft length >= head height for good detection
-        shaft_length = max(shaft_length, head_width)
-
-        # Create points for the entire arrow as a single polygon
-        points = []
-
-        # Ensure all coordinates are integers for sharp rendering
-        # Shaft left side
-        points.append(QPoint(int(-shaft_length/2), int(-shaft_width/2)))
-
-        # Shaft right side + arrow base
-        points.append(QPoint(int(shaft_length/2 - head_length), int(-shaft_width/2)))
-
-        # Arrow head top - ensure sharp angle for good defect detection
-        points.append(QPoint(int(shaft_length/2 - head_length), int(-head_width/2)))
-
-        # Arrow tip
-        points.append(QPoint(int(shaft_length/2), 0))
-
-        # Arrow head bottom - ensure sharp angle for good defect detection
-        points.append(QPoint(int(shaft_length/2 - head_length), int(head_width/2)))
-
-        # Shaft right side bottom
-        points.append(QPoint(int(shaft_length/2 - head_length), int(shaft_width/2)))
-
-        # Shaft left side bottom
-        points.append(QPoint(int(-shaft_length/2), int(shaft_width/2)))
-
-        # Draw the polygon with solid fill
-        polygon = QPolygon(points)
-        painter.drawPolygon(polygon)
+        # The shape comes from arrow_shapes, shared with the CLI debug image.
+        # Integer coordinates keep the edges sharp.
+        if self.style == DEFAULT_STYLE:
+            painter.drawPolygon(_polygon(filled_outline(self.size)))
+        else:
+            parts = arrow_parts(self.style, self.size)
+            for shaft in parts.shafts:
+                painter.drawPolygon(_polygon(shaft))
+            if parts.bar is not None:
+                painter.drawPolygon(_polygon(parts.bar))
+            if parts.dot is not None:
+                (cx, cy), radius = parts.dot
+                painter.drawEllipse(QPoint(int(cx), int(cy)), int(radius), int(radius))
+            if parts.filled_head:
+                painter.drawPolygon(_polygon(parts.head))
+            else:
+                outline = QPen(self.color)
+                outline.setWidth(max(2, int(shaft_width(self.size))))
+                outline.setJoinStyle(Qt.MiterJoin)
+                painter.setPen(outline)
+                painter.setBrush(Qt.NoBrush)
+                painter.drawPolygon(_polygon(parts.head))
 
         # If selected, draw a selection indicator
         if self.selected:
@@ -167,8 +146,16 @@ class Arrow:
         # Restore the painter state
         painter.restore()
 
+def _polygon(points):
+    """A QPolygon from (x, y) pairs, truncated to integer pixels."""
+    return QPolygon([QPoint(int(x), int(y)) for x, y in points])
+
+
 class ArrowCanvasWidget(QLabel):
     """A canvas widget that can display an image and arrow annotations with guaranteed detection"""
+
+    selection_changed = pyqtSignal(object)  # the selected Arrow, or None
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setMouseTracking(True)
@@ -267,7 +254,7 @@ class ArrowCanvasWidget(QLabel):
             # If no scaling applied
             super().setPixmap(final)
 
-    def add_arrow(self, position, size=50, color=Qt.black):
+    def add_arrow(self, position, size=50, color=Qt.black, style=DEFAULT_STYLE):
         """
         Add a new arrow at the specified position with size optimized for detection
 
@@ -275,6 +262,7 @@ class ArrowCanvasWidget(QLabel):
             position: QPoint position in view coordinates
             size: Initial size (will be adjusted if needed for detection)
             color: Arrow color
+            style: Arrow style name, see arrow_shapes.STYLES
 
         Returns:
             Arrow: The newly created arrow object
@@ -296,7 +284,7 @@ class ArrowCanvasWidget(QLabel):
         actual_size = max(size, min_size)
 
         # Create and add the arrow
-        arrow = Arrow(position=pixmap_pos, size=actual_size, color=color)
+        arrow = Arrow(position=pixmap_pos, size=actual_size, color=color, style=style)
 
         # Ensure the arrow is detectable by modifying its properties if needed
         arrow.make_detectable(self.image_dpi)
@@ -311,7 +299,7 @@ class ArrowCanvasWidget(QLabel):
 
         return arrow
 
-    def add_arrow_at_pixel(self, x, y, angle, size=None, color=Qt.black):
+    def add_arrow_at_pixel(self, x, y, angle, size=None, color=Qt.black, style=DEFAULT_STYLE):
         """
         Add an arrow at a pixel of the image, with its head at a given angle
 
@@ -320,13 +308,14 @@ class ArrowCanvasWidget(QLabel):
             angle: Arrow.angle in degrees, 0 pointing right, clockwise on screen
             size: Arrow size in pixels; never below the minimum detectable size
             color: Arrow color
+            style: Arrow style name, see arrow_shapes.STYLES
 
         Returns:
             Arrow: The newly created arrow object
         """
         minimum = self.get_minimum_arrow_size()
         arrow = Arrow(position=(float(x), float(y)), angle=float(angle) % 360,
-                      size=int(max(minimum, size or minimum)), color=color)
+                      size=int(max(minimum, size or minimum)), color=color, style=style)
         arrow.make_detectable(self.image_dpi)
         self.arrows.append(arrow)
         self.select_arrow(arrow)
@@ -347,6 +336,15 @@ class ArrowCanvasWidget(QLabel):
             self.selected_arrow = None
 
         # Update the display
+        self.update_display()
+        self.selection_changed.emit(self.selected_arrow)
+
+    def set_selected_style(self, style):
+        """Give the selected arrow the style ``style``. Nothing happens when no arrow is selected."""
+        check_style(style)
+        if self.selected_arrow is None:
+            return
+        self.selected_arrow.style = style
         self.update_display()
 
     def delete_selected_arrow(self):

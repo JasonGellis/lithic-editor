@@ -21,6 +21,8 @@ from dataclasses import dataclass
 
 import cv2
 import numpy as np
+
+from lithic_editor.annotations.arrow_shapes import filled_outline
 from scipy import ndimage
 
 from lithic_editor.config import AngleSettings
@@ -323,20 +325,10 @@ def arrow_size_for(extent: float, minimum: float) -> float:
 def arrow_polygon(x: float, y: float, compass: float, size: float) -> np.ndarray:
     """The filled arrow the GUI draws, as an ``(7, 2)`` int32 polygon centred on ``(x, y)``.
 
-    Same proportions as ``Arrow.draw``: shaft 1.3 x size, head 0.8 x size long and
-    0.6 x size wide, shaft width 5% of size (at least 2 px).
+    The shape is ``arrow_shapes.filled_outline``, the same the GUI canvas draws for
+    the default style, turned to point along ``compass``.
     """
-    shaft_length, head_length, head_width = 1.3 * size, 0.8 * size, 0.6 * size
-    shaft_width = max(2.0, 0.05 * size)
-    local = np.array([
-        [-shaft_length / 2, -shaft_width / 2],
-        [shaft_length / 2 - head_length, -shaft_width / 2],
-        [shaft_length / 2 - head_length, -head_width / 2],
-        [shaft_length / 2, 0.0],
-        [shaft_length / 2 - head_length, head_width / 2],
-        [shaft_length / 2 - head_length, shaft_width / 2],
-        [-shaft_length / 2, shaft_width / 2],
-    ])
+    local = np.array(filled_outline(size))
     dx, dy = vector_from_compass(compass)
     rotation = np.array([[dx, -dy], [dy, dx]])
     return np.rint(local @ rotation.T + np.array([x, y])).astype(np.int32)

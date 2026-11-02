@@ -297,3 +297,62 @@ class TestStrikingAngleArrows:
         window = LithicProcessorGUI()
         window.place_striking_arrows([])
         assert window.canvas.arrows == []
+
+
+class TestArrowStyles:
+    def test_the_box_lists_the_five_styles_and_waits_for_a_result(self, qapp):
+        from lithic_editor.gui.main_window import LithicProcessorGUI
+        window = LithicProcessorGUI()
+        combo = window.arrow_style_combo
+        assert [combo.itemText(i) for i in range(combo.count())] == ["Filled", "Open", "Dot", "Crossed", "Dashed"]
+        assert combo.currentData() == "filled"
+        assert not combo.isEnabled()
+        from lithic_editor.annotations import integration
+        integration.enable_arrow_controls(window)
+        assert combo.isEnabled()
+
+    def test_add_arrow_uses_the_style_in_the_box(self, qapp):
+        from PyQt5.QtGui import QPixmap
+        from lithic_editor.annotations import integration
+        from lithic_editor.gui.main_window import LithicProcessorGUI
+        window = LithicProcessorGUI()
+        window.canvas.set_base_image(QPixmap(400, 300))
+        window.arrow_style_combo.setCurrentIndex(window.arrow_style_combo.findData("crossed"))
+        integration.add_arrow(window)
+        assert window.canvas.arrows[-1].style == "crossed"
+
+    def test_changing_the_box_restyles_the_selected_arrow(self, qapp):
+        from PyQt5.QtGui import QPixmap
+        from lithic_editor.annotations import integration
+        from lithic_editor.gui.main_window import LithicProcessorGUI
+        window = LithicProcessorGUI()
+        window.canvas.set_base_image(QPixmap(400, 300))
+        integration.add_arrow(window)
+        arrow = window.canvas.arrows[-1]
+        window.arrow_style_combo.setCurrentIndex(window.arrow_style_combo.findData("open"))
+        assert arrow.style == "open"
+
+    def test_selecting_an_arrow_shows_its_style(self, qapp):
+        from PyQt5.QtGui import QPixmap
+        from lithic_editor.gui.main_window import LithicProcessorGUI
+        window = LithicProcessorGUI()
+        window.canvas.set_base_image(QPixmap(400, 300))
+        dotted = window.canvas.add_arrow_at_pixel(100, 100, 0, style="dot")
+        plain = window.canvas.add_arrow_at_pixel(200, 200, 0)
+        assert window.arrow_style_combo.currentData() == "filled"
+        window.canvas.select_arrow(dotted)
+        assert window.arrow_style_combo.currentData() == "dot"
+        window.canvas.select_arrow(plain)
+        assert window.arrow_style_combo.currentData() == "filled"
+
+    def test_striking_angle_arrows_are_filled_whatever_the_box_shows(self, qapp):
+        from PyQt5.QtGui import QPixmap
+        from lithic_editor.gui.main_window import LithicProcessorGUI
+        window = LithicProcessorGUI()
+        window.canvas.set_base_image(QPixmap(400, 300))
+        window.arrow_style_combo.setCurrentIndex(window.arrow_style_combo.findData("dashed"))
+        window.place_striking_arrows([
+            {'scar': 1, 'x': 100.0, 'y': 50.0, 'compass': 90.0, 'ripples': 6, 'spread': 0.01,
+             'direction_certain': True, 'extent': 600.0}])
+        assert window.canvas.arrows[-1].style == "filled"
+        assert window.arrow_style_combo.currentData() == "filled"  # the box follows the selected arrow

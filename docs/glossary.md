@@ -107,6 +107,20 @@ The terms are in the order the pipeline uses them.
 **Spread**
 : How much the orientations of the ripples of a scar differ. 0 means all ripples are parallel. A value near 1 means the orientations are spread over all directions, and the striking line has little meaning.
 
+## Arrow symbols
+
+**Bulb of percussion**
+: The rounded swelling on the ventral face of a flake, next to the point where the blow landed. The scar on the core keeps a **negative bulb**, a hollow of the same shape.
+
+**Burin blow**
+: A blow along the edge of a flake that removes a long narrow spall and leaves a chisel-like edge. The arrow on a burin facet shows where the blow came from.
+
+**Debitage axis**
+: The axis of a flake from the point of percussion to the far end, the direction the flake travelled when it came off the core.
+
+**Arrow style**
+: The shape of an arrow on the drawing: Filled, Open, Dot, Crossed or Dashed. Each style has a meaning in lithic illustration. See [Arrow styles](user-guide/arrows.md#arrow-styles).
+
 ## Evaluation
 
 **Reference**
