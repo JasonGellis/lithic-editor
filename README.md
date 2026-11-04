@@ -19,7 +19,7 @@ Lithic Editor removes the ripple lines from a scanned lithic drawing. It keeps t
 
 | Input | Ripples removed | Arrows added |
 |:---:|:---:|:---:|
-| ![Input drawing with ripple lines](docs/assets/images/lithic_300dpi.png) | ![Result with the ripple lines removed](docs/assets/images/lithic_300dpi_processed.png) | ![Result with direction arrows](docs/assets/images/lithic_300dpi_annotation.png) |
+| <img src="docs/assets/images/lithic_300dpi.png" alt="Input drawing with ripple lines" width="280"> | <img src="docs/assets/images/lithic_300dpi_processed.png" alt="Result with the ripple lines removed" width="280"> | <img src="docs/assets/images/lithic_300dpi_annotation.png" alt="Result with direction arrows" width="280"> |
 
 ## Features
 
