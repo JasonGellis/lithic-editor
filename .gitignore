@@ -133,3 +133,7 @@ dmypy.json
 
 # Local working notes
 IMAGES_TODO.md
+
+# Floorplan codebase map (local only)
+floorplan/
+CLAUDE.local.md
