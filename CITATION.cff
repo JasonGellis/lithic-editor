@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it with the metadata in this file."
+type: software
+title: "Lithic Editor and Annotator"
+abstract: "Ripple removal and arrow annotation for scanned lithic drawings. The software removes the ripple lines, keeps the scar contours, the outline and the cortex stipple, measures the striking angle of each scar from its ripples, and adds direction arrows in the styles of lithic illustration."
+authors:
+  - family-names: Gellis
+    given-names: Jason Jacob
+    orcid: "https://orcid.org/0000-0002-9929-789X"
+    email: jg760@cam.ac.uk
+    affiliation: "Department of Archaeology and Anthropology, University of Cambridge"
+version: 1.0.0
+license: MIT
+repository-code: "https://github.com/JasonGellis/lithic-editor"
+url: "https://jasongellis.github.io/lithic-editor/"
+keywords:
+  - archaeology
+  - lithic analysis
+  - stone tools
+  - image processing
+  - computer vision
+  - archaeological illustration

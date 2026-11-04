@@ -21,10 +21,9 @@ from dataclasses import dataclass
 
 import cv2
 import numpy as np
-
-from lithic_editor.annotations.arrow_shapes import filled_outline
 from scipy import ndimage
 
+from lithic_editor.annotations.arrow_shapes import filled_outline
 from lithic_editor.config import AngleSettings
 
 

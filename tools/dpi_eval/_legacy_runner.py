@@ -26,6 +26,7 @@ def main(argv: list[str]) -> int:
 
     import numpy as np
     from PIL import Image
+
     from lithic_editor.processing import process_lithic_drawing
 
     image = np.array(Image.open(variant_path).convert("L"))

@@ -4,11 +4,11 @@ This allows users to view docs without installing mkdocs.
 """
 
 import http.server
-import socketserver
 import os
+import socketserver
+import threading
 import webbrowser
 from pathlib import Path
-import threading
 
 
 def serve_docs(port=8000):

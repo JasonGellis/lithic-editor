@@ -2,8 +2,9 @@
 Tests for the image processing module.
 """
 
-import pytest
 import numpy as np
+import pytest
+
 from lithic_editor.processing import process_lithic_drawing
 
 
@@ -36,7 +37,7 @@ class TestProcessingModule:
     
     def test_process_with_debug_output(self, sample_image, temp_dir):
         """Test that debug mode saves intermediate images."""
-        result = process_lithic_drawing(
+        process_lithic_drawing(
             image_path=str(sample_image),
             output_folder=str(temp_dir),
             save_debug=True
@@ -186,7 +187,7 @@ class TestCortexPreservation:
         cortex_img[10:15, 10:15] = 255  # Small component (cortex)
         cortex_img[30:45, 30:45] = 255  # Large component (structure)
         
-        result = process_lithic_drawing(
+        process_lithic_drawing(
             image_path=cortex_img,
             output_folder=str(temp_dir),
             preserve_cortex=True,

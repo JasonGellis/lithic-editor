@@ -3,16 +3,12 @@ Tests for the command-line interface.
 """
 
 import sys
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
-from unittest.mock import patch, MagicMock
-from lithic_editor.cli.main import (
-    create_parser, 
-    validate_input_file,
-    process_image_cli,
-    open_docs
-)
+
+from lithic_editor.cli.main import create_parser, open_docs, process_image_cli, validate_input_file
 
 
 def mock_args(**values):
@@ -161,7 +157,7 @@ class TestProcessImageCLI:
         with patch('lithic_editor.cli.main.process_lithic_drawing') as mock_process:
             mock_process.return_value = np.full((20, 20), 255, dtype=np.uint8)
             
-            result = process_image_cli(args)
+            process_image_cli(args)
             
             # Check no output was printed
             captured = capsys.readouterr()
@@ -196,7 +192,7 @@ class TestProcessImageCLI:
             # Should pass preserve_cortex=False when no_preserve_cortex=True
             mock_process.assert_called_once()
             call_kwargs = mock_process.call_args[1]
-            assert call_kwargs['preserve_cortex'] == False
+            assert not call_kwargs['preserve_cortex']
 
 
 class TestMainDispatch:
@@ -286,6 +282,7 @@ class TestKeepUpscaledOutput:
 
     def test_default_returns_input_size_and_dpi(self, tmp_path):
         from PIL import Image
+
         from lithic_editor.cli.main import process_image_cli
         image_path = tmp_path / "thin.png"
         Image.fromarray(self._thin_drawing()).save(image_path, dpi=(150, 150))
@@ -298,6 +295,7 @@ class TestKeepUpscaledOutput:
 
     def test_keep_upscaled_scales_scale_image_and_dpi(self, tmp_path):
         from PIL import Image
+
         from lithic_editor.cli.main import process_image_cli
         image_path = tmp_path / "thin.png"
         Image.fromarray(self._thin_drawing()).save(image_path, dpi=(150, 150))

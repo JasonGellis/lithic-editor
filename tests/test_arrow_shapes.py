@@ -3,7 +3,13 @@
 import pytest
 
 from lithic_editor.annotations.arrow_shapes import (
-    DEFAULT_STYLE, STYLE_NAMES, STYLES, arrow_parts, check_style, filled_outline, shaft_width,
+    DEFAULT_STYLE,
+    STYLE_NAMES,
+    STYLES,
+    arrow_parts,
+    check_style,
+    filled_outline,
+    shaft_width,
 )
 
 

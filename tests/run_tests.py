@@ -3,10 +3,11 @@
 Convenience script to run tests with coverage.
 """
 
-import sys
 import subprocess
+import sys
 from importlib.util import find_spec
 from pathlib import Path
+
 
 def run_tests():
     """Run pytest with coverage reporting."""

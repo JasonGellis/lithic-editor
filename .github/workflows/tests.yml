@@ -71,4 +71,4 @@ jobs:
         run: pip install ruff
 
       - name: Lint
-        run: ruff check lithic_editor tests
+        run: ruff check .

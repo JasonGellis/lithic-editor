@@ -86,6 +86,10 @@ A GitHub Actions workflow builds the documentation on each push to `main` and de
 - Give each function one responsibility. If a function does two things, split it.
 - Write the documentation and the `--help` text in Simplified Technical English.
 
+### Logging
+
+Library code does not print. Each module in `lithic_editor/processing` logs through `logging.getLogger(__name__)`. The command line sends the `lithic_editor.processing` logger to standard output (`--quiet` keeps warnings only). The window relays it to the log panel through the processing thread.
+
 ## Run the application
 
 ```bash
@@ -98,24 +102,40 @@ lithic-editor --docs --offline
 
 ```
 lithic_editor/
-├── annotations/          # Arrow annotation system
-│   ├── arrows.py         # Arrow class and canvas widget
-│   └── integration.py    # GUI integration helpers
-├── cli/                  # Command-line interface
-│   ├── main.py           # Entry point and argument parser
-│   ├── help.py           # Help text
-│   └── docs_server.py    # Offline documentation server
+├── annotations/            # Arrow annotation system
+│   ├── arrow_shapes.py     # The geometry of the five arrow styles
+│   ├── arrows.py           # Arrow class and the arrow canvas
+│   └── integration.py      # The Arrows pane helpers
+├── cli/                    # Command-line interface
+│   ├── main.py             # Entry point, argument parser and logging set-up
+│   ├── help.py             # Help text
+│   └── docs_server.py      # Offline documentation server
+├── config/                 # config.yaml and its reader
 ├── gui/
-│   └── main_window.py    # Main window
-├── models/               # Bundled ESPCN and FSRCNN models (*.pb)
+│   ├── main_window.py      # The window: load, process, brush, arrows, save
+│   ├── panes.py            # Builds the File, Brush, Arrows and Options panes
+│   ├── dialogs.py          # DPI question and upscaling offer
+│   ├── brush_canvas.py     # The brush canvas of the Input Image panel
+│   ├── debug_panel.py      # The Processing Steps panel
+│   ├── processing_thread.py# Runs the pipeline off the window, relays its log
+│   └── theme.py            # Colours, stylesheet and icons
+├── models/                 # Bundled ESPCN and FSRCNN models (*.pb)
 └── processing/
-    ├── ripple_removal.py # Processing pipeline
-    ├── resolution.py     # Line geometry and upscale factor
-    └── upscaling.py      # DPI detection and neural upscaling
+    ├── ripple_removal.py   # process_lithic_drawing: the stages in order
+    ├── image_io.py         # Reading the drawing, cropping to content
+    ├── preprocess.py       # Smoothing and Sauvola threshold
+    ├── cortex.py           # Cortex stipple separation
+    ├── skeleton.py         # Thinning, spurs, endpoints and junctions
+    ├── segments.py         # Segments and ripple classification
+    ├── rebuild.py          # Structural mask and line rebuild
+    ├── striking_angle.py   # Striking angle measurement
+    ├── debug_images.py     # Debug image writer
+    ├── resolution.py       # Line geometry and upscale factor
+    └── upscaling.py        # DPI detection and neural upscaling
 
-tests/                    # Test suite (see the Testing Guide)
-tools/dpi_eval/           # Evaluation harness
-docs/                     # MkDocs source
+tests/                      # Test suite (see the Testing Guide)
+tools/dpi_eval/             # Evaluation harness
+docs/                       # MkDocs source
 ```
 
 ## Extend the evaluation harness
@@ -162,6 +182,25 @@ The pull request must:
 - pass `ruff check`,
 - include tests for new behaviour,
 - describe the change.
+
+## Versions and releases
+
+The project follows [Semantic Versioning](https://semver.org/) from version 1.0.0.
+
+| Change | Version |
+|---|---|
+| A fix with no change to behaviour | Patch, 1.0.x |
+| A new feature or option that keeps existing commands, configuration keys and results | Minor, 1.x.0 |
+| A change that breaks the command line, the configuration keys, the CSV columns or the Python API | Major, x.0.0 |
+
+The version number is in one place, `lithic_editor/__init__.py`. To release:
+
+1. Set the version in `lithic_editor/__init__.py` and in `CITATION.cff`. Run
+   `python tools/render_banner.py`, because the README banner shows the version.
+2. Move the changes in `CHANGELOG.md` under the new version with the date.
+3. Merge `develop` into `main`.
+4. Tag `main` with `vX.Y.Z` and push the tag.
+5. Create the GitHub release from the tag, with the changelog entry as the notes.
 
 ## Get help
 

@@ -23,6 +23,7 @@ def test_the_window_applies_the_theme(qapp):
 
 def test_the_arrow_colour_is_a_swatch_not_the_button_background(qapp):
     from PyQt5.QtGui import QColor
+
     from lithic_editor.annotations.integration import show_color_swatch
     from lithic_editor.gui.main_window import LithicProcessorGUI
     window = LithicProcessorGUI()
@@ -47,6 +48,7 @@ def test_the_image_panels_get_most_of_the_window(qapp):
 def test_the_brush_colour_button_sets_the_brush(qapp, monkeypatch):
     from PyQt5.QtGui import QColor
     from PyQt5.QtWidgets import QColorDialog
+
     from lithic_editor.gui.main_window import LithicProcessorGUI
     window = LithicProcessorGUI()
     assert window.brush_color == QColor("#ffffff")  # white erases, the default

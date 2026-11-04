@@ -7,6 +7,7 @@ command dispatch, and comprehensive help as specified in PythonPackaging.md.
 
 import argparse
 import csv
+import logging
 import sys
 from pathlib import Path
 
@@ -14,11 +15,11 @@ import numpy as np
 from PIL import Image
 
 from lithic_editor import __version__
-from lithic_editor.cli.help import show_help, show_api_help
+from lithic_editor.cli.help import show_api_help, show_help
 from lithic_editor.config import load_config, replace_values
+from lithic_editor.gui import launch_gui
 from lithic_editor.processing import process_lithic_drawing
 from lithic_editor.processing.upscaling import detect_image_dpi
-from lithic_editor.gui import launch_gui
 
 
 class _FullHelp(argparse.Action):
@@ -220,6 +221,28 @@ def validate_input_file(file_path):
     return path
 
 
+PIPELINE_LOGGER = "lithic_editor.processing"
+
+
+def configure_pipeline_logging(quiet=False, stream=None):
+    """
+    Send the pipeline's log lines to standard output, or only its warnings with ``quiet``.
+
+    The handler replaces the one a previous call added, so repeated runs in one
+    process do not print twice.
+    """
+    logger = logging.getLogger(PIPELINE_LOGGER)
+    for handler in list(logger.handlers):
+        if getattr(handler, "_lithic_cli", False):
+            logger.removeHandler(handler)
+    handler = logging.StreamHandler(stream or sys.stdout)
+    handler.setFormatter(logging.Formatter("%(message)s"))
+    handler._lithic_cli = True
+    logger.addHandler(handler)
+    logger.setLevel(logging.WARNING if quiet else logging.INFO)
+    logger.propagate = False
+
+
 def process_image_cli(args):
     """
     Process image via command line interface.
@@ -238,12 +261,9 @@ def process_image_cli(args):
             print(f"Processing: {input_path}")
             print(f"Output directory: {args.output}")
         
-        # Suppress print output if quiet mode
-        if args.quiet:
-            import builtins
-            original_print = builtins.print
-            builtins.print = lambda *args, **kwargs: None
-        
+        # The pipeline reports through logging; --quiet keeps only warnings
+        configure_pipeline_logging(quiet=args.quiet)
+
         try:
             # Handle upscaling parameters
             upscale_params = {
@@ -267,10 +287,6 @@ def process_image_cli(args):
                 measure_angles=measure_angles,
                 **upscale_params
             )
-            
-            # Restore print if it was suppressed
-            if args.quiet:
-                builtins.print = original_print
             
             # Save the cleaned drawing with a truthful DPI tag, never a guessed one
             output_file, scale_file, factor = save_cli_result(result, input_path, Path(args.output))
@@ -300,10 +316,6 @@ def process_image_cli(args):
             return 0
             
         except Exception as e:
-            # Restore print if it was suppressed
-            if args.quiet:
-                builtins.print = original_print
-            
             print(f"Processing failed: {e}")
             return 1
             

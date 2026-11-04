@@ -2,15 +2,17 @@
 Pytest configuration and shared fixtures for all tests.
 """
 
-import pytest
-import numpy as np
-from pathlib import Path
-import tempfile
 import shutil
+import tempfile
+from pathlib import Path
+
+import numpy as np
+import pytest
 from PIL import Image
-from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPixmap
+from PyQt5.QtWidgets import QApplication
+
 
 # Ensure QApplication exists for GUI tests
 @pytest.fixture(scope="session")

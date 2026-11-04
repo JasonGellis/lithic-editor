@@ -2,9 +2,12 @@
 The PyQt5 graphical interface: the main window, its processing thread and the theme.
 """
 
-from lithic_editor.gui.main_window import LithicProcessorGUI
-from PyQt5.QtWidgets import QApplication
 import sys
+
+from PyQt5.QtWidgets import QApplication
+
+from lithic_editor.gui.main_window import LithicProcessorGUI
+
 
 def launch_gui():
     """Launch the working GUI implementation with exact same functionality."""

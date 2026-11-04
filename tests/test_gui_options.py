@@ -49,7 +49,7 @@ class TestOptionsPanel:
 
 class TestUpscalingDialog:
     def test_text_follows_the_output_size_choice(self, qapp):
-        from lithic_editor.gui.main_window import UpscalingDialog
+        from lithic_editor.gui.dialogs import UpscalingDialog
         dialog = UpscalingDialog(LineGeometry(3.0, 9.0, 0.05), 2, keep_upscaled=False)
         assert "pixel size and DPI of the input" in dialog.size_label.text()
         dialog.keep_checkbox.setChecked(True)
@@ -57,12 +57,12 @@ class TestUpscalingDialog:
         assert "No scale image is loaded" in dialog.size_label.text()
 
     def test_scale_image_is_mentioned_when_loaded(self, qapp):
-        from lithic_editor.gui.main_window import UpscalingDialog
+        from lithic_editor.gui.dialogs import UpscalingDialog
         dialog = UpscalingDialog(LineGeometry(3.0, 9.0, 0.05), 4, keep_upscaled=True, has_scale_image=True)
         assert "scaled by the same factor" in dialog.size_label.text()
 
     def test_confirm_returns_model_and_size_choice(self, qapp):
-        from lithic_editor.gui.main_window import UpscalingDialog
+        from lithic_editor.gui.dialogs import UpscalingDialog
         dialog = UpscalingDialog(LineGeometry(3.0, 9.0, 0.05), 2, default_model="fsrcnn")
         assert dialog.model_combo.currentData() == "fsrcnn"
         dialog.keep_checkbox.setChecked(True)
@@ -74,7 +74,9 @@ class TestUpscalingDialog:
     def test_dialog_choice_updates_the_panel(self, qapp, tmp_path, monkeypatch):
         """Confirming with the box ticked in the dialog ticks the panel's checkbox."""
         from PyQt5.QtWidgets import QDialog
-        from lithic_editor.gui.main_window import LithicProcessorGUI, UpscalingDialog
+
+        from lithic_editor.gui.dialogs import UpscalingDialog
+        from lithic_editor.gui.main_window import LithicProcessorGUI
         img = np.full((60, 60), 255, dtype=np.uint8)
         img[5, 5:55] = img[54, 5:55] = 0
         img[5:55, 5] = img[5:55, 54] = 0
@@ -99,7 +101,7 @@ class TestUpscalingDialog:
 
 class TestProcessingThread:
     def test_thread_carries_the_new_options(self, qapp):
-        from lithic_editor.gui.main_window import ProcessingThread
+        from lithic_editor.gui.processing_thread import ProcessingThread
         config = Config()
         thread = ProcessingThread("in.png", None, keep_upscaled=True, scale_image_path="bar.png", config=config)
         assert thread.keep_upscaled is True
@@ -109,7 +111,7 @@ class TestProcessingThread:
         assert thread.processed_scale_image is None
 
     def test_run_reports_factor_and_raised_dpi(self, qapp, tmp_path):
-        from lithic_editor.gui.main_window import ProcessingThread
+        from lithic_editor.gui.processing_thread import ProcessingThread
         img = np.full((60, 60), 255, dtype=np.uint8)
         img[5, 5:55] = img[54, 5:55] = 0
         img[5:55, 5] = img[5:55, 54] = 0
@@ -169,6 +171,7 @@ class TestRebuiltPanel:
 
     def test_bad_configuration_keeps_the_previous_one(self, qapp, tmp_path, monkeypatch):
         from PyQt5.QtWidgets import QMessageBox
+
         from lithic_editor.gui.main_window import LithicProcessorGUI
         monkeypatch.setattr(QMessageBox, "warning", lambda *args, **kwargs: None)
         window = LithicProcessorGUI()
@@ -193,7 +196,7 @@ class TestKeepUpscaledWarning:
         assert len(calls) == 1, "clearing the option must not warn"
 
     def test_dialog_warns_with_the_factor(self, qapp, no_modal_warnings):
-        from lithic_editor.gui.main_window import UpscalingDialog
+        from lithic_editor.gui.dialogs import UpscalingDialog
         calls = no_modal_warnings
         dialog = UpscalingDialog(LineGeometry(1.8, 9.8, 0.1), 4)
         dialog.keep_checkbox.setChecked(True)
@@ -202,7 +205,9 @@ class TestKeepUpscaledWarning:
 
     def test_dialog_choice_copied_to_panel_does_not_warn_twice(self, qapp, tmp_path, monkeypatch, no_modal_warnings):
         from PyQt5.QtWidgets import QDialog
-        from lithic_editor.gui.main_window import LithicProcessorGUI, UpscalingDialog
+
+        from lithic_editor.gui.dialogs import UpscalingDialog
+        from lithic_editor.gui.main_window import LithicProcessorGUI
         calls = no_modal_warnings
         img = np.full((60, 60), 255, dtype=np.uint8)
         img[5, 5:55] = img[54, 5:55] = 0
@@ -265,12 +270,13 @@ class TestStrikingAngleArrows:
         assert "panel" in config.source
 
     def test_thread_accepts_the_option(self, qapp):
-        from lithic_editor.gui.main_window import ProcessingThread
+        from lithic_editor.gui.processing_thread import ProcessingThread
         thread = ProcessingThread("in.png", "out", measure_angles=True)
         assert thread.measure_angles is True and thread.striking_angles == []
 
     def test_records_become_arrows_at_their_centroids(self, qapp):
         from PyQt5.QtGui import QPixmap
+
         from lithic_editor.gui.main_window import LithicProcessorGUI
         from lithic_editor.processing.striking_angle import widget_angle_from_compass
         window = LithicProcessorGUI()
@@ -313,6 +319,7 @@ class TestArrowStyles:
 
     def test_add_arrow_uses_the_style_in_the_box(self, qapp):
         from PyQt5.QtGui import QPixmap
+
         from lithic_editor.annotations import integration
         from lithic_editor.gui.main_window import LithicProcessorGUI
         window = LithicProcessorGUI()
@@ -323,6 +330,7 @@ class TestArrowStyles:
 
     def test_changing_the_box_restyles_the_selected_arrow(self, qapp):
         from PyQt5.QtGui import QPixmap
+
         from lithic_editor.annotations import integration
         from lithic_editor.gui.main_window import LithicProcessorGUI
         window = LithicProcessorGUI()
@@ -334,6 +342,7 @@ class TestArrowStyles:
 
     def test_selecting_an_arrow_shows_its_style(self, qapp):
         from PyQt5.QtGui import QPixmap
+
         from lithic_editor.gui.main_window import LithicProcessorGUI
         window = LithicProcessorGUI()
         window.canvas.set_base_image(QPixmap(400, 300))
@@ -347,6 +356,7 @@ class TestArrowStyles:
 
     def test_striking_angle_arrows_are_filled_whatever_the_box_shows(self, qapp):
         from PyQt5.QtGui import QPixmap
+
         from lithic_editor.gui.main_window import LithicProcessorGUI
         window = LithicProcessorGUI()
         window.canvas.set_base_image(QPixmap(400, 300))

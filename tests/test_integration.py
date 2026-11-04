@@ -2,9 +2,10 @@
 Integration tests for combined features.
 """
 
-import pytest
+from unittest.mock import MagicMock, patch
+
 import numpy as np
-from unittest.mock import patch, MagicMock
+import pytest
 from PIL import Image
 
 
@@ -155,14 +156,14 @@ class TestFullWorkflowIntegration:
             # Should call with correct parameters
             mock_process.assert_called_once()
             call_kwargs = mock_process.call_args[1]
-            assert call_kwargs['preserve_cortex'] == True
-            assert call_kwargs['save_debug'] == True
+            assert call_kwargs['preserve_cortex']
+            assert call_kwargs['save_debug']
     
-    @patch('lithic_editor.gui.main_window.process_lithic_drawing')
+    @patch('lithic_editor.gui.processing_thread.process_lithic_drawing')
     @patch('os.path.exists')
     def test_gui_to_processing_integration(self, mock_exists, mock_process, qapp, sample_image):
         """Test GUI processing integration."""
-        from lithic_editor.gui.main_window import ProcessingThread
+        from lithic_editor.gui.processing_thread import ProcessingThread
         
         mock_process.return_value = np.zeros((100, 100), dtype=np.uint8)
         mock_exists.return_value = True  # Mock file existence
@@ -179,8 +180,8 @@ class TestFullWorkflowIntegration:
         # Should call processing with correct parameters
         mock_process.assert_called_once()
         call_kwargs = mock_process.call_args[1]
-        assert call_kwargs['preserve_cortex'] == True
-        assert call_kwargs['save_debug'] == True
+        assert call_kwargs['preserve_cortex']
+        assert call_kwargs['save_debug']
 
 
 class TestDebugImageIntegration:
@@ -206,7 +207,7 @@ class TestDebugImageIntegration:
         image_path = temp_dir / "complex_test.png"
         img.save(image_path, dpi=(150, 150))
         
-        result = process_lithic_drawing(
+        process_lithic_drawing(
             image_path=str(image_path),
             output_folder=str(temp_dir),
             preserve_cortex=True,
@@ -239,7 +240,7 @@ class TestDebugImageIntegration:
         test_img = np.zeros((50, 50), dtype=np.uint8)
         test_img[20:30, 20:30] = 255
         
-        result = process_lithic_drawing(
+        process_lithic_drawing(
             image_path=test_img,
             output_folder=str(temp_dir),
             preserve_cortex=True,

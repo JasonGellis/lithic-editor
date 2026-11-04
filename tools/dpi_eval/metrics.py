@@ -17,7 +17,7 @@ import numpy as np
 from scipy.ndimage import convolve, distance_transform_edt, label
 from skimage.morphology import skeletonize
 
-from lithic_editor.processing.ripple_removal import separate_cortex_and_structure
+from lithic_editor.processing.cortex import separate_cortex_and_structure
 
 from .sources import SOURCE_DPI
 

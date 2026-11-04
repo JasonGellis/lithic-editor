@@ -5,13 +5,21 @@ This module provides classes for adding, manipulating, and rendering
 arrow annotations on images.
 """
 
-from PyQt5.QtWidgets import QLabel
+import logging
+
+from PyQt5.QtCore import QLineF, QPoint, Qt, pyqtSignal
 from PyQt5.QtGui import QPainter, QPen, QPixmap, QPolygon
-from PyQt5.QtCore import Qt, QPoint, QLineF, pyqtSignal
+from PyQt5.QtWidgets import QLabel
 
 from lithic_editor.annotations.arrow_shapes import (
-    DEFAULT_STYLE, arrow_parts, check_style, filled_outline, shaft_width,
+    DEFAULT_STYLE,
+    arrow_parts,
+    check_style,
+    filled_outline,
+    shaft_width,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class Arrow:
@@ -500,7 +508,6 @@ class ArrowCanvasWidget(QLabel):
             proposed_size = self.resize_start_size + size_change
 
             # Verify the proposed size would be detectable
-            temp_size = self.selected_arrow.size
             self.selected_arrow.size = proposed_size
 
             # Check if this size would be detectable
@@ -539,7 +546,7 @@ class ArrowCanvasWidget(QLabel):
                 # Movement mode
                 # Calculate the offset
                 dx = event.pos().x() - self.drag_start_pos.x()
-                dy = event.pos().y() - self.drag_start_pos.y()
+                event.pos().y() - self.drag_start_pos.y()
 
                 # Update the drag start position
                 self.drag_start_pos = event.pos()
@@ -604,7 +611,7 @@ class ArrowCanvasWidget(QLabel):
         if self.arrows:
             adjusted_count = self.make_all_arrows_detectable()
             if adjusted_count > 0:
-                print(f"Adjusted {adjusted_count} arrows to ensure detection at {self.image_dpi} DPI")
+                logger.info(f"Adjusted {adjusted_count} arrows to ensure detection at {self.image_dpi} DPI")
 
     def make_all_arrows_detectable(self):
         """

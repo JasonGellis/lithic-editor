@@ -5,11 +5,15 @@ This module provides neural network-based upscaling to improve line quality
 in low-resolution lithic drawings before processing.
 """
 
+import logging
 import os
+from typing import Optional, Tuple
+
 import cv2
 import numpy as np
 from PIL import Image
-from typing import Tuple, Optional
+
+logger = logging.getLogger(__name__)
 
 
 def detect_image_dpi(image_path: str) -> Optional[int]:
@@ -32,7 +36,7 @@ def detect_image_dpi(image_path: str) -> Optional[int]:
                 elif isinstance(dpi_info, (int, float)):
                     return int(dpi_info)
     except Exception as e:
-        print(f"Warning: Could not read DPI from {image_path}: {e}")
+        logger.info(f"Warning: Could not read DPI from {image_path}: {e}")
     
     return None
 
@@ -88,11 +92,11 @@ def load_upscaling_model(model_name: str, scale_factor: int):
         sr.readModel(model_path)
         sr.setModel(model_name.lower(), scale_factor)
         
-        print(f"Loaded {model_name.upper()} {scale_factor}x model")
+        logger.info(f"Loaded {model_name.upper()} {scale_factor}x model")
         return sr
         
     except Exception as e:
-        print(f"Error loading {model_name} model: {e}")
+        logger.info(f"Error loading {model_name} model: {e}")
         return None
 
 
@@ -116,13 +120,13 @@ def upscale_with_model(image: np.ndarray, scale_factor: float, model: str = 'esp
     else:
         model_scale = 4
     
-    print(f"Upscaling with {model.upper()} {model_scale}x (target factor: {scale_factor:.1f})")
+    logger.info(f"Upscaling with {model.upper()} {model_scale}x (target factor: {scale_factor:.1f})")
     
     # Load the model
     sr_model = load_upscaling_model(model, model_scale)
     
     if sr_model is None:
-        print("Falling back to INTER_LANCZOS4 interpolation")
+        logger.info("Falling back to INTER_LANCZOS4 interpolation")
         return upscale_with_interpolation(image, scale_factor)
     
     try:
@@ -146,12 +150,12 @@ def upscale_with_model(image: np.ndarray, scale_factor: float, model: str = 'esp
             upscaled = cv2.resize(upscaled, (target_width, target_height), 
                                 interpolation=cv2.INTER_LANCZOS4)
         
-        print(f"Upscaling successful: {image.shape} → {upscaled.shape}")
+        logger.info(f"Upscaling successful: {image.shape} → {upscaled.shape}")
         return upscaled
         
     except Exception as e:
-        print(f"Error during upscaling with {model}: {e}")
-        print("Falling back to INTER_LANCZOS4 interpolation")
+        logger.info(f"Error during upscaling with {model}: {e}")
+        logger.info("Falling back to INTER_LANCZOS4 interpolation")
         return upscale_with_interpolation(image, scale_factor)
 
 
@@ -172,7 +176,7 @@ def upscale_with_interpolation(image: np.ndarray, scale_factor: float) -> np.nda
     upscaled = cv2.resize(image, (target_width, target_height), 
                          interpolation=cv2.INTER_LANCZOS4)
     
-    print(f"Interpolation upscaling: {image.shape} → {upscaled.shape}")
+    logger.info(f"Interpolation upscaling: {image.shape} → {upscaled.shape}")
     return upscaled
 
 
@@ -205,17 +209,17 @@ def upscale_image_to_target_dpi(image: np.ndarray, current_dpi: int,
         Tuple of (upscaled_image, scale_factor)
     """
     if current_dpi >= target_dpi:
-        print(f"Image DPI ({current_dpi}) already meets target ({target_dpi})")
+        logger.info(f"Image DPI ({current_dpi}) already meets target ({target_dpi})")
         return image, 1.0
     
     scale_factor = calculate_upscale_factor(current_dpi, target_dpi)
     
     # Check maximum upscaling limit
     if scale_factor > 4.0:
-        print(f"Warning: Scale factor {scale_factor:.1f}x exceeds 4x limit. Using 4x instead.")
+        logger.info(f"Warning: Scale factor {scale_factor:.1f}x exceeds 4x limit. Using 4x instead.")
         scale_factor = 4.0
         actual_target_dpi = int(current_dpi * scale_factor)
-        print(f"Actual target DPI will be {actual_target_dpi} instead of {target_dpi}")
+        logger.info(f"Actual target DPI will be {actual_target_dpi} instead of {target_dpi}")
     
     upscaled_image = upscale_with_model(image, scale_factor, model)
     return upscaled_image, scale_factor

@@ -130,3 +130,6 @@ dmypy.json
 
 # Profiling
 .prof
+
+# Local working notes
+IMAGES_TODO.md

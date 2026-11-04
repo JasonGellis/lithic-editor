@@ -3,14 +3,13 @@ Helper functions for the arrow tools of the main window.
 
 The main window builds the Arrows pane and calls these functions from its buttons.
 """
-from PyQt5.QtWidgets import (
-    QColorDialog
-)
-from PyQt5.QtCore import Qt, QPoint
+from PyQt5.QtCore import QPoint, Qt
 from PyQt5.QtGui import QColor, QIcon, QPainter, QPixmap
+from PyQt5.QtWidgets import QColorDialog
 
 from lithic_editor.annotations.arrow_shapes import DEFAULT_STYLE
 from lithic_editor.annotations.arrows import ArrowCanvasWidget
+
 
 def create_arrow_canvas():
     """

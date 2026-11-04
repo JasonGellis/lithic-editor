@@ -6,9 +6,9 @@ from PIL import Image
 
 from lithic_editor.processing import process_lithic_drawing
 from lithic_editor.processing.resolution import measure_line_geometry
-from lithic_editor.processing.ripple_removal import (
-    _bridge_close_endpoints,
-    _find_endpoints_and_junctions,
+from lithic_editor.processing.skeleton import (
+    bridge_close_endpoints,
+    find_endpoints_and_junctions,
 )
 
 
@@ -36,7 +36,7 @@ class TestEndpointsAndJunctions:
     def test_open_line_has_two_endpoints_and_no_junction(self):
         skel = np.zeros((20, 40), dtype=bool)
         skel[10, 5:35] = True
-        endpoints, junctions = _find_endpoints_and_junctions(skel)
+        endpoints, junctions = find_endpoints_and_junctions(skel)
         assert sorted(endpoints) == [(5, 10), (34, 10)]
         assert junctions == []
 
@@ -44,7 +44,7 @@ class TestEndpointsAndJunctions:
         skel = np.zeros((40, 40), dtype=bool)
         skel[20, 5:35] = True
         skel[5:20, 20] = True
-        endpoints, junctions = _find_endpoints_and_junctions(skel)
+        endpoints, junctions = find_endpoints_and_junctions(skel)
         assert len(endpoints) == 3
         # Every pixel with three or more neighbours is a junction, so a T gives a small cluster
         assert (20, 20) in junctions
@@ -53,7 +53,7 @@ class TestEndpointsAndJunctions:
     def test_border_pixels_are_ignored(self):
         skel = np.zeros((10, 10), dtype=bool)
         skel[0, :] = True
-        endpoints, junctions = _find_endpoints_and_junctions(skel)
+        endpoints, junctions = find_endpoints_and_junctions(skel)
         assert endpoints == [] and junctions == []
 
 
@@ -62,18 +62,18 @@ class TestBridging:
         skel = np.zeros((20, 40), dtype=bool)
         skel[10, 5:18] = True
         skel[10, 21:35] = True          # 3 px gap
-        endpoints, _ = _find_endpoints_and_junctions(skel)
+        endpoints, _ = find_endpoints_and_junctions(skel)
         assert len(endpoints) == 4
-        assert _bridge_close_endpoints(skel, endpoints, max_distance=4.0) == 1
-        endpoints, _ = _find_endpoints_and_junctions(skel)
+        assert bridge_close_endpoints(skel, endpoints, max_distance=4.0) == 1
+        endpoints, _ = find_endpoints_and_junctions(skel)
         assert len(endpoints) == 2
 
     def test_distant_free_ends_are_left_alone(self):
         skel = np.zeros((20, 60), dtype=bool)
         skel[10, 5:20] = True
         skel[10, 40:55] = True          # 20 px gap
-        endpoints, _ = _find_endpoints_and_junctions(skel)
-        assert _bridge_close_endpoints(skel, endpoints, max_distance=4.0) == 0
+        endpoints, _ = find_endpoints_and_junctions(skel)
+        assert bridge_close_endpoints(skel, endpoints, max_distance=4.0) == 0
         assert skel.sum() == 30
 
     def test_each_end_is_bridged_at_most_once(self):
@@ -81,10 +81,10 @@ class TestBridging:
         skel[10, 5:12] = True     # ends at (11,10)
         skel[10, 14:20] = True    # ends at (14,10) and (19,10)
         skel[10, 22:28] = True    # ends at (22,10)
-        endpoints, _ = _find_endpoints_and_junctions(skel)
-        bridges = _bridge_close_endpoints(skel, endpoints, max_distance=3.0)
+        endpoints, _ = find_endpoints_and_junctions(skel)
+        bridges = bridge_close_endpoints(skel, endpoints, max_distance=3.0)
         assert bridges == 2
-        endpoints, _ = _find_endpoints_and_junctions(skel)
+        endpoints, _ = find_endpoints_and_junctions(skel)
         assert len(endpoints) == 2
 
     def test_broken_outline_survives_the_pipeline(self, tmp_path):
@@ -183,6 +183,7 @@ class TestRealExampleImages:
     ])
     def test_expected_upscale_factor(self, name, expected_factor):
         from pathlib import Path
+
         from lithic_editor.processing.resolution import choose_upscale_factor
         path = Path(__file__).resolve().parents[1] / "example_images" / f"{name}.png"
         if not path.exists():

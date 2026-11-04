@@ -226,10 +226,12 @@ def _two_scar_drawing(path, width=6):
 
 
 class TestPipeline:
-    def test_two_scars_get_angles_and_a_small_one_is_skipped(self, tmp_path, capsys):
+    def test_two_scars_get_angles_and_a_small_one_is_skipped(self, tmp_path, caplog):
         path = _two_scar_drawing(str(tmp_path / "scars.png"))
-        result = process_lithic_drawing(path, output_folder=str(tmp_path / "debug"), save_debug=True,
-                                        measure_angles=True)
+        import logging
+        with caplog.at_level(logging.INFO, logger="lithic_editor.processing"):
+            result = process_lithic_drawing(path, output_folder=str(tmp_path / "debug"), save_debug=True,
+                                            measure_angles=True)
         assert isinstance(result, dict)
         records = result['striking_angles']
         by_x = sorted(records, key=lambda r: r['x'])
@@ -240,7 +242,7 @@ class TestPipeline:
         assert left['ripples'] >= 4 and right['ripples'] >= 4
         assert 20 < left['x'] < 240 and 20 < left['y'] < 300
         assert 280 < right['x'] < 500 and 20 < right['y'] < 300
-        out = capsys.readouterr().out
+        out = caplog.text
         assert "fewer than 4" in out and "cortex stipple" in out
         assert (tmp_path / "debug" / "6a_scars_striking_angles.png").exists()
         assert (tmp_path / "debug" / "10_scars_striking_arrows.png").exists()

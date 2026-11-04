@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]  # license = "MIT" (PEP 639) needs 77
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -18,7 +18,7 @@ keywords = [
     "archaeological-tools", "stone-tools", "artifact-analysis",
 ]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Image Processing",
     "Programming Language :: Python :: 3",
@@ -36,7 +36,6 @@ dependencies = [
     "Pillow>=10.0",
     "PyQt5>=5.15.10",
     "scikit-image>=0.22",
-    "networkx>=3.0",
     "scipy>=1.10",
     "PyYAML>=6.0",
 ]
@@ -94,8 +93,5 @@ target-version = "py310"
 extend-exclude = ["site", "docs", "paper", "example_images", "image_debug", "output"]
 
 [tool.ruff.lint]
-# Pyflakes plus the pycodestyle error classes: real defects, not style.
-select = ["E4", "E7", "E9", "F"]
-# E712: tests compare Qt and numpy values with `== True`, which is not the same as `is True`.
-# F841: unused locals are a cleanup item, not a defect; re-enable once they are removed.
-ignore = ["E712", "F841"]
+# Pyflakes, the pycodestyle error classes and import order: real defects, not style.
+select = ["E4", "E7", "E9", "F", "I"]

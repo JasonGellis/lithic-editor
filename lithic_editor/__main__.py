@@ -6,6 +6,7 @@ when the package is run with `python -m lithic_editor`.
 """
 
 import sys
+
 from lithic_editor.cli.main import main
 
 if __name__ == '__main__':

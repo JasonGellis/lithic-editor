@@ -2,8 +2,9 @@
 Tests for the GUI module.
 """
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 from PyQt5.QtCore import QThread
 
 
@@ -50,18 +51,18 @@ class TestGUIBasic:
         window = LithicProcessorGUI()
         
         # Load should be enabled
-        assert window.load_button.isEnabled() == True
+        assert window.load_button.isEnabled()
         
         # Process should be disabled initially
-        assert window.process_button.isEnabled() == False
+        assert not window.process_button.isEnabled()
         
         # Save should be disabled initially
-        assert window.save_button.isEnabled() == False
+        assert not window.save_button.isEnabled()
         
         # Arrow buttons should be disabled initially
-        assert window.add_arrow_button.isEnabled() == False
-        assert window.delete_arrow_button.isEnabled() == False
-        assert window.clear_arrows_button.isEnabled() == False
+        assert not window.add_arrow_button.isEnabled()
+        assert not window.delete_arrow_button.isEnabled()
+        assert not window.clear_arrows_button.isEnabled()
 
 
 class TestProcessingThread:
@@ -69,7 +70,7 @@ class TestProcessingThread:
     
     def test_thread_creation(self, qapp):
         """Test creating processing thread."""
-        from lithic_editor.gui.main_window import ProcessingThread
+        from lithic_editor.gui.processing_thread import ProcessingThread
         
         thread = ProcessingThread(
             input_path="test.png",
@@ -81,11 +82,11 @@ class TestProcessingThread:
         assert isinstance(thread, QThread)
         assert thread.input_path == "test.png"
         assert thread.output_folder == "output"
-        assert thread.save_debug == False
+        assert not thread.save_debug
     
     def test_thread_signals(self, qapp):
         """Test that thread has required signals."""
-        from lithic_editor.gui.main_window import ProcessingThread
+        from lithic_editor.gui.processing_thread import ProcessingThread
         
         thread = ProcessingThread(
             input_path="test.png",
@@ -103,7 +104,7 @@ class TestCanvasWidget:
     
     def test_canvas_creation(self, qapp):
         """Test creating canvas widget."""
-        from lithic_editor.gui.main_window import CanvasWidget
+        from lithic_editor.gui.brush_canvas import CanvasWidget
         
         canvas = CanvasWidget()
         assert canvas is not None
@@ -111,7 +112,7 @@ class TestCanvasWidget:
     
     def test_canvas_set_image(self, qapp, sample_pixmap):
         """Test setting image on canvas."""
-        from lithic_editor.gui.main_window import CanvasWidget
+        from lithic_editor.gui.brush_canvas import CanvasWidget
         
         canvas = CanvasWidget()
         canvas.set_base_image(sample_pixmap)
@@ -121,7 +122,7 @@ class TestCanvasWidget:
     
     def test_canvas_clear(self, qapp, sample_pixmap):
         """Test clearing canvas."""
-        from lithic_editor.gui.main_window import CanvasWidget
+        from lithic_editor.gui.brush_canvas import CanvasWidget
         
         canvas = CanvasWidget()
         canvas.set_base_image(sample_pixmap)
@@ -151,7 +152,7 @@ class TestGUIWorkflow:
             window.load_button.click()
             
             # Check that process button is now enabled
-            assert window.process_button.isEnabled() == True
+            assert window.process_button.isEnabled()
     
     @pytest.mark.skip(reason="Requires full GUI interaction")
     def test_process_image_workflow(self, qapp, sample_image):
@@ -192,7 +193,7 @@ class TestGUIHelpers:
         
         assert hasattr(window, 'debug_images_checkbox')
         # Should be unchecked by default for performance
-        assert window.debug_images_checkbox.isChecked() == False
+        assert not window.debug_images_checkbox.isChecked()
         
         # Check backward compatibility aliases
         assert window.save_debug_images == window.debug_images_checkbox
@@ -206,7 +207,7 @@ class TestGUIHelpers:
         
         assert hasattr(window, 'preserve_cortex_checkbox')
         # Should be checked by default (cortex preserved)
-        assert window.preserve_cortex_checkbox.isChecked() == True
+        assert window.preserve_cortex_checkbox.isChecked()
     
     def test_clear_annotations_button(self, qapp):
         """Test clear annotations button exists."""
@@ -216,7 +217,7 @@ class TestGUIHelpers:
         
         assert hasattr(window, 'clear_annotations_button')
         # Clear annotations button should be disabled initially
-        assert window.clear_annotations_button.isEnabled() == False
+        assert not window.clear_annotations_button.isEnabled()
 
 
 class TestDialogs:
@@ -236,15 +237,16 @@ class TestDialogs:
         assert window.input_image_path is not None
         assert 'input' in window.input_image_path or str(sample_image) in window.input_image_path
         # Should have enabled process button
-        assert window.process_button.isEnabled() == True
+        assert window.process_button.isEnabled()
     
     @patch('PyQt5.QtWidgets.QFileDialog.getSaveFileName')
     @patch('lithic_editor.annotations.integration.get_image_with_arrows')
     def test_save_dialog(self, mock_get_arrows, mock_dialog, qapp, temp_dir, sample_pixmap):
         """Test save/output file dialog."""
-        from lithic_editor.gui.main_window import LithicProcessorGUI
-        from PyQt5.QtGui import QImage
         import numpy as np
+        from PyQt5.QtGui import QImage
+
+        from lithic_editor.gui.main_window import LithicProcessorGUI
         
         save_path = str(temp_dir / "output.png")
         mock_dialog.return_value = (save_path, "PNG Files (*.png)")
@@ -265,7 +267,7 @@ class TestDialogs:
     
     def test_processing_thread_with_cortex_parameter(self, qapp):
         """Test that processing thread receives cortex parameter."""
-        from lithic_editor.gui.main_window import ProcessingThread
+        from lithic_editor.gui.processing_thread import ProcessingThread
         
         thread = ProcessingThread(
             input_path="test.png",
@@ -274,7 +276,7 @@ class TestDialogs:
             preserve_cortex=False
         )
         
-        assert thread.preserve_cortex == False
+        assert not thread.preserve_cortex
         
         # Test default value
         thread_default = ProcessingThread(
@@ -283,4 +285,4 @@ class TestDialogs:
             save_debug=False
         )
         
-        assert thread_default.preserve_cortex == True  # Default
+        assert thread_default.preserve_cortex  # Default

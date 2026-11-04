@@ -2,7 +2,8 @@
 Tests for the annotations module (arrows).
 """
 
-from PyQt5.QtCore import Qt, QPoint
+from PyQt5.QtCore import QPoint, Qt
+
 from lithic_editor.annotations.arrows import Arrow, ArrowCanvasWidget
 
 
@@ -17,7 +18,7 @@ class TestArrow:
         assert arrow.angle == 0
         assert arrow.size == 30
         assert arrow.color == Qt.black
-        assert arrow.selected == False
+        assert not arrow.selected
     
     def test_arrow_with_custom_parameters(self):
         """Test creating an arrow with custom parameters."""
@@ -55,7 +56,7 @@ class TestArrow:
         original_size = arrow.size
         
         # Make it detectable
-        adjusted = arrow.make_detectable()
+        arrow.make_detectable()
         
         # Should have been adjusted
         assert arrow.size > original_size
@@ -86,7 +87,7 @@ class TestArrowCanvasWidget:
         assert canvas is not None
         assert canvas.arrows == []
         assert canvas.selected_arrow is None
-        assert canvas.dragging == False
+        assert not canvas.dragging
     
     def test_set_base_image(self, qapp, sample_pixmap):
         """Test setting base image on canvas."""
@@ -122,14 +123,14 @@ class TestArrowCanvasWidget:
         # Select first arrow
         canvas.select_arrow(arrow1)
         assert canvas.selected_arrow == arrow1
-        assert arrow1.selected == True
-        assert arrow2.selected == False
+        assert arrow1.selected
+        assert not arrow2.selected
         
         # Select second arrow
         canvas.select_arrow(arrow2)
         assert canvas.selected_arrow == arrow2
-        assert arrow1.selected == False
-        assert arrow2.selected == True
+        assert not arrow1.selected
+        assert arrow2.selected
     
     def test_delete_selected_arrow(self, qapp, sample_pixmap):
         """Test deleting selected arrow."""
@@ -246,6 +247,7 @@ class TestArrowStyles:
 
     def test_every_style_draws_offscreen(self, qapp):
         from PyQt5.QtGui import QPainter, QPixmap
+
         from lithic_editor.annotations.arrow_shapes import STYLE_NAMES
         pixmap = QPixmap(200, 200)
         pixmap.fill(Qt.white)
@@ -259,6 +261,7 @@ class TestArrowStyles:
 
     def test_styles_differ_in_the_drawing(self, qapp):
         from PyQt5.QtGui import QPainter, QPixmap
+
         from lithic_editor.annotations.arrow_shapes import STYLE_NAMES
         renders = {}
         for style in STYLE_NAMES:

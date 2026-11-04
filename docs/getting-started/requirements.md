@@ -22,7 +22,6 @@ pip installs all dependencies with the package.
 | Pillow | ≥10.0 | Image input and output |
 | PyQt5 | ≥5.15.10 | GUI framework |
 | scikit-image | ≥0.22 | Thresholding and skeletonization |
-| networkx | ≥3.0 | Graph analysis |
 | scipy | ≥1.10 | Scientific computing |
 
 !!! note "opencv-contrib-python"
@@ -92,7 +91,7 @@ print(f"Platform: {platform.platform()}")
 print(f"Architecture: {platform.machine()}")
 
 # Check the required packages
-required = ['numpy', 'cv2', 'PIL', 'PyQt5', 'skimage', 'networkx', 'scipy']
+required = ['numpy', 'cv2', 'PIL', 'PyQt5', 'skimage', 'scipy']
 for package in required:
     try:
         __import__(package)

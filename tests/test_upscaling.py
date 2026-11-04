@@ -2,22 +2,23 @@
 Tests for the upscaling module.
 """
 
-import pytest
+from unittest.mock import MagicMock, patch
+
 import numpy as np
+import pytest
 from PIL import Image
-from unittest.mock import patch, MagicMock
 
 from lithic_editor.processing.upscaling import (
-    detect_image_dpi,
     calculate_upscale_factor,
+    detect_image_dpi,
+    get_cached_model,
     get_model_path,
     load_upscaling_model,
-    upscale_with_model,
-    upscale_with_interpolation,
     needs_upscaling,
     upscale_image_to_target_dpi,
+    upscale_with_interpolation,
+    upscale_with_model,
     validate_upscaling_inputs,
-    get_cached_model
 )
 
 
@@ -72,10 +73,10 @@ class TestUpscaleCalculations:
     
     def test_needs_upscaling(self):
         """Test upscaling threshold check."""
-        assert needs_upscaling(150, 300) == True
-        assert needs_upscaling(300, 300) == False
-        assert needs_upscaling(400, 300) == False
-        assert needs_upscaling(200, 250) == True
+        assert needs_upscaling(150, 300)
+        assert not needs_upscaling(300, 300)
+        assert not needs_upscaling(400, 300)
+        assert needs_upscaling(200, 250)
 
 
 class TestModelManagement:
@@ -196,31 +197,31 @@ class TestUpscalingValidation:
     def test_validate_upscaling_inputs_valid(self):
         """Test validation with valid inputs."""
         is_valid, error = validate_upscaling_inputs(150, 300, 'espcn')
-        assert is_valid == True
+        assert is_valid
         assert error == ""
     
     def test_validate_upscaling_inputs_dpi_too_low(self):
         """Test validation with DPI too low."""
         is_valid, error = validate_upscaling_inputs(50, 300, 'espcn')
-        assert is_valid == False
+        assert not is_valid
         assert "too low" in error
     
     def test_validate_upscaling_inputs_target_lower_than_current(self):
         """Test validation with target DPI lower than current."""
         is_valid, error = validate_upscaling_inputs(300, 150, 'espcn')
-        assert is_valid == False
+        assert not is_valid
         assert "lower than current" in error
     
     def test_validate_upscaling_inputs_invalid_model(self):
         """Test validation with invalid model."""
         is_valid, error = validate_upscaling_inputs(150, 300, 'invalid')
-        assert is_valid == False
+        assert not is_valid
         assert "Invalid model" in error
     
     def test_validate_upscaling_inputs_scale_factor_too_high(self):
         """Test validation with scale factor exceeding 4x."""
         is_valid, error = validate_upscaling_inputs(50, 300, 'espcn')
-        assert is_valid == False
+        assert not is_valid
         assert "too low" in error or "exceeds 4x" in error  # Either error is valid
 
 

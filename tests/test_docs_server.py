@@ -2,7 +2,7 @@
 Tests for the documentation server module.
 """
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 
 class TestDocsServer:

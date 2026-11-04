@@ -15,8 +15,8 @@ __email__ = "jg760@cam.ac.uk"
 __institution__ = "University of Cambridge, Department of Archaeology and Anthropology"
 
 # Main package exports as specified in PythonPackaging.md
-from lithic_editor.processing import process_lithic_drawing
 from lithic_editor.gui import launch_gui
+from lithic_editor.processing import process_lithic_drawing
 
 __all__ = [
     "process_lithic_drawing",
