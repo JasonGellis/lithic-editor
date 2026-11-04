@@ -129,6 +129,25 @@ python -m tools.dpi_eval.run   # Evaluate the pipeline across resolutions
 
 The evaluation harness runs the pipeline on the example drawings at 600, 300, 150 and 75 DPI. It writes a report with montages to `results/dpi_eval/`. See the [Developer Guide](https://jasongellis.github.io/lithic-editor/developer/contributing/) and the [Testing Guide](https://jasongellis.github.io/lithic-editor/developer/testing/).
 
+## How to cite
+
+If you use Lithic Editor in your research, cite the software. The **Cite this repository** button on the GitHub page gives the reference in APA and BibTeX from `CITATION.cff`.
+
+> Gellis, J. J. (2026). *Lithic Editor and Annotator* (Version 1.0.0) [Computer software]. https://github.com/JasonGellis/lithic-editor
+
+```bibtex
+@software{gellis_lithic_editor_2026,
+  author  = {Gellis, Jason Jacob},
+  title   = {Lithic Editor and Annotator},
+  version = {1.0.0},
+  year    = {2026},
+  url     = {https://github.com/JasonGellis/lithic-editor},
+  doi     = {10.5281/zenodo.XXXXXXX}
+}
+```
+
+The DOI is added with the v1.0.0 release on Zenodo. A paper that describes the method is in preparation. When it is published, cite the paper as well.
+
 ## License
 
 [MIT License](LICENSE)
