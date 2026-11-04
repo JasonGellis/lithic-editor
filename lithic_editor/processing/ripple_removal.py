@@ -16,6 +16,7 @@ import numpy as np
 
 from lithic_editor.config import resolve_config
 
+from ..annotations.arrow_shapes import minimum_size_for_dpi
 from .cortex import separate_cortex_and_structure
 from .debug_images import DebugWriter
 from .image_io import read_drawing
@@ -420,8 +421,7 @@ def process_lithic_drawing(image_path, output_folder="image_debug", dpi_info=Non
         striking_angles = [r.on_grid(scale_factor / output_scale) for r in striking_angles]
         if debug.enabled and striking_angles:
             # The arrows as the GUI places them: the minimum detectable size for the DPI
-            dpi_value = current_dpi if isinstance(current_dpi, (int, float)) and current_dpi else 300
-            arrow_size = 50 * max(1.0, 300.0 / dpi_value)
+            arrow_size = minimum_size_for_dpi(current_dpi)
             debug.save(draw_arrows(final_cleaned_inverted, striking_angles, arrow_size), '10', 'striking_arrows',
                        'Striking Arrows', dpi_info, output_dpi if output_dpi else dpi_info)
 

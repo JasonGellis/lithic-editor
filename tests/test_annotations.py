@@ -76,6 +76,14 @@ class TestArrow:
         assert status_low_dpi in ["error", "warning", "good"]
         assert status_high_dpi in ["error", "warning", "good"]
 
+    def test_small_arrow_is_detectable_at_low_dpi(self):
+        """A 20 px arrow is good at 75 DPI, the same arrow on the page as 80 px at 300 DPI."""
+        arrow = Arrow(size=20)
+        assert arrow.get_detection_status(image_dpi=75) == "good"
+        assert arrow.get_detection_status(image_dpi=300) != "good"
+        assert arrow.make_detectable(image_dpi=75) is False
+        assert arrow.size == 20
+
 
 class TestArrowCanvasWidget:
     """Test suite for ArrowCanvasWidget."""
@@ -225,14 +233,17 @@ class TestArrowCanvasWidget:
         min_size = canvas.get_minimum_arrow_size()
         assert min_size == 50
         
-        # With DPI
+        # Below 300 DPI the minimum shrinks in proportion: the same size on the page
         canvas.image_dpi = 150
-        min_size_low_dpi = canvas.get_minimum_arrow_size()
-        assert min_size_low_dpi > 50  # Should be larger for low DPI
-        
+        assert canvas.get_minimum_arrow_size() == 25
+
+        # Never below the floor
+        canvas.image_dpi = (75, 75)
+        assert canvas.get_minimum_arrow_size() == 20
+        assert canvas.add_arrow(QPoint(50, 50)).size == 20
+
         canvas.image_dpi = 600
-        min_size_high_dpi = canvas.get_minimum_arrow_size()
-        assert min_size_high_dpi == 50  # Should stay at minimum for high DPI
+        assert canvas.get_minimum_arrow_size() == 50  # Should stay at minimum for high DPI
 
 class TestArrowStyles:
     """The arrow styles on the model and the canvas."""

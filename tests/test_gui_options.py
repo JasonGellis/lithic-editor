@@ -274,6 +274,32 @@ class TestStrikingAngleArrows:
         thread = ProcessingThread("in.png", "out", measure_angles=True)
         assert thread.measure_angles is True and thread.striking_angles == []
 
+    def test_result_dpi_sizes_the_arrows(self, qapp):
+        """The canvas takes the DPI of the result before the arrows are placed. Kept at the
+        upscaled size, a 75 DPI input gives a 300 DPI result and 50 px arrows; restored, 20 px."""
+        from lithic_editor.gui.main_window import LithicProcessorGUI
+        window = LithicProcessorGUI()
+        window.image_dpi = (75, 75)
+        window.output_folder = "out"
+        image = np.full((200, 200), 255, dtype=np.uint8)
+        record = {'scar': 1, 'x': 100.0, 'y': 100.0, 'compass': 0.0, 'ripples': 5, 'spread': 0.0,
+                  'direction_certain': True, 'extent': 10.0}
+
+        class FakeThread:
+            result_scale_factor = 4
+            processed_scale_image = None
+            striking_angles = [record]
+        window.processing_thread = FakeThread()
+        window.processing_finished(image, (300, 300), None)
+        assert window.canvas.image_dpi == 300
+        assert [a.size for a in window.canvas.arrows] == [50]
+
+        window.canvas.clear_arrows()
+        window.processing_thread.result_scale_factor = 1
+        window.processing_finished(image, (75, 75), None)
+        assert window.canvas.image_dpi == 75
+        assert [a.size for a in window.canvas.arrows] == [20]
+
     def test_records_become_arrows_at_their_centroids(self, qapp):
         from PyQt5.QtGui import QPixmap
 

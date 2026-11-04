@@ -68,7 +68,7 @@
     Click near the center of the arrow. The selection radius is two thirds of the arrow size.
 
 ??? failure "The arrow does not get smaller"
-    The minimum arrow size depends on the DPI. Below 300 DPI the minimum is larger. The application keeps each arrow large enough for detection.
+    The minimum arrow size depends on the DPI: 50 px at 300 DPI, smaller in proportion below that, and never below 20 px. The application keeps each arrow large enough for detection.
 
 ??? failure "The arrows are removed"
     The application removes all arrows when you load or process an image. Add the arrows after the last processing run.

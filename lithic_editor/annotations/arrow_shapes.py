@@ -30,6 +30,27 @@ STYLES = (
 STYLE_NAMES = tuple(name for name, _ in STYLES)
 DEFAULT_STYLE = "filled"
 
+# The minimum arrow size: the size at the reference DPI, scaled down with the DPI so the
+# arrow keeps its physical size (about 4 mm), with a floor so it keeps its shape. PyLithics
+# scales its detection thresholds the same way.
+BASE_SIZE = 50
+REFERENCE_DPI = 300
+FLOOR_SIZE = 20
+
+
+def minimum_size_for_dpi(dpi=None):
+    """The minimum arrow size in pixels for an image at ``dpi``.
+
+    ``dpi`` is a number, a ``(x, y)`` tuple or None. None means the reference DPI.
+    At the reference DPI or more the minimum is ``BASE_SIZE``. Below it the minimum
+    shrinks in proportion, never below ``FLOOR_SIZE``.
+    """
+    if isinstance(dpi, (tuple, list)):
+        dpi = min(dpi) if dpi else None
+    if not dpi or dpi >= REFERENCE_DPI:
+        return BASE_SIZE
+    return max(FLOOR_SIZE, int(round(BASE_SIZE * dpi / REFERENCE_DPI)))
+
 # Fractions of the arrow size
 SHAFT_LENGTH = 1.3
 HEAD_LENGTH = 0.8

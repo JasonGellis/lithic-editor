@@ -35,7 +35,7 @@ def add_arrow(parent):
     center_y = parent.canvas.height() // 2
 
     # Add the arrow in the style the Arrows pane shows
-    parent.canvas.add_arrow(QPoint(center_x, center_y), size=50, color=parent.arrow_color,
+    parent.canvas.add_arrow(QPoint(center_x, center_y), color=parent.arrow_color,
                             style=current_arrow_style(parent))
 
     # Enable the delete buttons

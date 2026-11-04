@@ -52,7 +52,7 @@ Drag the arrow to the new position.
 
 Hold Option (macOS) or Alt (Windows, Linux) and drag. Drag to the right to make the arrow larger. Drag to the left to make it smaller.
 
-The size stays between the minimum for the image DPI and 200 px. The minimum is 50 px at 300 DPI or more. Below 300 DPI, the minimum increases in proportion. At 150 DPI, the minimum is 100 px.
+The size stays between the minimum for the image DPI and 200 px. The minimum is 50 px at 300 DPI or more. Below 300 DPI, the minimum decreases in proportion, so the arrow keeps the same size on the page. At 150 DPI, the minimum is 25 px. The minimum is never below 20 px.
 
 ## Remove arrows
 
@@ -61,7 +61,7 @@ The size stays between the minimum for the image DPI and 200 px. The minimum is 
 
 ## Arrow size and detection
 
-The application keeps each arrow large enough for automatic detection in measurement software.
+The application keeps each arrow large enough for automatic detection in measurement software. The minimum size follows the DPI of the image, in the same way as the detection thresholds of PyLithics. An arrow on a 75 DPI image and an arrow on a 300 DPI image have the same size on the page.
 
 - A new arrow gets the minimum size for the image DPI or more.
 - A resize cannot make an arrow too small.

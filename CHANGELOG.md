@@ -34,5 +34,10 @@ The first release.
 - The pipeline reports through Python logging. The command line prints the log lines
   unless `--quiet` is given, which keeps warnings only. The window shows them in its log.
 - NetworkX is no longer a dependency. The pipeline built a graph it never read.
+- The minimum arrow size follows the DPI of the result in the same direction as the
+  PyLithics detection thresholds: 50 px at 300 DPI, smaller in proportion below that,
+  never below 20 px. Before, a 75 DPI result got 200 px arrows.
+- With the result kept at the upscaled size, the arrows are sized for the DPI of the
+  result, not of the input.
 
 [1.0.0]: https://github.com/JasonGellis/lithic-editor/releases/tag/v1.0.0

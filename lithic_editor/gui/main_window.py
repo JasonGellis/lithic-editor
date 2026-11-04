@@ -542,6 +542,13 @@ class LithicProcessorGUI(QMainWindow):
                 proc_h, proc_w = image_data.shape[:2]
             self.log(f"Result size: {proc_w}x{proc_h} pixels")
 
+            # The DPI of the result, before the canvas sizes any arrow from it. With the
+            # result kept at the upscaled size it is the input DPI times the factor.
+            if dpi_info:
+                self.image_dpi = dpi_info
+                self.current_dpi_label.setText(f"DPI of the result: {round(dpi_info[0])}x{round(dpi_info[1])}")
+                self.log(f"DPI of the result: {round(dpi_info[0])}x{round(dpi_info[1])}")
+
             # Display the processed image from memory
             self.display_image_from_array(image_data, self.canvas)
 
@@ -549,12 +556,6 @@ class LithicProcessorGUI(QMainWindow):
             arrow_integration.enable_arrow_controls(self)
             self.log("Add arrows to the result: drag to move, Shift+drag to rotate, Alt+drag to resize")
             self.place_striking_arrows(getattr(thread, 'striking_angles', []))
-
-            # Update DPI display if we have DPI info
-            if dpi_info:
-                self.image_dpi = dpi_info
-                self.current_dpi_label.setText(f"DPI of the result: {round(dpi_info[0])}x{round(dpi_info[1])}")
-                self.log(f"DPI of the result: {round(dpi_info[0])}x{round(dpi_info[1])}")
 
             self.save_button.setEnabled(True)
             self.clear_annotations_button.setEnabled(True)

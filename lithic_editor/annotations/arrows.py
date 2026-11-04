@@ -16,10 +16,18 @@ from lithic_editor.annotations.arrow_shapes import (
     arrow_parts,
     check_style,
     filled_outline,
+    minimum_size_for_dpi,
     shaft_width,
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _dpi_number(image_dpi):
+    """The DPI as one number: the smaller of a tuple, or 300 when there is none."""
+    if isinstance(image_dpi, (tuple, list)):
+        image_dpi = min(image_dpi) if image_dpi else None
+    return image_dpi or 300
 
 
 class Arrow:
@@ -41,14 +49,12 @@ class Arrow:
         - "warning": Arrow may not be detected
         - "error": Arrow will not be detected
         """
-        # Default to 300 DPI if not provided
-        dpi = image_dpi or 300
+        dpi = _dpi_number(image_dpi)
 
-        # Calculate scaling factor based on DPI
-        scale_factor = dpi / 300  # Inverted from original formula to correctly scale
+        # Measure the arrow in pixels at 300 DPI. PyLithics scales its thresholds with the
+        # DPI, so a small arrow on a low DPI grid is as detectable as a large one at 300 DPI.
+        scale_factor = 300 / dpi
 
-        # Calculate effective sizes relative to DPI
-        # Lower DPI means we need larger arrows for the same detection reliability
         effective_size = self.size * scale_factor
         effective_shaft_width = max(5, int(self.size * 0.1)) * scale_factor
         effective_head_size = self.size * 0.6 * scale_factor
@@ -77,11 +83,10 @@ class Arrow:
         if self.get_detection_status(image_dpi) == "good":
             return False
 
-        # Default to 300 DPI if not provided
-        dpi = image_dpi or 300
+        dpi = _dpi_number(image_dpi)
 
-        # Calculate scale factor - lower DPI requires larger arrows
-        scale_factor = 300 / dpi
+        # The required sizes are in pixels at 300 DPI; a lower DPI needs fewer pixels
+        scale_factor = dpi / 300
 
         # Calculate minimum size needed for detection
         min_shaft_width = 5 * scale_factor
@@ -262,13 +267,14 @@ class ArrowCanvasWidget(QLabel):
             # If no scaling applied
             super().setPixmap(final)
 
-    def add_arrow(self, position, size=50, color=Qt.black, style=DEFAULT_STYLE):
+    def add_arrow(self, position, size=None, color=Qt.black, style=DEFAULT_STYLE):
         """
         Add a new arrow at the specified position with size optimized for detection
 
         Args:
             position: QPoint position in view coordinates
-            size: Initial size (will be adjusted if needed for detection)
+            size: Initial size in pixels, never below the minimum for the image DPI.
+                None means the minimum.
             color: Arrow color
             style: Arrow style name, see arrow_shapes.STYLES
 
@@ -278,18 +284,9 @@ class ArrowCanvasWidget(QLabel):
         # Convert from view coordinates to pixmap coordinates if needed
         pixmap_pos = self.map_to_pixmap_coords(position)
 
-        # Calculate minimum size for detection based on DPI
-        min_size = 50
-        if self.image_dpi:
-            # Calculate DPI-based minimum size
-            # Lower DPI requires larger arrows for reliable detection
-            dpi_value = min(self.image_dpi) if isinstance(self.image_dpi, tuple) else self.image_dpi
-            if dpi_value < 300:
-                # Scale minimum size inversely with DPI
-                min_size = int(min_size * (300 / dpi_value))
-
         # Use the larger of requested size or minimum detectable size
-        actual_size = max(size, min_size)
+        minimum = self.get_minimum_arrow_size()
+        actual_size = max(size or minimum, minimum)
 
         # Create and add the arrow
         arrow = Arrow(position=pixmap_pos, size=actual_size, color=color, style=style)
@@ -496,13 +493,7 @@ class ArrowCanvasWidget(QLabel):
             # Positive dx = increase size, negative dx = decrease size
             size_change = dx * 0.5  # Scale the change for better control
 
-            # Calculate minimum size based on DPI
-            min_size = 50
-            if self.image_dpi:
-                dpi_value = min(self.image_dpi) if isinstance(self.image_dpi, tuple) else self.image_dpi
-                if dpi_value < 300:
-                    # Scale minimum size inversely with DPI
-                    min_size = int(min_size * (300 / dpi_value))
+            min_size = self.get_minimum_arrow_size()
 
             # Try to update the arrow size
             proposed_size = self.resize_start_size + size_change
@@ -636,21 +627,9 @@ class ArrowCanvasWidget(QLabel):
 
     def get_minimum_arrow_size(self):
         """
-        Calculate the minimum arrow size based on current DPI
+        The minimum arrow size in pixels for the DPI of the image.
 
-        Returns:
-            int: Minimum arrow size in pixels
+        50 px at 300 DPI or more; below that, smaller in proportion, never below 20 px,
+        so the arrow keeps its physical size. See ``arrow_shapes.minimum_size_for_dpi``.
         """
-        # Default minimum size (at 300 DPI)
-        base_min_size = 50
-
-        if not self.image_dpi:
-            return base_min_size
-
-        # Calculate DPI-based minimum size
-        dpi_value = min(self.image_dpi) if isinstance(self.image_dpi, tuple) else self.image_dpi
-        if dpi_value < 300:
-            # Scale minimum size inversely with DPI
-            return int(base_min_size * (300 / dpi_value))
-        else:
-            return base_min_size
+        return minimum_size_for_dpi(self.image_dpi)
